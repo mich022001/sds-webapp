@@ -1,10 +1,167 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 
-const API = import.meta.env.VITE_API_URL;
+const nav = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "registration", label: "Registration" },
+  { key: "members", label: "Members" },
+  { key: "ledger", label: "Bonus Ledger" },
+  { key: "sales", label: "Sales Entry" },
+  { key: "reports", label: "Reports" },
+  { key: "redemptions", label: "Redemptions" },
+];
+
+function cls(...a) {
+  return a.filter(Boolean).join(" ");
+}
+
+function Card({ title, children, right }) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="text-sm font-semibold text-zinc-900">{title}</div>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Stat({ label, value, hint }) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+      <div className="text-xs font-medium text-zinc-500">{label}</div>
+      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">{value}</div>
+      {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
+    </div>
+  );
+}
+
+function Input({ label, ...props }) {
+  return (
+    <label className="grid gap-1">
+      <span className="text-xs font-medium text-zinc-600">{label}</span>
+      <input
+        {...props}
+        className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 focus:border-zinc-900"
+      />
+    </label>
+  );
+}
+
+function Select({ label, children, ...props }) {
+  return (
+    <label className="grid gap-1">
+      <span className="text-xs font-medium text-zinc-600">{label}</span>
+      <select
+        {...props}
+        className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function Button({ children, variant = "primary", ...props }) {
+  return (
+    <button
+      {...props}
+      className={cls(
+        "h-10 rounded-xl px-4 text-sm font-semibold transition",
+        variant === "primary" && "bg-zinc-900 text-white hover:bg-zinc-800",
+        variant === "ghost" && "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
 
 export default function App() {
-  const [members, setMembers] = useState([]);
-  const [ledger, setLedger] = useState([]);
+  const [active, setActive] = useState("dashboard");
+
+  const pageTitle = useMemo(() => nav.find(n => n.key === active)?.label ?? "Dashboard", [active]);
+
+  return (
+    <div className="min-h-screen bg-zinc-50">
+      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
+        {/* Sidebar */}
+        <aside className="hidden w-64 shrink-0 md:block">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+            <div className="text-lg font-extrabold text-zinc-900">SDS Admin</div>
+            <div className="text-xs text-zinc-500">Direct Sales Web System</div>
+
+            <div className="mt-4 grid gap-1">
+              {nav.map((n) => (
+                <button
+                  key={n.key}
+                  onClick={() => setActive(n.key)}
+                  className={cls(
+                    "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm",
+                    active === n.key
+                      ? "bg-zinc-900 text-white"
+                      : "text-zinc-700 hover:bg-zinc-100"
+                  )}
+                >
+                  <span className="font-semibold">{n.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        {/* Main */}
+        <main className="flex-1">
+          {/* Top bar */}
+          <div className="mb-5 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xl font-extrabold text-zinc-900">{pageTitle}</div>
+              <div className="text-sm text-zinc-500">
+                Website UI first — next we connect database + reports.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => alert("Next: add login + roles")}>Login (next)</Button>
+              <Button onClick={() => alert("Next: connect Supabase API")}>Connect DB (next)</Button>
+            </div>
+          </div>
+
+          {active === "dashboard" && <Dashboard />}
+          {active === "registration" && <Registration />}
+          {active === "members" && <Placeholder title="Members" desc="Search, view profile, genealogy, promotion" />}
+          {active === "ledger" && <Placeholder title="Bonus Ledger" desc="Filter by earner, reason, date range" />}
+          {active === "sales" && <Placeholder title="Sales Entry" desc="Checkout + RM rebates + upline bonuses" />}
+          {active === "reports" && <Reports />}
+          {active === "redemptions" && <Placeholder title="Redemptions" desc="List + filter + notes" />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function Dashboard() {
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Stat label="Total Members" value="—" hint="From members table" />
+        <Stat label="Cash Issued" value="—" hint="From bonus ledger" />
+        <Stat label="Cash Redeemed" value="—" hint="From redemptions" />
+        <Stat label="Total Sales" value="—" hint="From sales ledger" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card title="Recent Members">
+          <div className="text-sm text-zinc-500">We’ll load last 20 from the database.</div>
+        </Card>
+        <Card title="Recent Bonus Entries">
+          <div className="text-sm text-zinc-500">We’ll load last 50 from the database.</div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function Registration() {
   const [form, setForm] = useState({
     name: "",
     contact: "",
@@ -12,119 +169,109 @@ export default function App() {
     membershipType: "Member",
     address: "",
     sponsor: "",
-    areaRegion: ""
+    areaRegion: "",
   });
-  const [msg, setMsg] = useState("");
-
-  async function load() {
-    const m = await fetch(`${API}/api/members`).then(r => r.json());
-    const l = await fetch(`${API}/api/bonus-ledger`).then(r => r.json());
-    setMembers(m);
-    setLedger(l);
-  }
-
-  useEffect(() => { load(); }, []);
-
-  async function register(e) {
-    e.preventDefault();
-    setMsg("");
-    const res = await fetch(`${API}/api/registration`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      setMsg(`ERROR: ${data.error}`);
-      return;
-    }
-    setMsg(`Saved! Member ID: ${data.memberId}`);
-    setForm({ ...form, name: "", contact: "", email: "", address: "", sponsor: "", areaRegion: "" });
-    await load();
-  }
 
   return (
-    <div style={{ fontFamily: "system-ui", padding: 20, maxWidth: 1100, margin: "0 auto" }}>
-      <h2>SDS Direct Sales Web</h2>
-      <p style={{ color: "#555" }}>Registration + Members + Bonus Ledger (web version)</p>
+    <div className="grid gap-4 md:grid-cols-2">
+      <Card
+        title="Register New Member"
+        right={<span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">Sheet: Registration_Sheet</span>}
+      >
+        <form className="grid gap-3" onSubmit={(e) => e.preventDefault()}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <Input label="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+          </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
-          <h3>Registration</h3>
-          <form onSubmit={register} style={{ display: "grid", gap: 10 }}>
-            <input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-            <input placeholder="Contact" value={form.contact} onChange={e => setForm({ ...form, contact: e.target.value })} />
-            <input placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-            <select value={form.membershipType} onChange={e => setForm({ ...form, membershipType: e.target.value })}>
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Select
+              label="Membership Type"
+              value={form.membershipType}
+              onChange={(e) => setForm({ ...form, membershipType: e.target.value })}
+            >
               <option>Member</option>
               <option>Distributor</option>
               <option>Stockiest</option>
               <option>Area Manager</option>
               <option>Regional Manager</option>
-            </select>
-            <input placeholder="Address" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
-            <input placeholder="Sponsor name (or SDS)" value={form.sponsor} onChange={e => setForm({ ...form, sponsor: e.target.value })} />
-            <input placeholder="Area/Region" value={form.areaRegion} onChange={e => setForm({ ...form, areaRegion: e.target.value })} />
-            <button type="submit">Save Member</button>
-          </form>
-          {msg && <p style={{ marginTop: 10 }}>{msg}</p>}
-        </div>
-
-        <div style={{ border: "1px solid #ddd", borderRadius: 12, padding: 16 }}>
-          <h3>All Members</h3>
-          <div style={{ maxHeight: 300, overflow: "auto", border: "1px solid #eee", borderRadius: 10 }}>
-            <table width="100%" cellPadding="8">
-              <thead>
-                <tr style={{ background: "#fafafa" }}>
-                  <th align="left">Name</th>
-                  <th align="left">ID</th>
-                  <th align="left">Type</th>
-                  <th align="left">Sponsor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map(m => (
-                  <tr key={m.id}>
-                    <td>{m.name}</td>
-                    <td>{m.member_id}</td>
-                    <td>{m.membership_type}</td>
-                    <td>{m.sponsor_name || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            </Select>
           </div>
 
-          <h3 style={{ marginTop: 16 }}>Bonus Ledger</h3>
-          <div style={{ maxHeight: 240, overflow: "auto", border: "1px solid #eee", borderRadius: 10 }}>
-            <table width="100%" cellPadding="8">
-              <thead>
-                <tr style={{ background: "#fafafa" }}>
-                  <th align="left">Date</th>
-                  <th align="left">Earner</th>
-                  <th align="left">From</th>
-                  <th align="left">Lvl</th>
-                  <th align="left">Type</th>
-                  <th align="left">Amt</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ledger.map(l => (
-                  <tr key={l.id}>
-                    <td>{l.created_at}</td>
-                    <td>{l.earner_name}</td>
-                    <td>{l.source_member_name}</td>
-                    <td>{l.relative_level}</td>
-                    <td>{l.bonus_type}</td>
-                    <td>{l.amount_text || l.amount_num || ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input label="Sponsor (name or SDS)" value={form.sponsor} onChange={(e) => setForm({ ...form, sponsor: e.target.value })} />
+            <Input label="Area/Region" value={form.areaRegion} onChange={(e) => setForm({ ...form, areaRegion: e.target.value })} />
           </div>
 
-        </div>
-      </div>
+          <div className="mt-2 flex gap-2">
+            <Button type="submit">Save Member (connect API next)</Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setForm({ name: "", contact: "", email: "", membershipType: "Member", address: "", sponsor: "", areaRegion: "" })}
+            >
+              Clear
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card title="What happens when you save (same as Apps Script)">
+        <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-600">
+          <li>Creates Member ID (2026EM000001...)</li>
+          <li>Assigns level based on sponsor</li>
+          <li>Assigns Regional Manager (data consistency rule)</li>
+          <li>Promotes sponsor Member → Distributor after first recruit</li>
+          <li>Distributes bonuses up to 7 uplines with duplicate protection</li>
+          <li>Updates Members_Bonuses (summary balances)</li>
+        </ul>
+      </Card>
     </div>
+  );
+}
+
+function Reports() {
+  return (
+    <div className="grid gap-4 md:grid-cols-3">
+      <Card title="Member Report" right={<span className="text-xs font-semibold text-zinc-500">Sheet: Member_Report</span>}>
+        <div className="text-sm text-zinc-600">
+          Shows profile + summary + bonus tree (levels 1–7) + genealogy.
+        </div>
+        <div className="mt-4">
+          <Button onClick={() => alert("Next: /api/reports/member?name=...")}>Open (next)</Button>
+        </div>
+      </Card>
+
+      <Card title="Regional Report" right={<span className="text-xs font-semibold text-zinc-500">Sheet: Regional_Report</span>}>
+        <div className="text-sm text-zinc-600">
+          RM summary + rebates + genealogy by level + bonus totals (1–7).
+        </div>
+        <div className="mt-4">
+          <Button onClick={() => alert("Next: /api/reports/regional?rm=...")}>Open (next)</Button>
+        </div>
+      </Card>
+
+      <Card title="Sales Analytics" right={<span className="text-xs font-semibold text-zinc-500">Sheet: Sales_Analytics</span>}>
+        <div className="text-sm text-zinc-600">
+          Highest products sold, top buyers, per package, per product (date range).
+        </div>
+        <div className="mt-4">
+          <Button onClick={() => alert("Next: /api/reports/sales?from=...&to=...")}>Open (next)</Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function Placeholder({ title, desc }) {
+  return (
+    <Card title={title}>
+      <div className="text-sm text-zinc-600">{desc}</div>
+      <div className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+        UI placeholder — next we connect it to database + API.
+      </div>
+    </Card>
   );
 }
