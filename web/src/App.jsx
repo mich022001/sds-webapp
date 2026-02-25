@@ -178,20 +178,76 @@ function Registration() {
     <div className="grid gap-4 md:grid-cols-2">
       <Card
         title="Register New Member"
-        right={<span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">Sheet: Registration_Sheet</span>}
+        right={
+          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+            Sheet: Registration_Sheet
+          </span>
+        }
       >
-        <form className="grid gap-3" onSubmit={(e) => e.preventDefault()}>
+        <form
+          className="grid gap-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+
+            const res = await fetch("/api/members/create", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: form.name,
+                contact: form.contact,
+                email: form.email,
+                membership_type: form.membershipType,
+                address: form.address,
+                sponsor: form.sponsor,
+                area_region: form.areaRegion,
+              }),
+            });
+
+            const json = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+              alert(json.error || "Failed to save member");
+              return;
+            }
+
+            alert("Member saved successfully!");
+
+            setForm({
+              name: "",
+              contact: "",
+              email: "",
+              membershipType: "Member",
+              address: "",
+              sponsor: "",
+              areaRegion: "",
+            });
+          }}
+        >
           <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <Input label="Contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} />
+            <Input
+              label="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <Input
+              label="Contact"
+              value={form.contact}
+              onChange={(e) => setForm({ ...form, contact: e.target.value })}
+            />
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <Input
+              label="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
             <Select
               label="Membership Type"
               value={form.membershipType}
-              onChange={(e) => setForm({ ...form, membershipType: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, membershipType: e.target.value })
+              }
             >
               <option>Member</option>
               <option>Distributor</option>
@@ -201,18 +257,43 @@ function Registration() {
             </Select>
           </div>
 
-          <Input label="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          <Input
+            label="Address"
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
+
           <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Sponsor (name or SDS)" value={form.sponsor} onChange={(e) => setForm({ ...form, sponsor: e.target.value })} />
-            <Input label="Area/Region" value={form.areaRegion} onChange={(e) => setForm({ ...form, areaRegion: e.target.value })} />
+            <Input
+              label="Sponsor (name or SDS)"
+              value={form.sponsor}
+              onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
+            />
+            <Input
+              label="Area/Region"
+              value={form.areaRegion}
+              onChange={(e) =>
+                setForm({ ...form, areaRegion: e.target.value })
+              }
+            />
           </div>
 
           <div className="mt-2 flex gap-2">
-            <Button type="submit">Save Member (connect API next)</Button>
+            <Button type="submit">Save Member</Button>
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setForm({ name: "", contact: "", email: "", membershipType: "Member", address: "", sponsor: "", areaRegion: "" })}
+              onClick={() =>
+                setForm({
+                  name: "",
+                  contact: "",
+                  email: "",
+                  membershipType: "Member",
+                  address: "",
+                  sponsor: "",
+                  areaRegion: "",
+                })
+              }
             >
               Clear
             </Button>
@@ -224,10 +305,10 @@ function Registration() {
         <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-600">
           <li>Creates Member ID (2026EM000001...)</li>
           <li>Assigns level based on sponsor</li>
-          <li>Assigns Regional Manager (data consistency rule)</li>
-          <li>Promotes sponsor Member → Distributor after first recruit</li>
-          <li>Distributes bonuses up to 7 uplines with duplicate protection</li>
-          <li>Updates Members_Bonuses (summary balances)</li>
+          <li>Assigns Regional Manager</li>
+          <li>Promotes sponsor after first recruit</li>
+          <li>Distributes bonuses up to 7 uplines</li>
+          <li>Updates Members_Bonuses balances</li>
         </ul>
       </Card>
     </div>
