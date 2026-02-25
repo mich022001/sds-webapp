@@ -15,18 +15,15 @@ export default function Members() {
 
         const res = await fetch("/api/members/list", {
           method: "GET",
-          headers: { "Accept": "application/json" },
+          headers: { Accept: "application/json" },
         });
 
-        // If API returns non-200, show useful message
         if (!res.ok) {
           const txt = await res.text().catch(() => "");
           throw new Error(`API ${res.status}: ${txt || res.statusText}`);
         }
 
         const json = await res.json();
-
-        // Your API currently returns: { data: [...] }
         const data = Array.isArray(json?.data) ? json.data : [];
 
         if (!cancelled) setRows(data);
@@ -38,8 +35,24 @@ export default function Members() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const thStyle = {
+    textAlign: "left",
+    padding: "12px",
+    fontWeight: "600",
+    fontSize: "14px",
+    borderBottom: "2px solid #ddd",
+  };
+
+  const tdStyle = {
+    textAlign: "left",
+    padding: "12px",
+    fontSize: "14px",
+  };
 
   return (
     <div style={{ padding: 16 }}>
@@ -53,30 +66,47 @@ export default function Members() {
           <p>Total: {rows.length}</p>
 
           <div style={{ overflowX: "auto" }}>
-            <table border="1" cellPadding="8" style={{ borderCollapse: "collapse", width: "100%" }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                marginTop: "10px",
+              }}
+            >
               <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Name</th>
-                  <th>Membership Type</th>
-                  <th>Sponsor</th>
-		  <th>Member Since</th>
+                <tr style={{ backgroundColor: "#f9f9f9" }}>
+                  <th style={thStyle}>ID</th>
+                  <th style={thStyle}>Name</th>
+                  <th style={thStyle}>Membership Type</th>
+                  <th style={thStyle}>Sponsor</th>
+                  <th style={thStyle}>Member Since</th>
                 </tr>
               </thead>
 
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan="5">No members yet.</td>
+                    <td colSpan="5" style={tdStyle}>
+                      No members yet.
+                    </td>
                   </tr>
                 ) : (
                   rows.map((m) => (
-                    <tr key={m.id}>
-                      <td>{m.id}</td>
-                      <td>{m.name}</td>
-                      <td>{m.membership_type}</td>
-                      <td>{m.sponsor_name ?? ""}</td>
-                      <td>{m.created_at ? new Date(m.created_at).toLocaleString() : "-"}</td>
+                    <tr
+                      key={m.id}
+                      style={{ borderBottom: "1px solid #eee" }}
+                    >
+                      <td style={tdStyle}>{m.id}</td>
+                      <td style={tdStyle}>{m.name}</td>
+                      <td style={tdStyle}>{m.membership_type}</td>
+                      <td style={tdStyle}>
+                        {m.sponsor_name ?? "-"}
+                      </td>
+                      <td style={tdStyle}>
+                        {m.created_at
+                          ? new Date(m.created_at).toLocaleString()
+                          : "-"}
+                      </td>
                     </tr>
                   ))
                 )}
