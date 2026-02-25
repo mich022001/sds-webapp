@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import Members from "./pages/Members";
 
 const nav = [
   { key: "dashboard", label: "Dashboard" },
@@ -128,7 +129,8 @@ export default function App() {
 
           {active === "dashboard" && <Dashboard />}
           {active === "registration" && <Registration />}
-          {active === "members" && <Placeholder title="Members" desc="Search, view profile, genealogy, promotion" />}
+          {/*{active === "members" && <Placeholder title="Members" desc="Search, view profile, genealogy, promotion" />}*/}
+          {active === "members" && <Members />}
           {active === "ledger" && <Placeholder title="Bonus Ledger" desc="Filter by earner, reason, date range" />}
           {active === "sales" && <Placeholder title="Sales Entry" desc="Checkout + RM rebates + upline bonuses" />}
           {active === "reports" && <Reports />}
