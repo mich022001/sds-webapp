@@ -59,8 +59,8 @@ export default function Members() {
                   <th>ID</th>
                   <th>Name</th>
                   <th>Membership Type</th>
-                  <th>Sponsor ID</th>
-                  <th>Created At</th>
+                  <th>Sponsor</th>
+		  <th>Member Since</th>
                 </tr>
               </thead>
 
@@ -75,8 +75,8 @@ export default function Members() {
                       <td>{m.id}</td>
                       <td>{m.name}</td>
                       <td>{m.membership_type}</td>
-                      <td>{m.sponsor_id ?? ""}</td>
-                      <td>{m.created_at ?? ""}</td>
+                      <td>{m.sponsor_name ?? ""}</td>
+                      <td>{m.created_at ? new Date(m.created_at).toLocaleString() : "-"}</td>
                     </tr>
                   ))
                 )}
