@@ -76,7 +76,7 @@ function Select({ label, children, ...props }) {
       <span className="text-xs font-medium text-zinc-600">{label}</span>
       <select
         {...props}
-        className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+        className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 truncate"
       >
         {children}
       </select>
@@ -287,19 +287,22 @@ function Registration() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <Input
-              label="Sponsor (name or SDS)"
-              value={form.sponsor}
-              onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
+                label="Sponsor (name or SDS)"
+                value={form.sponsor}
+                onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
             />
-            <Select
+
+          <div className="min-w-0">
+              <Select
               label="Area/Region"
               value={form.areaRegion}
               onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
-            >
-              {PH_REGIONS.map((r) => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </Select>
+          >
+                {PH_REGIONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+               </Select>
+            </div>
           </div>
 
           <div className="mt-2 flex gap-2">
