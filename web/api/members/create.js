@@ -5,22 +5,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-function yearPrefix() {
-  const year = new Date().getFullYear();
-  return `${year}EM`;
-}
-
-function nextMemberIdFromLast(lastId, prefix) {
-  // lastId example: "2026EM000123"
-  if (!lastId || typeof lastId !== "string" || !lastId.startsWith(prefix)) {
-    return `${prefix}000001`;
-  }
-
-  const lastNumStr = lastId.slice(prefix.length); // "000123"
-  const lastNum = parseInt(lastNumStr, 10);
-  const nextNum = Number.isFinite(lastNum) ? lastNum + 1 : 1;
-
-  return `${prefix}${String(nextNum).padStart(6, "0")}`;
+function normStr(v) {
+  if (v === undefined || v === null) return null;
+  const s = String(v).trim();
+  return s.length ? s : null;
 }
 
 export default async function handler(req, res) {
@@ -29,64 +17,60 @@ export default async function handler(req, res) {
   }
 
   try {
-    const {
-      name,
-      contact,
-      email,
-      membership_type,
-      address,
-      sponsor,
-      area_region,
-    } = req.body || {};
+    const body = req.body || {};
 
-    if (!name || !membership_type) {
-      return res.status(400).json({ error: "Missing required fields" });
+    const name = normStr(body.name);
+    const contact = normStr(body.contact);
+    const email = normStr(body.email);
+    const membership_type = normStr(body.membership_type);
+    const address = normStr(body.address);
+    const sponsorRaw = normStr(body.sponsor);
+    const area_region = normStr(body.area_region);
+
+    // Required checks (same idea as Apps Script)
+    if (!name) return res.status(400).json({ error: "Name is required" });
+    if (!membership_type) {
+      return res.status(400).json({ error: "Membership type is required" });
     }
 
-    const prefix = yearPrefix();
+    // Sponsor rules (same as Apps Script):
+    // - empty => no sponsor
+    // - "SDS"  => treat as root / no sponsor
+    const sponsor =
+      sponsorRaw && sponsorRaw.toUpperCase() === "SDS" ? null : sponsorRaw;
 
-    // 1) Fetch latest member_id for THIS YEAR
-    // Order by member_id descending works because it's fixed-width numeric suffix.
-    const { data: lastRow, error: lastErr } = await supabase
-      .from("members")
-      .select("member_id")
-      .like("member_id", `${prefix}%`)
-      .order("member_id", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (lastErr) {
-      return res.status(500).json({ error: lastErr.message });
-    }
-
-    const newMemberId = nextMemberIdFromLast(lastRow?.member_id, prefix);
-
-    const payload = {
-      name,
-      member_id: newMemberId,
-      contact: contact ?? null,
-      email: email ?? null,
-      membership_type,
-      level: 1,
-      address: address ?? null,
-      sponsor_name: sponsor ?? null,
-      regional_manager: null,
-      area_region: area_region ?? null,
-      created_at: new Date().toISOString(),
-    };
-
-    // 2) Insert
-    const { data, error } = await supabase
-      .from("members")
-      .insert([payload])
-      .select()
-      .single();
+    /**
+     * register_member MUST implement the Apps Script behavior ATOMICALLY:
+     * - sequential member_id (YYYYEM000001) concurrency-safe (use member_counters / row lock)
+     * - duplicate name check
+     * - sponsor lookup + throw "Sponsor not found." if missing
+     * - level calculation
+     * - regional_manager assignment rules
+     * - promote sponsor Member -> Distributor when eligible
+     * - bonus distribution up to 7 uplines with duplicate protection
+     * - update member_bonus_summary (Members_Bonuses equivalent)
+     *
+     * Recommended: have register_member RETURN the created member row
+     * (and optionally how many ledger rows were inserted).
+     */
+    const { data, error } = await supabase.rpc("register_member", {
+      p_name: name,
+      p_contact: contact,
+      p_email: email,
+      p_membership_type: membership_type,
+      p_address: address,
+      p_sponsor: sponsor, // null means SDS/root
+      p_area_region: area_region,
+    });
 
     if (error) {
-      return res.status(500).json({ error: error.message });
+      // If your DB function raises exceptions like:
+      // "This member is already registered." / "Sponsor not found."
+      // then returning 400 is correct.
+      return res.status(400).json({ error: error.message });
     }
 
-    return res.status(200).json({ data });
+    return res.status(200).json({ ok: true, data });
   } catch (e) {
     return res.status(500).json({ error: e?.message || "Server error" });
   }
