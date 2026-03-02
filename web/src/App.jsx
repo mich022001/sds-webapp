@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import Members from "./pages/Members";
+import BonusLedger from "./pages/BonusLedger"; 
 
 const nav = [
   { key: "dashboard", label: "Dashboard" },
@@ -9,6 +10,26 @@ const nav = [
   { key: "sales", label: "Sales Entry" },
   { key: "reports", label: "Reports" },
   { key: "redemptions", label: "Redemptions" },
+];
+
+const PH_REGIONS = [
+  "National Capital Region (NCR)",
+  "Cordillera Administrative Region (CAR)",
+  "Ilocos Region (Region I)",
+  "Cagayan Valley (Region II)",
+  "Central Luzon (Region III)",
+  "CALABARZON (Region IV-A)",
+  "MIMAROPA (Region IV-B)",
+  "Bicol Region (Region V)",
+  "Western Visayas (Region VI)",
+  "Central Visayas (Region VII)",
+  "Eastern Visayas (Region VIII)",
+  "Zamboanga Peninsula (Region IX)",
+  "Northern Mindanao (Region X)",
+  "Davao Region (Region XI)",
+  "SOCCSKSARGEN (Region XII)",
+  "Caraga (Region XIII)",
+  "Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)",
 ];
 
 function cls(...a) {
@@ -131,7 +152,8 @@ export default function App() {
           {active === "registration" && <Registration />}
           {/*{active === "members" && <Placeholder title="Members" desc="Search, view profile, genealogy, promotion" />}*/}
           {active === "members" && <Members />}
-          {active === "ledger" && <Placeholder title="Bonus Ledger" desc="Filter by earner, reason, date range" />}
+          {/*active === "ledger" && <Placeholder title="Bonus Ledger" desc="Filter by earner, reason, date range" />*/}
+          {active === "ledger" && <BonusLedger />}
           {active === "sales" && <Placeholder title="Sales Entry" desc="Checkout + RM rebates + upline bonuses" />}
           {active === "reports" && <Reports />}
           {active === "redemptions" && <Placeholder title="Redemptions" desc="List + filter + notes" />}
@@ -171,7 +193,7 @@ function Registration() {
     membershipType: "Member",
     address: "",
     sponsor: "",
-    areaRegion: "",
+    areaRegion: PH_REGIONS[0],
   });
 
   return (
@@ -269,13 +291,15 @@ function Registration() {
               value={form.sponsor}
               onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
             />
-            <Input
+            <Select
               label="Area/Region"
               value={form.areaRegion}
-              onChange={(e) =>
-                setForm({ ...form, areaRegion: e.target.value })
-              }
-            />
+              onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
+            >
+              {PH_REGIONS.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </Select>
           </div>
 
           <div className="mt-2 flex gap-2">
