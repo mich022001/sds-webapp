@@ -18,7 +18,7 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }, // needed on many hosted postgres providers
+  ssl: { rejectUnauthorized: false } // needed on many hosted postgres providers
 });
 
 function nowPH() {
@@ -26,13 +26,9 @@ function nowPH() {
   const d = new Date();
   const parts = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false
   }).format(d); // "YYYY-MM-DD HH:mm:ss"
   return parts.replaceAll("-", "/");
 }
@@ -41,41 +37,21 @@ async function q(sql, params = []) {
   return pool.query(sql, params);
 }
 
-/** =========================
- *  MEMBER ID (YYYYEM000001...)
- *  Concurrency-safe via member_counters table
- *  =========================
- *
- *  ONE-TIME DB SETUP (run in Postgres):
- *    CREATE TABLE IF NOT EXISTS member_counters (
- *      prefix   TEXT PRIMARY KEY,
- *      last_num INTEGER NOT NULL
- *    );
- */
-function makeMemberPrefix(date = new Date()) {
-  const year = date.getFullYear();
-  return `${year}EM`;
-}
-function pad6(n) {
-  return String(n).padStart(6, "0");
-}
-async function getNextMemberIdTx(client) {
-  const prefix = makeMemberPrefix();
+async function getNextMemberId() {
+  const PREFIX = "2026EM";
+  const PAD = 6;
 
-  // Atomic upsert + increment (safe under concurrency)
-  const r = await client.query(
-    `
-    INSERT INTO member_counters(prefix, last_num)
-    VALUES ($1, 1)
-    ON CONFLICT (prefix)
-    DO UPDATE SET last_num = member_counters.last_num + 1
-    RETURNING last_num
-    `,
-    [prefix]
-  );
+  const r = await q(`select member_id from members order by id desc limit 1`);
+  if (r.rowCount === 0) return PREFIX + "000001";
 
-  const nextNum = Number(r.rows?.[0]?.last_num || 1);
-  return `${prefix}${pad6(nextNum)}`;
+  const lastId = r.rows[0].member_id;
+  if (!lastId.startsWith(PREFIX)) throw new Error("Last Member ID format is invalid.");
+
+  const lastNumber = Number(lastId.slice(PREFIX.length));
+  if (Number.isNaN(lastNumber)) throw new Error("Last Member ID number is invalid.");
+
+  const next = lastNumber + 1;
+  return PREFIX + String(next).padStart(PAD, "0");
 }
 
 async function rebuildMemberBonusSummary(memberName) {
@@ -125,16 +101,10 @@ async function rebuildMemberBonusSummary(memberName) {
       balance_product=excluded.balance_product,
       updated_at=excluded.updated_at`,
     [
-      memberName,
-      memberId,
-      membershipType,
-      totalCash,
-      totalProduct,
-      redeemedCash,
-      redeemedProduct,
-      balanceCash,
-      balanceProduct,
-      new Date().toISOString(),
+      memberName, memberId, membershipType,
+      totalCash, totalProduct, redeemedCash, redeemedProduct,
+      balanceCash, balanceProduct,
+      new Date().toISOString()
     ]
   );
 }
@@ -166,30 +136,21 @@ async function getFirstLevelUpline(memberName) {
  *  REGISTRATION (saveMember)
  *  ========================= */
 app.post("/api/registration", async (req, res) => {
-  const client = await pool.connect();
   try {
     const now = nowPH();
     const { name, contact, email, membershipType, address, sponsor, areaRegion } = req.body;
 
     if (!name?.trim()) return res.status(400).json({ error: "Name is required." });
 
-    await client.query("BEGIN");
+    // duplicate by name
+    const dup = await q(`select 1 from members where lower(name)=lower($1)`, [name.trim()]);
+    if (dup.rowCount) return res.status(400).json({ error: "This member is already registered." });
 
-    // duplicate by name (inside txn)
-    const dup = await client.query(`select 1 from members where lower(name)=lower($1)`, [name.trim()]);
-    if (dup.rowCount) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({ error: "This member is already registered." });
-    }
-
-    // sponsor lookup (unless SDS) (inside txn)
+    // sponsor lookup (unless SDS)
     let sponsorRow = null;
     if (sponsor && sponsor.toUpperCase() !== "SDS") {
-      const s = await client.query(`select * from members where lower(name)=lower($1)`, [sponsor.trim()]);
-      if (!s.rowCount) {
-        await client.query("ROLLBACK");
-        return res.status(400).json({ error: "Sponsor not found." });
-      }
+      const s = await q(`select * from members where lower(name)=lower($1)`, [sponsor.trim()]);
+      if (!s.rowCount) return res.status(400).json({ error: "Sponsor not found." });
       sponsorRow = s.rows[0];
     }
 
@@ -199,14 +160,14 @@ app.post("/api/registration", async (req, res) => {
     let regionalManager = "";
     if (membershipType === "Regional Manager") regionalManager = name.trim();
     else if (sponsorRow) {
-      regionalManager =
-        sponsorRow.membership_type === "Regional Manager" ? sponsorRow.name : sponsorRow.regional_manager || "";
+      regionalManager = (sponsorRow.membership_type === "Regional Manager")
+        ? sponsorRow.name
+        : (sponsorRow.regional_manager || "");
     }
 
-    // Concurrency-safe member id
-    const memberId = await getNextMemberIdTx(client);
+    const memberId = await getNextMemberId();
 
-    await client.query(
+    await q(
       `insert into members
         (name, member_id, contact, email, membership_type, level, address, sponsor_name, regional_manager, area_region, created_at)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
@@ -218,18 +179,17 @@ app.post("/api/registration", async (req, res) => {
         membershipType || "Member",
         level,
         address || "",
-        sponsorRow ? sponsorRow.name : sponsor || "",
+        sponsorRow ? sponsorRow.name : (sponsor || ""),
         regionalManager,
         areaRegion || "",
-        now,
+        now
       ]
     );
 
-    await client.query("COMMIT");
-
-    // After commit: summary + promotions + bonus ledger
+    // always update summary for new member
     await rebuildMemberBonusSummary(name.trim());
 
+    // promote sponsor if eligible
     if (sponsorRow) await promoteSponsorIfEligible(sponsorRow.name);
 
     // upline walk up to 7
@@ -287,12 +247,7 @@ app.post("/api/registration", async (req, res) => {
 
     res.json({ ok: true, memberId });
   } catch (e) {
-    try {
-      await client.query("ROLLBACK");
-    } catch {}
     res.status(500).json({ error: e.message || "Server error" });
-  } finally {
-    client.release();
   }
 });
 
