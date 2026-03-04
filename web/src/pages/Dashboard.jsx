@@ -1,24 +1,53 @@
 import { useEffect, useMemo, useState } from "react";
 
+function levelLabel(lvl) {
+  if (lvl === 0) return "SDS";
+  if (lvl === 1) return "1ST LEVEL";
+  if (lvl === 2) return "2ND LEVEL";
+  if (lvl === 3) return "3RD LEVEL";
+  return `${lvl}TH LEVEL`;
+}
+
 export default function Dashboard() {
   const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
-    const load = async () => {
+    let cancelled = false;
+
+    async function load() {
       try {
-        const res = await fetch("/api/members/list");
+        setLoading(true);
+        setErr("");
+
+        const res = await fetch("/api/members/list", {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!res.ok) {
+          const txt = await res.text().catch(() => "");
+          throw new Error(`API ${res.status}: ${txt || res.statusText}`);
+        }
+
         const json = await res.json();
-        setRows(Array.isArray(json?.data) ? json.data : []);
-      } catch {
-        setRows([]);
+        const data = Array.isArray(json?.data) ? json.data : [];
+
+        if (!cancelled) setRows(data);
+      } catch (e) {
+        if (!cancelled) setErr(e?.message || "Failed to load dashboard");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    };
+    }
+
     load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  /* =========================
-     BUILD HIERARCHY FROM SPONSOR CHAIN
-     ========================= */
   const grouped = useMemo(() => {
     const norm = (s) => String(s ?? "").trim().toLowerCase();
 
@@ -41,20 +70,22 @@ export default function Dashboard() {
 
     function computeLevel(normName, seen = new Set()) {
       if (memo.has(normName)) return memo.get(normName);
-      if (seen.has(normName)) return 0; // cycle safety
+      if (seen.has(normName)) return 1; // cycle safety -> treat as directly under SDS
 
       seen.add(normName);
 
       const sponsorNorm = sponsorByNormName.get(normName);
 
-      // root: no sponsor OR sponsor is SDS OR sponsor not found
-      if (
-        !sponsorNorm ||
-        sponsorNorm === "sds" ||
-        !displayNameByNorm.has(sponsorNorm)
-      ) {
-        memo.set(normName, 0);
-        return 0;
+      // If sponsored by SDS or no sponsor → Level 1
+      if (!sponsorNorm || sponsorNorm === "sds") {
+        memo.set(normName, 1);
+        return 1;
+      }
+
+      // If sponsor not found → treat as Level 1 under SDS
+      if (!displayNameByNorm.has(sponsorNorm)) {
+        memo.set(normName, 1);
+        return 1;
       }
 
       const lvl = computeLevel(sponsorNorm, seen) + 1;
@@ -62,11 +93,13 @@ export default function Dashboard() {
       return lvl;
     }
 
-    const map = new Map(); // level -> display names[]
+    const map = new Map();
+
+    // Add SDS as Level 0 manually
+    map.set(0, ["SDS"]);
 
     for (const normName of displayNameByNorm.keys()) {
       const lvl = computeLevel(normName);
-      if (lvl <= 0) continue; // skip root
       if (!map.has(lvl)) map.set(lvl, []);
       map.get(lvl).push(displayNameByNorm.get(normName));
     }
@@ -74,15 +107,10 @@ export default function Dashboard() {
     const levels = Array.from(map.keys()).sort((a, b) => a - b);
 
     for (const lvl of levels) {
-      map.get(lvl).sort((a, b) =>
-        String(a).localeCompare(String(b))
-      );
+      map.get(lvl).sort((a, b) => String(a).localeCompare(String(b)));
     }
 
-    const maxLen = levels.reduce(
-      (mx, lvl) => Math.max(mx, map.get(lvl).length),
-      0
-    );
+    const maxLen = levels.reduce((mx, lvl) => Math.max(mx, map.get(lvl).length), 0);
 
     return { map, levels, maxLen };
   }, [rows]);
@@ -92,65 +120,80 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="text-xl font-extrabold text-zinc-900">
-          SUREFIT DIRECT SALES
-        </div>
-        <div className="text-sm text-zinc-500">Summary</div>
+        <div className="text-xl font-extrabold text-zinc-900">SUREFIT DIRECT SALES</div>
+        <div className="text-sm text-zinc-500">Admin Dashboard</div>
       </div>
 
-      {/* TOTAL MEMBERS */}
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm w-60">
-        <div className="text-xs font-medium text-zinc-500">
-          Total Members
+      {/* Totals */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="text-xs font-medium text-zinc-500">Total Members</div>
+          <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
+            {totalMembers}
+          </div>
         </div>
-        <div className="mt-2 text-2xl font-extrabold text-zinc-900">
-          {totalMembers}
-        </div>
+
+        {grouped.levels
+          .filter((lvl) => lvl !== 0)
+          .slice(0, 3)
+          .map((lvl) => (
+            <div key={lvl} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+              <div className="text-xs font-medium text-zinc-500">Total {levelLabel(lvl)}</div>
+              <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
+                {grouped.map.get(lvl)?.length ?? 0}
+              </div>
+            </div>
+          ))}
       </div>
 
-      {/* HIERARCHY */}
-      {grouped.levels.length === 0 ? (
-        <div className="text-sm text-zinc-500">
-          No hierarchy data yet.
+      {/* Hierarchy Table */}
+      {loading && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm text-sm text-zinc-500">
+          Loading...
         </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-sm">
-            <thead>
-              <tr>
-                {grouped.levels.map((lvl) => (
-                  <th
-                    key={lvl}
-                    className="border-b border-zinc-200 px-4 py-2 text-left font-semibold text-zinc-700"
-                  >
-                    {lvl}{" "}
-                    {lvl === 1
-                      ? "ST"
-                      : lvl === 2
-                      ? "ND"
-                      : lvl === 3
-                      ? "RD"
-                      : "TH"}{" "}
-                    Level
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: grouped.maxLen }).map((_, rowIdx) => (
-                <tr key={rowIdx}>
+      )}
+
+      {err && (
+        <div className="rounded-2xl border border-red-200 bg-white p-5 shadow-sm text-sm text-red-600">
+          Error: {err}
+        </div>
+      )}
+
+      {!loading && !err && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm overflow-x-auto">
+          {grouped.levels.length === 0 ? (
+            <div className="text-sm text-zinc-500">No hierarchy data yet.</div>
+          ) : (
+            <table className="min-w-full border-collapse text-sm">
+              <thead>
+                <tr>
                   {grouped.levels.map((lvl) => (
-                    <td
+                    <th
                       key={lvl}
-                      className="px-4 py-1 align-top text-zinc-800"
+                      className="whitespace-nowrap border-b-2 border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-sm font-bold text-zinc-900"
                     >
-                      {grouped.map.get(lvl)?.[rowIdx] || ""}
-                    </td>
+                      {levelLabel(lvl)}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {Array.from({ length: grouped.maxLen }).map((_, rowIdx) => (
+                  <tr key={rowIdx}>
+                    {grouped.levels.map((lvl) => (
+                      <td
+                        key={`${lvl}-${rowIdx}`}
+                        className="border-b border-zinc-100 px-3 py-2 align-top text-sm text-zinc-800"
+                      >
+                        {grouped.map.get(lvl)?.[rowIdx] || ""}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>
