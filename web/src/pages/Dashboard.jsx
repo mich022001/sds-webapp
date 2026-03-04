@@ -48,26 +48,47 @@ export default function Dashboard() {
     };
   }, []);
 
-  const grouped = useMemo(() => {
-    // level -> [names]
-    const map = new Map();
+    const grouped = useMemo(() => {
+    // Build name -> sponsor map
+    const sponsorByName = new Map();
+    for (const m of rows) sponsorByName.set(m.name, m.sponsor_name);
 
+    // Compute depth/level with memo + cycle guard
+    const memo = new Map();
+    function computeLevel(name, seen = new Set()) {
+      if (memo.has(name)) return memo.get(name);
+      if (seen.has(name)) return 0; // cycle safety
+      seen.add(name);
+
+      const sponsor = sponsorByName.get(name);
+
+      // Root: sponsor missing or SDS → level 0 (not shown)
+      if (!sponsor || String(sponsor).trim().toUpperCase() === "SDS") {
+        memo.set(name, 0);
+        return 0;
+      }
+
+      // Level = sponsor level + 1
+      const lvl = computeLevel(sponsor, seen) + 1;
+      memo.set(name, lvl);
+      return lvl;
+    }
+
+    // Group by computed level (1..)
+    const map = new Map(); // level -> names[]
     for (const m of rows) {
-      const lvl = Number(m.level);
-      if (!Number.isFinite(lvl) || lvl <= 0) continue; // ignore 0 / invalid
+      const lvl = computeLevel(m.name);
+      if (lvl <= 0) continue; // skip root
       if (!map.has(lvl)) map.set(lvl, []);
       map.get(lvl).push(m.name);
     }
 
-    // sort levels and names
     const levels = Array.from(map.keys()).sort((a, b) => a - b);
     for (const lvl of levels) {
       map.get(lvl).sort((a, b) => String(a).localeCompare(String(b)));
     }
 
-    // build max rows for column layout
     const maxLen = levels.reduce((mx, lvl) => Math.max(mx, map.get(lvl).length), 0);
-
     return { map, levels, maxLen };
   }, [rows]);
 
