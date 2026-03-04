@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import Members from "./pages/Members";
 import BonusLedger from "./pages/BonusLedger"; 
+import Dashboard from "./pages/Dashboard";
 
 const nav = [
   { key: "dashboard", label: "Dashboard" },
@@ -163,27 +164,7 @@ export default function App() {
   );
 }
 
-function Dashboard() {
-  return (
-    <div className="grid gap-4">
-      <div className="grid gap-4 md:grid-cols-4">
-        <Stat label="Total Members" value="—" hint="From members table" />
-        <Stat label="Cash Issued" value="—" hint="From bonus ledger" />
-        <Stat label="Cash Redeemed" value="—" hint="From redemptions" />
-        <Stat label="Total Sales" value="—" hint="From sales ledger" />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card title="Recent Members">
-          <div className="text-sm text-zinc-500">We’ll load last 20 from the database.</div>
-        </Card>
-        <Card title="Recent Bonus Entries">
-          <div className="text-sm text-zinc-500">We’ll load last 50 from the database.</div>
-        </Card>
-      </div>
-    </div>
-  );
-}
+/*dashboard function deleted*/
 
 function Registration() {
   const [form, setForm] = useState({
