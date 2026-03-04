@@ -12,9 +12,10 @@ export default async function handler(req, res) {
     if (req.method !== "GET") return res.status(405).json({ error: "GET only" });
 
     const sb = supabaseAdmin();
+
     const { data, error } = await sb
       .from("members")
-      .select("*")
+      .select("member_id, name, membership_type, sponsor_name, created_at")
       .order("created_at", { ascending: false })
       .limit(50);
 

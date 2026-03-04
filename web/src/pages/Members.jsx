@@ -93,10 +93,10 @@ export default function Members() {
                 ) : (
                   rows.map((m) => (
                     <tr
-                      key={m.id}
+                      key={m.member_id}
                       style={{ borderBottom: "1px solid #eee" }}
                     >
-                      <td style={tdStyle}>{m.id}</td>
+                      <td style={tdStyle}>{m.member_id}</td>
                       <td style={tdStyle}>{m.name}</td>
                       <td style={tdStyle}>{m.membership_type}</td>
                       <td style={tdStyle}>
