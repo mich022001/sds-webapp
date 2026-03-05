@@ -8,16 +8,28 @@ function supabaseAdmin() {
   );
 }
 
+function norm(s) {
+  return String(s ?? "").trim().toLowerCase();
+}
+
 function isOutright(amountText) {
-  return String(amountText ?? "").trim().toLowerCase() === "outright";
+  return norm(amountText) === "outright";
+}
+
+// If amount_num is missing/0 but it's Outright, count it as 600
+function cashAmount(b) {
+  const n = Number(b?.amount_num);
+  if (Number.isFinite(n) && n !== 0) return n;
+  if (isOutright(b?.amount_text)) return 600;
+  return Number.isFinite(n) ? n : 0;
 }
 
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") return res.status(405).json({ error: "GET only" });
 
-    const name = String(req.query?.name ?? "").trim();
-    if (!name) return res.status(400).json({ error: "Missing ?name=" });
+    const inputName = String(req.query?.name ?? "").trim();
+    if (!inputName) return res.status(400).json({ error: "Missing ?name=" });
 
     const sb = supabaseAdmin();
 
@@ -25,33 +37,62 @@ export default async function handler(req, res) {
     const { data: member, error: memberErr } = await sb
       .from("members")
       .select("*")
-      .ilike("name", name)
+      .ilike("name", inputName)
       .maybeSingle();
 
     if (memberErr) return res.status(400).json({ error: memberErr.message });
     if (!member) return res.status(404).json({ error: "Member not found." });
 
-    // 2) Bonus ledger for this earner (compute totals client-side)
-    const { data: bonuses, error: bonusErr } = await sb
+    // Use canonical name from DB to avoid casing/spacing mismatch
+    const memberName = String(member.name ?? "").trim();
+
+    // 2) Bonus ledger for this earner
+    let { data: bonuses, error: bonusErr } = await sb
       .from("bonus_ledger")
       .select(
         "created_at, earner_name, source_member_name, relative_level, bonus_type, amount_num, amount_text, rule_applied, reason"
       )
-      .ilike("earner_name", name)
+      .ilike("earner_name", memberName)
       .order("created_at", { ascending: false })
       .limit(1000);
 
     if (bonusErr) return res.status(400).json({ error: bonusErr.message });
 
+    // Fallback if no rows (handles trailing spaces / weird casing in DB)
+    if ((bonuses ?? []).length === 0) {
+      const r2 = await sb
+        .from("bonus_ledger")
+        .select(
+          "created_at, earner_name, source_member_name, relative_level, bonus_type, amount_num, amount_text, rule_applied, reason"
+        )
+        .ilike("earner_name", `%${memberName}%`)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (!r2.error && Array.isArray(r2.data)) bonuses = r2.data;
+    }
+
     // 3) Redemptions for this member
-    const { data: redemptions, error: redErr } = await sb
+    let { data: redemptions, error: redErr } = await sb
       .from("redemptions")
       .select("created_at, member_name, redeem_type, qty, source, notes")
-      .ilike("member_name", name)
+      .ilike("member_name", memberName)
       .order("created_at", { ascending: false })
       .limit(1000);
 
     if (redErr) return res.status(400).json({ error: redErr.message });
+
+    // Fallback if no rows
+    if ((redemptions ?? []).length === 0) {
+      const r2 = await sb
+        .from("redemptions")
+        .select("created_at, member_name, redeem_type, qty, source, notes")
+        .ilike("member_name", `%${memberName}%`)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (!r2.error && Array.isArray(r2.data)) redemptions = r2.data;
+    }
 
     // --- Totals logic ---
     let total_cash = 0;        // includes outright 600
@@ -59,11 +100,12 @@ export default async function handler(req, res) {
     let total_product = 0;
 
     for (const b of bonuses ?? []) {
-      const n = Number(b.amount_num ?? 0) || 0;
       if (b.bonus_type === "Cash") {
-        total_cash += n;
-        if (!isOutright(b.amount_text)) redeemable_cash += n;
+        const amt = cashAmount(b);
+        total_cash += amt;
+        if (!isOutright(b.amount_text)) redeemable_cash += amt;
       } else if (b.bonus_type === "Product") {
+        const n = Number(b.amount_num ?? 0) || 0;
         total_product += n;
       }
     }
@@ -82,7 +124,6 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       member,
-
       totals: {
         total_cash,
         redeemable_cash,
@@ -92,7 +133,6 @@ export default async function handler(req, res) {
         redeemed_product,
         balance_product,
       },
-
       bonuses: bonuses ?? [],
       redemptions: redemptions ?? [],
     });
