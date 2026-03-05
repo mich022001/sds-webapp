@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import Members from "./pages/Members";
-import BonusLedger from "./pages/BonusLedger"; 
+import BonusLedger from "./pages/BonusLedger";
 import Dashboard from "./pages/Dashboard";
+
+// ✅ NEW: reports pages
+import MemberReport from "./pages/MemberReport";
+import RegionalReport from "./pages/RegionalReport";
 
 const nav = [
   { key: "dashboard", label: "Dashboard" },
@@ -10,6 +14,9 @@ const nav = [
   { key: "ledger", label: "Bonus Ledger" },
   { key: "sales", label: "Sales Entry" },
   { key: "reports", label: "Reports" },
+  // ✅ NEW: real report pages (so you can open them)
+  { key: "report_member", label: "Member Report" },
+  { key: "report_regional", label: "Regional Report" },
   { key: "redemptions", label: "Redemptions" },
 ];
 
@@ -103,7 +110,10 @@ function Button({ children, variant = "primary", ...props }) {
 export default function App() {
   const [active, setActive] = useState("dashboard");
 
-  const pageTitle = useMemo(() => nav.find(n => n.key === active)?.label ?? "Dashboard", [active]);
+  const pageTitle = useMemo(
+    () => nav.find((n) => n.key === active)?.label ?? "Dashboard",
+    [active]
+  );
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -144,19 +154,28 @@ export default function App() {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => alert("Next: add login + roles")}>Login (next)</Button>
-              <Button onClick={() => alert("Next: connect Supabase API")}>Connect DB (next)</Button>
+              <Button variant="ghost" onClick={() => alert("Next: add login + roles")}>
+                Login (next)
+              </Button>
+              <Button onClick={() => alert("Next: connect Supabase API")}>
+                Connect DB (next)
+              </Button>
             </div>
           </div>
 
           {active === "dashboard" && <Dashboard />}
           {active === "registration" && <Registration />}
-          {/*{active === "members" && <Placeholder title="Members" desc="Search, view profile, genealogy, promotion" />}*/}
           {active === "members" && <Members />}
-          {/*active === "ledger" && <Placeholder title="Bonus Ledger" desc="Filter by earner, reason, date range" />*/}
           {active === "ledger" && <BonusLedger />}
           {active === "sales" && <Placeholder title="Sales Entry" desc="Checkout + RM rebates + upline bonuses" />}
-          {active === "reports" && <Reports />}
+
+          {/* ✅ Reports hub now navigates to real report pages */}
+          {active === "reports" && <Reports go={setActive} />}
+
+          {/* ✅ Real report pages */}
+          {active === "report_member" && <MemberReport />}
+          {active === "report_regional" && <RegionalReport />}
+
           {active === "redemptions" && <Placeholder title="Redemptions" desc="List + filter + notes" />}
         </main>
       </div>
@@ -248,9 +267,7 @@ function Registration() {
             <Select
               label="Membership Type"
               value={form.membershipType}
-              onChange={(e) =>
-                setForm({ ...form, membershipType: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, membershipType: e.target.value })}
             >
               <option>Member</option>
               <option>Distributor</option>
@@ -268,21 +285,23 @@ function Registration() {
 
           <div className="grid gap-3 md:grid-cols-2">
             <Input
-                label="Sponsor (name or SDS)"
-                value={form.sponsor}
-                onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
+              label="Sponsor (name or SDS)"
+              value={form.sponsor}
+              onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
             />
 
-          <div className="min-w-0">
+            <div className="min-w-0">
               <Select
-              label="Area/Region"
-              value={form.areaRegion}
-              onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
-          >
+                label="Area/Region"
+                value={form.areaRegion}
+                onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
+              >
                 {PH_REGIONS.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
-               </Select>
+              </Select>
             </div>
           </div>
 
@@ -323,28 +342,37 @@ function Registration() {
   );
 }
 
-function Reports() {
+function Reports({ go }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <Card title="Member Report" right={<span className="text-xs font-semibold text-zinc-500">Sheet: Member_Report</span>}>
+      <Card
+        title="Member Report"
+        right={<span className="text-xs font-semibold text-zinc-500">Sheet: Member_Report</span>}
+      >
         <div className="text-sm text-zinc-600">
           Shows profile + summary + bonus tree (levels 1–7) + genealogy.
         </div>
         <div className="mt-4">
-          <Button onClick={() => alert("Next: /api/reports/member?name=...")}>Open (next)</Button>
+          <Button onClick={() => go("report_member")}>Open</Button>
         </div>
       </Card>
 
-      <Card title="Regional Report" right={<span className="text-xs font-semibold text-zinc-500">Sheet: Regional_Report</span>}>
+      <Card
+        title="Regional Report"
+        right={<span className="text-xs font-semibold text-zinc-500">Sheet: Regional_Report</span>}
+      >
         <div className="text-sm text-zinc-600">
           RM summary + rebates + genealogy by level + bonus totals (1–7).
         </div>
         <div className="mt-4">
-          <Button onClick={() => alert("Next: /api/reports/regional?rm=...")}>Open (next)</Button>
+          <Button onClick={() => go("report_regional")}>Open</Button>
         </div>
       </Card>
 
-      <Card title="Sales Analytics" right={<span className="text-xs font-semibold text-zinc-500">Sheet: Sales_Analytics</span>}>
+      <Card
+        title="Sales Analytics"
+        right={<span className="text-xs font-semibold text-zinc-500">Sheet: Sales_Analytics</span>}
+      >
         <div className="text-sm text-zinc-600">
           Highest products sold, top buyers, per package, per product (date range).
         </div>
