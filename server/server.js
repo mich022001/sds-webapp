@@ -57,10 +57,22 @@ async function getNextMemberId() {
 async function rebuildMemberBonusSummary(memberName) {
   const total = await q(
     `select
+      -- total cash issued (includes Outright 600)
       coalesce(sum(case when bonus_type='Cash' then coalesce(amount_num,0) else 0 end),0) as total_cash,
+
+      -- cash that is redeemable (EXCLUDES Outright)
+      coalesce(sum(
+        case
+          when bonus_type='Cash'
+           and coalesce(amount_text,'') <> 'Outright'
+          then coalesce(amount_num,0)
+          else 0
+        end
+      ),0) as redeemable_cash,
+
       coalesce(sum(case when bonus_type='Product' then coalesce(amount_num,0) else 0 end),0) as total_product
-     from bonus_ledger
-     where earner_name=$1`,
+      from bonus_ledger
+      where earner_name=$1`,
     [memberName]
   );
 
@@ -76,11 +88,13 @@ async function rebuildMemberBonusSummary(memberName) {
   const member = await q(`select member_id, membership_type from members where name=$1`, [memberName]);
 
   const totalCash = Number(total.rows[0].total_cash);
+  const redeemableCash = Number(total.rows[0].redeemable_cash);
   const totalProduct = Number(total.rows[0].total_product);
   const redeemedCash = Number(redeemed.rows[0].redeemed_cash);
   const redeemedProduct = Number(redeemed.rows[0].redeemed_product);
 
-  const balanceCash = totalCash - redeemedCash;
+  // Balance should NOT include Outright cash
+  const balanceCash = redeemableCash - redeemedCash;
   const balanceProduct = totalProduct - redeemedProduct;
 
   const memberId = member.rowCount ? member.rows[0].member_id : "";
