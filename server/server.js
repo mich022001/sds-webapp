@@ -218,15 +218,18 @@ app.post("/api/registration", async (req, res) => {
 
       if (relativeLevel === 1) {
         bonusType = "Cash";
+        amountNum = 600;
         amountText = "Outright";
         ruleApplied = "Direct Bonus";
       } else if (relativeLevel === 2) {
         bonusType = "Product";
         amountNum = 1;
+        amountText = "";
         ruleApplied = "Indirect Bonus";
       } else {
         bonusType = "Cash";
         amountNum = 200;
+        amountText = "";
         ruleApplied = "Developer Bonus";
       }
 
