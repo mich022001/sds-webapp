@@ -225,9 +225,8 @@ function Registration() {
 
   return (
     <div className="grid gap-4">
-      <Card
-        title="Register New Member"
-        <form
+      <Card title="Register New Member">
+	  <form
           className="grid gap-3"
           onSubmit={async (e) => {
             e.preventDefault();
