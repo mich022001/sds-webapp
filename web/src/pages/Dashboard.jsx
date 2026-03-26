@@ -135,11 +135,13 @@ export default function Dashboard() {
 
     const maxLen = levels.reduce((mx, lvl) => Math.max(mx, map.get(lvl).length), 0);
 
-    const levelItems = levels.map((lvl) => ({
-      level: lvl,
-      title: levelLabel(lvl),
-      names: map.get(lvl) || [],
-      count: map.get(lvl)?.length || 0,
+    const levelItems = levels
+      .filter((lvl) => lvl !== 0)
+      .map((lvl) => ({
+        level: lvl,
+        title: levelLabel(lvl),
+        names: map.get(lvl) || [],
+        count: map.get(lvl)?.length || 0,
     }));
 
     return { map, levels, maxLen, levelItems };
