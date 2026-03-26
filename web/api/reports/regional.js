@@ -21,8 +21,11 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function norm(v) {
+  return String(v || "").trim().toLowerCase();
+}
+
 function cashAmount(row) {
-  // Handles older "Outright" rows where amount_num may be null
   if (row.amount_num != null) return toNumber(row.amount_num);
   if (String(row.amount_text || "").trim().toLowerCase() === "outright") return 600;
   return 0;
@@ -38,6 +41,28 @@ async function trySelectByColumn(sb, table, candidates, value) {
   return { data: [], column: null };
 }
 
+function ordinal(level) {
+  if (level % 100 >= 11 && level % 100 <= 13) return `${level}th`;
+  if (level % 10 === 1) return `${level}st`;
+  if (level % 10 === 2) return `${level}nd`;
+  if (level % 10 === 3) return `${level}rd`;
+  return `${level}th`;
+}
+
+function bonusLabel(level) {
+  if (level === 1) return "D.C. BONUS";
+  if (level === 2) return "IND. BONUS";
+  if (level >= 3 && level <= 7) return "DEV. BONUS";
+  return "";
+}
+
+function levelBonusType(level) {
+  if (level === 1) return "Cash";
+  if (level === 2) return "Product";
+  if (level >= 3 && level <= 7) return "Cash";
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -51,7 +76,7 @@ export default async function handler(req, res) {
 
     const sb = supabaseAdmin();
 
-    // 1) RM profile
+    // 1) Load RM profile
     const { data: rmRow, error: rmErr } = await sb
       .from("members")
       .select(
@@ -68,41 +93,77 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: `Regional Manager not found: ${rm}` });
     }
 
-    const rmLevel = toNumber(rmRow.level);
-
-    // 2) All members under this RM (exclude the RM row itself from downline list)
-    const { data: underRmRows, error: membersErr } = await sb
+    // 2) Load all members so we can build genealogy by sponsor_name
+    const { data: allMembers, error: allMembersErr } = await sb
       .from("members")
       .select(
         "id, name, member_id, contact, email, membership_type, level, address, sponsor_name, regional_manager, area_region, created_at"
       )
-      .eq("regional_manager", rm)
-      .order("level", { ascending: true })
       .order("created_at", { ascending: true });
 
-    if (membersErr) {
-      return res.status(500).json({ error: membersErr.message });
+    if (allMembersErr) {
+      return res.status(500).json({ error: allMembersErr.message });
     }
 
-    const downlines = (underRmRows || [])
-      .filter((m) => String(m.name || "").trim() !== rm)
-      .map((m) => {
-        const absLevel = toNumber(m.level);
-        const relativeLevel = Math.max(1, absLevel - rmLevel);
-        return {
-          ...m,
-          relative_level: relativeLevel,
-        };
-      });
+    const rows = Array.isArray(allMembers) ? allMembers : [];
 
-    // 3) Count by membership type
+    // Build sponsor -> children map
+    const childrenBySponsor = new Map();
+    for (const row of rows) {
+      const sponsorKey = norm(row.sponsor_name || "SDS");
+      if (!childrenBySponsor.has(sponsorKey)) {
+        childrenBySponsor.set(sponsorKey, []);
+      }
+      childrenBySponsor.get(sponsorKey).push(row);
+    }
+
+    // 3) Traverse descendants from the selected RM using sponsor chain
+    const visitedNames = new Set();
+    const downlines = [];
+    const queue = [{ sponsorName: rm, relativeLevel: 1 }];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      const sponsorKey = norm(current.sponsorName);
+      const children = childrenBySponsor.get(sponsorKey) || [];
+
+      for (const child of children) {
+        const childKey = norm(child.name);
+
+        // Prevent loops / duplicate processing by member name.
+        // Still fragile if duplicate member names exist in the system.
+        if (visitedNames.has(childKey)) continue;
+        visitedNames.add(childKey);
+
+        const item = {
+          ...child,
+          relative_level: current.relativeLevel,
+        };
+
+        downlines.push(item);
+
+        queue.push({
+          sponsorName: child.name,
+          relativeLevel: current.relativeLevel + 1,
+        });
+      }
+    }
+
+    // Sort for stable display
+    downlines.sort((a, b) => {
+      const lvl = toNumber(a.relative_level) - toNumber(b.relative_level);
+      if (lvl !== 0) return lvl;
+      return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+    });
+
+    // 4) Count by membership type
     const byType = downlines.reduce((acc, row) => {
       const key = row.membership_type || "Unknown";
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
 
-    // 4) Bonus ledger entries earned by this RM
+    // 5) Bonus ledger entries earned by this RM
     const { data: bonusRows, error: bonusErr } = await sb
       .from("bonus_ledger")
       .select(
@@ -118,7 +179,7 @@ export default async function handler(req, res) {
 
     const bonuses = Array.isArray(bonusRows) ? bonusRows : [];
 
-    // 5) Redemptions for this RM
+    // 6) Redemptions for this RM
     const { data: redemptionRows, error: redErr } = await sb
       .from("redemptions")
       .select("created_at, member_name, redeem_type, qty, source, notes")
@@ -129,15 +190,16 @@ export default async function handler(req, res) {
     }
 
     const redemptions = Array.isArray(redemptionRows) ? redemptionRows : [];
+
     const redeemedCash = redemptions
-      .filter((r) => String(r.redeem_type || "").toLowerCase() === "cash")
+      .filter((r) => norm(r.redeem_type) === "cash")
       .reduce((sum, r) => sum + toNumber(r.qty), 0);
 
     const redeemedProduct = redemptions
-      .filter((r) => String(r.redeem_type || "").toLowerCase() === "product")
+      .filter((r) => norm(r.redeem_type) === "product")
       .reduce((sum, r) => sum + toNumber(r.qty), 0);
 
-    // 6) RM rebates (best-effort because column names may vary)
+    // 7) RM rebates
     const rebateLookup = await trySelectByColumn(
       sb,
       "rm_rebates_ledger",
@@ -160,22 +222,20 @@ export default async function handler(req, res) {
       );
     }, 0);
 
-    // 7) Bonus totals
+    // 8) Overall bonus totals
     const totalCashBonus = bonuses
-      .filter((b) => String(b.bonus_type || "").toLowerCase() === "cash")
+      .filter((b) => norm(b.bonus_type) === "cash")
       .reduce((sum, b) => sum + cashAmount(b), 0);
 
     const totalProductBonus = bonuses
-      .filter((b) => String(b.bonus_type || "").toLowerCase() === "product")
+      .filter((b) => norm(b.bonus_type) === "product")
       .reduce((sum, b) => sum + toNumber(b.amount_num), 0);
 
     const totalCashEarned = totalCashBonus + totalRebates;
     const runningBalanceCash = totalCashEarned - redeemedCash;
     const remainingProductBalance = totalProductBonus - redeemedProduct;
 
-    // 8) Levels data for report table
-    // Show all levels present in genealogy, even 8+.
-    // Bonus only applies to levels 1..7.
+    // 9) Build per-level dataset
     const maxDownlineLevel = downlines.reduce(
       (max, row) => Math.max(max, toNumber(row.relative_level)),
       0
@@ -184,14 +244,8 @@ export default async function handler(req, res) {
       (max, row) => Math.max(max, toNumber(row.relative_level)),
       0
     );
-    const maxLevel = Math.max(7, maxDownlineLevel, maxBonusLevel);
 
-    function levelLabel(level) {
-      if (level === 1) return "D.C. BONUS";
-      if (level === 2) return "IND. BONUS";
-      if (level >= 3 && level <= 7) return "DEV. BONUS";
-      return "";
-    }
+    const maxLevel = Math.max(7, maxDownlineLevel, maxBonusLevel);
 
     const levels = Array.from({ length: maxLevel }, (_, i) => {
       const level = i + 1;
@@ -204,33 +258,28 @@ export default async function handler(req, res) {
         (b) => toNumber(b.relative_level) === level
       );
 
-      let bonusTotal = 0;
-      let bonusType = null;
+      const type = levelBonusType(level);
 
+      let bonusTotal = 0;
       if (level === 1) {
-        bonusType = "Cash";
         bonusTotal = levelBonusRows
-          .filter((b) => String(b.bonus_type || "").toLowerCase() === "cash")
+          .filter((b) => norm(b.bonus_type) === "cash")
           .reduce((sum, b) => sum + cashAmount(b), 0);
       } else if (level === 2) {
-        bonusType = "Product";
         bonusTotal = levelBonusRows
-          .filter((b) => String(b.bonus_type || "").toLowerCase() === "product")
+          .filter((b) => norm(b.bonus_type) === "product")
           .reduce((sum, b) => sum + toNumber(b.amount_num), 0);
       } else if (level >= 3 && level <= 7) {
-        bonusType = "Cash";
         bonusTotal = levelBonusRows
-          .filter((b) => String(b.bonus_type || "").toLowerCase() === "cash")
+          .filter((b) => norm(b.bonus_type) === "cash")
           .reduce((sum, b) => sum + cashAmount(b), 0);
       } else {
-        // Level 8 and above: show genealogy, but no bonus
-        bonusType = null;
         bonusTotal = 0;
       }
 
       const memberRows = levelMembers.map((m) => {
         const matchingBonus = levelBonusRows.find(
-          (b) => String(b.source_member_name || "").trim() === String(m.name || "").trim()
+          (b) => norm(b.source_member_name) === norm(m.name)
         );
 
         let bonusValue = 0;
@@ -250,8 +299,9 @@ export default async function handler(req, res) {
 
       return {
         level,
-        label: levelLabel(level),
-        bonus_type: bonusType,
+        level_title: `${ordinal(level)} Level`,
+        label: bonusLabel(level),
+        bonus_type: type,
         bonus_total: bonusTotal,
         member_count: memberRows.length,
         members: memberRows,
