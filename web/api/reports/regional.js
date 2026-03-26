@@ -245,7 +245,9 @@ export default async function handler(req, res) {
       0
     );
 
-    const maxLevel = Math.max(7, maxDownlineLevel, maxBonusLevel);
+    // Do not force 7 columns. Show only actual levels present.
+    // Level 8+ will appear naturally if present.
+    const maxLevel = Math.max(1, maxDownlineLevel, maxBonusLevel);
 
     const levels = Array.from({ length: maxLevel }, (_, i) => {
       const level = i + 1;

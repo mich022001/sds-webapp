@@ -1,5 +1,4 @@
-// web/src/pages/RegionalReport.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function Card({ title, children, right }) {
   return (
@@ -13,17 +12,6 @@ function Card({ title, children, right }) {
   );
 }
 
-function Stat({ label, value }) {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-        {label}
-      </div>
-      <div className="mt-2 text-xl font-extrabold text-zinc-900">{value}</div>
-    </div>
-  );
-}
-
 function fmtNumber(value) {
   const n = Number(value || 0);
   return n.toLocaleString(undefined, {
@@ -32,12 +20,25 @@ function fmtNumber(value) {
   });
 }
 
+function CompactMetric({ label, value }) {
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
+      <div className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</div>
+      <div className="mt-1 text-base font-bold text-zinc-900">{value}</div>
+    </div>
+  );
+}
+
 export default function RegionalReport() {
   const [rmList, setRmList] = useState([]);
   const [rm, setRm] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [data, setData] = useState(null);
+
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +99,36 @@ export default function RegionalReport() {
     return Array.isArray(data?.levels) ? data.levels : [];
   }, [data]);
 
+  useEffect(() => {
+    function updateScrollState() {
+      const el = scrollRef.current;
+      if (!el) return;
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }
+
+    updateScrollState();
+    const el = scrollRef.current;
+    if (!el) return;
+
+    el.addEventListener("scroll", updateScrollState);
+    window.addEventListener("resize", updateScrollState);
+
+    return () => {
+      el.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
+    };
+  }, [levels, data]);
+
+  function scrollLevels(direction) {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({
+      left: direction * 320,
+      behavior: "smooth",
+    });
+  }
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -143,84 +174,127 @@ export default function RegionalReport() {
               </div>
             </Card>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:col-span-2 xl:grid-cols-4">
-              <Stat label="Total Members" value={fmtNumber(data.totals?.totalMembers)} />
-              <Stat label="Total Rebates" value={fmtNumber(data.totals?.totalRebates)} />
-              <Stat label="Total Cash Bonus" value={fmtNumber(data.totals?.totalCashBonus)} />
-              <Stat label="Total Cash Earned" value={fmtNumber(data.totals?.totalCashEarned)} />
-              <Stat label="Redeemed Cash" value={fmtNumber(data.totals?.redeemedCash)} />
-              <Stat label="Running Cash Balance" value={fmtNumber(data.totals?.runningBalanceCash)} />
-              <Stat label="Total Product Bonus" value={fmtNumber(data.totals?.totalProductBonus)} />
-              <Stat
-                label="Remaining Product Balance"
-                value={fmtNumber(data.totals?.remainingProductBalance)}
-              />
-            </div>
-          </div>
+            <Card title="Summary" right={<span className="text-xs text-zinc-500">Compact view</span>}>
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-2">
+                <CompactMetric label="Total Members" value={fmtNumber(data.totals?.totalMembers)} />
+                <CompactMetric label="Total Rebates" value={fmtNumber(data.totals?.totalRebates)} />
+                <CompactMetric label="Total Cash Bonus" value={fmtNumber(data.totals?.totalCashBonus)} />
+                <CompactMetric label="Total Cash Earned" value={fmtNumber(data.totals?.totalCashEarned)} />
+                <CompactMetric label="Redeemed Cash" value={fmtNumber(data.totals?.redeemedCash)} />
+                <CompactMetric label="Running Cash Balance" value={fmtNumber(data.totals?.runningBalanceCash)} />
+                <CompactMetric label="Total Product Bonus" value={fmtNumber(data.totals?.totalProductBonus)} />
+                <CompactMetric
+                  label="Remaining Product Balance"
+                  value={fmtNumber(data.totals?.remainingProductBalance)}
+                />
+              </div>
+            </Card>
 
-          <Card title="Counts by Membership Type">
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(data.byType || {}).map(([k, v]) => (
-                <div
-                  key={k}
-                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm text-zinc-700"
-                >
-                  {k}: {v}
-                </div>
-              ))}
-              {Object.keys(data.byType || {}).length === 0 && (
-                <div className="text-sm text-zinc-500">No data.</div>
-              )}
-            </div>
-          </Card>
-
-          <Card title="Members under this RM by Level">
-            <div className="overflow-x-auto pb-2">
-              <div className="flex min-w-max gap-4">
-                {levels.map((level) => (
+            <Card title="Counts by Membership Type">
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(data.byType || {}).map(([k, v]) => (
                   <div
-                    key={level.level}
-                    className="w-80 shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
+                    key={k}
+                    className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm text-zinc-700"
                   >
-                    <div className="border-b border-zinc-200 bg-white px-4 py-3">
-                      <div className="text-sm font-bold text-zinc-900">{level.level_title}</div>
-                      <div className="mt-1 text-xs text-zinc-500">
-                        {level.label || "No bonus"}
-                        {level.level <= 7 ? ` • Total: ${fmtNumber(level.bonus_total)}` : ""}
-                      </div>
-                    </div>
-
-                    <div className="border-b border-zinc-200 bg-zinc-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                      Names ({level.member_count})
-                    </div>
-
-                    <div className="max-h-[620px] overflow-y-auto">
-                      {(level.members || []).length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-zinc-400">No members</div>
-                      ) : (
-                        <table className="w-full border-collapse text-sm">
-                          <thead className="sticky top-0 bg-white">
-                            <tr className="border-b border-zinc-200">
-                              <th className="px-4 py-2 text-left font-semibold text-zinc-700">
-                                Name
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {level.members.map((member, idx) => (
-                              <tr
-                                key={`${level.level}-${member.name}-${idx}`}
-                                className="border-b border-zinc-100"
-                              >
-                                <td className="px-4 py-2 text-zinc-800">{member.name}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
+                    {k}: {v}
                   </div>
                 ))}
+                {Object.keys(data.byType || {}).length === 0 && (
+                  <div className="text-sm text-zinc-500">No data.</div>
+                )}
+              </div>
+            </Card>
+          </div>
+
+          <Card
+            title="Members under this RM by Level"
+            right={
+              <div className="flex items-center gap-2">
+                <span className="hidden text-xs text-zinc-500 md:inline">
+                  Swipe or use arrows to view more levels
+                </span>
+                <button
+                  type="button"
+                  onClick={() => scrollLevels(-1)}
+                  disabled={!canScrollLeft}
+                  className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollLevels(1)}
+                  disabled={!canScrollRight}
+                  className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
+                >
+                  →
+                </button>
+              </div>
+            }
+          >
+            <div className="relative">
+              {canScrollLeft && (
+                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-8 bg-gradient-to-r from-white to-transparent" />
+              )}
+              {canScrollRight && (
+                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-8 bg-gradient-to-l from-white to-transparent" />
+              )}
+
+              <div
+                ref={scrollRef}
+                className="overflow-x-auto overflow-y-hidden pb-3"
+              >
+                <div className="flex min-w-max gap-4">
+                  {levels.map((level) => (
+                    <div
+                      key={level.level}
+                      className="w-[300px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
+                    >
+                      <div className="border-b border-zinc-200 bg-white px-4 py-3">
+                        <div className="text-sm font-bold text-zinc-900">{level.level_title}</div>
+                        <div className="mt-1 text-xs text-zinc-500">
+                          {level.label || "No bonus"}
+                          {level.level <= 7 ? ` • Total: ${fmtNumber(level.bonus_total)}` : ""}
+                        </div>
+                      </div>
+
+                      <div className="border-b border-zinc-200 bg-zinc-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                        Names ({level.member_count})
+                      </div>
+
+                      <div className="max-h-[520px] overflow-y-auto">
+                        {(level.members || []).length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-zinc-400">No members</div>
+                        ) : (
+                          <table className="w-full border-collapse text-sm">
+                            <thead className="sticky top-0 bg-white">
+                              <tr className="border-b border-zinc-200">
+                                <th className="px-4 py-2 text-left font-semibold text-zinc-700">
+                                  Name
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {level.members.map((member, idx) => (
+                                <tr
+                                  key={`${level.level}-${member.name}-${idx}`}
+                                  className="border-b border-zinc-100"
+                                >
+                                  <td className="px-4 py-2 text-zinc-800">{member.name}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-2 text-center text-xs text-zinc-500 md:hidden">
+                Swipe horizontally to view more levels
               </div>
             </div>
           </Card>
