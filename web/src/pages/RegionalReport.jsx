@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 function Card({ title, children, right, className = "" }) {
   return (
-    <div className={`rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm ${className}`}>
+    <div
+      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm ${className}`}
+    >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-zinc-900">{title}</div>
         {right}
@@ -108,6 +110,7 @@ export default function RegionalReport() {
     }
 
     updateScrollState();
+
     const el = scrollRef.current;
     if (!el) return;
 
@@ -124,18 +127,18 @@ export default function RegionalReport() {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollBy({
-      left: direction * 380,
+      left: direction * 320,
       behavior: "smooth",
     });
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid max-w-full gap-4 overflow-x-hidden">
       <div className="flex flex-wrap items-end gap-3">
         <label className="grid gap-1">
           <span className="text-xs font-medium text-zinc-600">Regional Manager</span>
           <select
-            className="h-10 w-72 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+            className="h-10 w-72 max-w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
             value={rm}
             onChange={(e) => setRm(e.target.value)}
           >
@@ -154,7 +157,7 @@ export default function RegionalReport() {
 
       {data && (
         <>
-          <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <div className="grid max-w-full gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
             <Card title="Regional Manager Profile" className="min-w-0">
               <div className="grid gap-y-2 text-sm sm:grid-cols-[130px_1fr]">
                 <div className="font-medium text-zinc-500">Name</div>
@@ -209,6 +212,7 @@ export default function RegionalReport() {
 
           <Card
             title="Members under this RM by Level"
+            className="min-w-0"
             right={
               <div className="flex items-center gap-2">
                 <span className="hidden text-xs text-zinc-500 md:inline">
@@ -233,7 +237,7 @@ export default function RegionalReport() {
               </div>
             }
           >
-            <div className="relative">
+            <div className="relative max-w-full overflow-hidden">
               {canScrollLeft && (
                 <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
               )}
@@ -241,12 +245,15 @@ export default function RegionalReport() {
                 <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
               )}
 
-              <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden pb-3">
-                <div className="flex min-w-max gap-4">
+              <div
+                ref={scrollRef}
+                className="w-full overflow-x-auto overflow-y-hidden pb-3"
+              >
+                <div className="flex w-max gap-4 pr-2">
                   {levels.map((level) => (
                     <div
                       key={level.level}
-                      className="w-[360px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
+                      className="w-[280px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
                     >
                       <div className="border-b border-zinc-200 bg-white px-4 py-3">
                         <div className="text-sm font-bold text-zinc-900">{level.level_title}</div>
@@ -288,6 +295,16 @@ export default function RegionalReport() {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* visible scrollbar track area hint */}
+              <div className="mt-2 h-2 rounded-full bg-zinc-100">
+                <div
+                  className={`h-2 rounded-full bg-zinc-300 transition-opacity ${
+                    canScrollLeft || canScrollRight ? "opacity-100" : "opacity-0"
+                  }`}
+                  style={{ width: "28%" }}
+                />
               </div>
 
               <div className="mt-2 text-center text-xs text-zinc-500 md:hidden">
