@@ -193,11 +193,6 @@ export default function MemberReport() {
         </Card>
       </div>
 
-      <Card title="Report Output (raw)">
-        <pre className="max-h-96 overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
-          {raw}
-        </pre>
-      </Card>
     </div>
   );
 }
