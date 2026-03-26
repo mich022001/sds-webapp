@@ -1,15 +1,22 @@
-// web/api/reports/member.js
 import { createClient } from "@supabase/supabase-js";
 
 function supabaseAdmin() {
   return createClient(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+    }
   );
 }
 
 function norm(s) {
   return String(s ?? "").trim().toLowerCase();
+}
+
+function toNumber(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function isOutright(amountText) {
@@ -24,16 +31,42 @@ function cashAmount(b) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function ordinal(level) {
+  if (level % 100 >= 11 && level % 100 <= 13) return `${level}th`;
+  if (level % 10 === 1) return `${level}st`;
+  if (level % 10 === 2) return `${level}nd`;
+  if (level % 10 === 3) return `${level}rd`;
+  return `${level}th`;
+}
+
+function bonusLabel(level) {
+  if (level === 1) return "D.C. BONUS";
+  if (level === 2) return "IND. BONUS";
+  if (level >= 3 && level <= 7) return "DEV. BONUS";
+  return "";
+}
+
+function levelBonusType(level) {
+  if (level === 1) return "Cash";
+  if (level === 2) return "Product";
+  if (level >= 3 && level <= 7) return "Cash";
+  return null;
+}
+
 export default async function handler(req, res) {
   try {
-    if (req.method !== "GET") return res.status(405).json({ error: "GET only" });
+    if (req.method !== "GET") {
+      return res.status(405).json({ error: "GET only" });
+    }
 
     const inputName = String(req.query?.name ?? "").trim();
-    if (!inputName) return res.status(400).json({ error: "Missing ?name=" });
+    if (!inputName) {
+      return res.status(400).json({ error: "Missing ?name=" });
+    }
 
     const sb = supabaseAdmin();
 
-    // 1) Member (case-insensitive)
+    // 1) Member profile (case-insensitive)
     const { data: member, error: memberErr } = await sb
       .from("members")
       .select("*")
@@ -43,7 +76,6 @@ export default async function handler(req, res) {
     if (memberErr) return res.status(400).json({ error: memberErr.message });
     if (!member) return res.status(404).json({ error: "Member not found." });
 
-    // Use canonical name from DB to avoid casing/spacing mismatch
     const memberName = String(member.name ?? "").trim();
 
     // 2) Bonus ledger for this earner
@@ -53,12 +85,13 @@ export default async function handler(req, res) {
         "created_at, earner_name, source_member_name, relative_level, bonus_type, amount_num, amount_text, rule_applied, reason"
       )
       .ilike("earner_name", memberName)
-      .order("created_at", { ascending: false })
+      .order("relative_level", { ascending: true })
+      .order("created_at", { ascending: true })
       .limit(1000);
 
     if (bonusErr) return res.status(400).json({ error: bonusErr.message });
 
-    // Fallback if no rows (handles trailing spaces / weird casing in DB)
+    // Fallback if no rows
     if ((bonuses ?? []).length === 0) {
       const r2 = await sb
         .from("bonus_ledger")
@@ -66,7 +99,8 @@ export default async function handler(req, res) {
           "created_at, earner_name, source_member_name, relative_level, bonus_type, amount_num, amount_text, rule_applied, reason"
         )
         .ilike("earner_name", `%${memberName}%`)
-        .order("created_at", { ascending: false })
+        .order("relative_level", { ascending: true })
+        .order("created_at", { ascending: true })
         .limit(1000);
 
       if (!r2.error && Array.isArray(r2.data)) bonuses = r2.data;
@@ -82,7 +116,6 @@ export default async function handler(req, res) {
 
     if (redErr) return res.status(400).json({ error: redErr.message });
 
-    // Fallback if no rows
     if ((redemptions ?? []).length === 0) {
       const r2 = await sb
         .from("redemptions")
@@ -94,7 +127,69 @@ export default async function handler(req, res) {
       if (!r2.error && Array.isArray(r2.data)) redemptions = r2.data;
     }
 
-    // --- Totals logic ---
+    // 4) Load all members for genealogy traversal
+    const { data: allMembers, error: allMembersErr } = await sb
+      .from("members")
+      .select(
+        "id, name, member_id, contact, email, membership_type, level, address, sponsor_name, regional_manager, area_region, created_at"
+      )
+      .order("created_at", { ascending: true });
+
+    if (allMembersErr) {
+      return res.status(400).json({ error: allMembersErr.message });
+    }
+
+    const rows = Array.isArray(allMembers) ? allMembers : [];
+
+    // Build sponsor -> children map
+    const childrenBySponsor = new Map();
+    for (const row of rows) {
+      const sponsorKey = norm(row.sponsor_name || "SDS");
+      if (!childrenBySponsor.has(sponsorKey)) {
+        childrenBySponsor.set(sponsorKey, []);
+      }
+      childrenBySponsor.get(sponsorKey).push(row);
+    }
+
+    // Traverse descendants from the selected member using sponsor chain
+    const visitedNames = new Set();
+    const downlines = [];
+    const queue = [{ sponsorName: memberName, relativeLevel: 1 }];
+
+    while (queue.length > 0) {
+      const current = queue.shift();
+      const sponsorKey = norm(current.sponsorName);
+      const children = childrenBySponsor.get(sponsorKey) || [];
+
+      for (const child of children) {
+        const childKey = norm(child.name);
+
+        // Prevent loops / duplicate processing by member name.
+        // Still fragile if duplicate member names exist in the system.
+        if (visitedNames.has(childKey)) continue;
+        visitedNames.add(childKey);
+
+        const item = {
+          ...child,
+          relative_level: current.relativeLevel,
+        };
+
+        downlines.push(item);
+
+        queue.push({
+          sponsorName: child.name,
+          relativeLevel: current.relativeLevel + 1,
+        });
+      }
+    }
+
+    downlines.sort((a, b) => {
+      const lvl = toNumber(a.relative_level) - toNumber(b.relative_level);
+      if (lvl !== 0) return lvl;
+      return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+    });
+
+    // --- Existing totals logic ---
     let total_cash = 0;        // includes outright 600
     let redeemable_cash = 0;   // excludes outright
     let total_product = 0;
@@ -119,8 +214,83 @@ export default async function handler(req, res) {
       else if (r.redeem_type === "Product") redeemed_product += q;
     }
 
-    const balance_cash = redeemable_cash - redeemed_cash; // outright not counted
+    const balance_cash = redeemable_cash - redeemed_cash;
     const balance_product = total_product - redeemed_product;
+
+    // 5) Build level dataset for UI
+    const maxDownlineLevel = downlines.reduce(
+      (max, row) => Math.max(max, toNumber(row.relative_level)),
+      0
+    );
+
+    const maxBonusLevel = (bonuses ?? []).reduce(
+      (max, row) => Math.max(max, toNumber(row.relative_level)),
+      0
+    );
+
+    const maxLevel = Math.max(1, maxDownlineLevel, maxBonusLevel);
+
+    const levels = Array.from({ length: maxLevel }, (_, i) => {
+      const level = i + 1;
+
+      const levelMembers = downlines.filter(
+        (m) => toNumber(m.relative_level) === level
+      );
+
+      const levelBonusRows = (bonuses ?? []).filter(
+        (b) => toNumber(b.relative_level) === level
+      );
+
+      const type = levelBonusType(level);
+
+      let bonusTotal = 0;
+      if (level === 1) {
+        bonusTotal = levelBonusRows
+          .filter((b) => norm(b.bonus_type) === "cash")
+          .reduce((sum, b) => sum + cashAmount(b), 0);
+      } else if (level === 2) {
+        bonusTotal = levelBonusRows
+          .filter((b) => norm(b.bonus_type) === "product")
+          .reduce((sum, b) => sum + toNumber(b.amount_num), 0);
+      } else if (level >= 3 && level <= 7) {
+        bonusTotal = levelBonusRows
+          .filter((b) => norm(b.bonus_type) === "cash")
+          .reduce((sum, b) => sum + cashAmount(b), 0);
+      } else {
+        // 8th+ visible, but no bonus
+        bonusTotal = 0;
+      }
+
+      const memberRows = levelMembers.map((m) => {
+        const matchingBonus = levelBonusRows.find(
+          (b) => norm(b.source_member_name) === norm(m.name)
+        );
+
+        let bonusValue = 0;
+        if (level === 1 && matchingBonus) bonusValue = cashAmount(matchingBonus);
+        if (level === 2 && matchingBonus) bonusValue = toNumber(matchingBonus.amount_num);
+        if (level >= 3 && level <= 7 && matchingBonus) bonusValue = cashAmount(matchingBonus);
+
+        return {
+          name: m.name,
+          membership_type: m.membership_type,
+          sponsor_name: m.sponsor_name || "SDS",
+          created_at: m.created_at,
+          relative_level: level,
+          bonus_value: level <= 7 ? bonusValue : 0,
+        };
+      });
+
+      return {
+        level,
+        level_title: `${ordinal(level)} Level`,
+        label: bonusLabel(level),
+        bonus_type: type,
+        bonus_total: bonusTotal,
+        member_count: memberRows.length,
+        members: memberRows,
+      };
+    });
 
     return res.status(200).json({
       member,
@@ -135,6 +305,8 @@ export default async function handler(req, res) {
       },
       bonuses: bonuses ?? [],
       redemptions: redemptions ?? [],
+      levels,
+      downlines,
     });
   } catch (e) {
     return res.status(500).json({ error: String(e?.message ?? e) });

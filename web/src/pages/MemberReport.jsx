@@ -1,13 +1,14 @@
-// web/src/pages/MemberReport.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function cls(...a) {
   return a.filter(Boolean).join(" ");
 }
 
-function Card({ title, children, right }) {
+function Card({ title, children, right, className = "" }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div
+      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
+    >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-zinc-900">{title}</div>
         {right}
@@ -21,7 +22,9 @@ function Stat({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">{value}</div>
+      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
+        {value}
+      </div>
       {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
     </div>
   );
@@ -36,6 +39,10 @@ export default function MemberReport() {
 
   const [err, setErr] = useState("");
   const [report, setReport] = useState(null);
+
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,8 +92,40 @@ export default function MemberReport() {
     }
   }
 
+  useEffect(() => {
+    function updateScrollState() {
+      const el = scrollRef.current;
+      if (!el) return;
+      setCanScrollLeft(el.scrollLeft > 4);
+      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    }
+
+    updateScrollState();
+
+    const el = scrollRef.current;
+    if (!el) return;
+
+    el.addEventListener("scroll", updateScrollState);
+    window.addEventListener("resize", updateScrollState);
+
+    return () => {
+      el.removeEventListener("scroll", updateScrollState);
+      window.removeEventListener("resize", updateScrollState);
+    };
+  }, [report]);
+
+  function scrollLevels(direction) {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({
+      left: direction * 320,
+      behavior: "smooth",
+    });
+  }
+
   const totals = report?.totals || null;
   const member = report?.member || null;
+  const levels = Array.isArray(report?.levels) ? report.levels : [];
 
   const prettyMoney = (n) => {
     const x = Number(n ?? 0);
@@ -94,21 +133,17 @@ export default function MemberReport() {
     return x.toFixed(2);
   };
 
-  const raw = useMemo(() => {
-    try {
-      return JSON.stringify(report ?? null, null, 2);
-    } catch {
-      return String(report);
-    }
-  }, [report]);
-
   return (
-    <div className="grid gap-4">
+    <div className="grid max-w-full gap-4 overflow-x-hidden">
       <Card
         title="Member Report"
-        right={<span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">API: /api/reports/member</span>}
+        right={
+          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+            API: /api/reports/member
+          </span>
+        }
       >
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto] items-end">
+        <div className="grid items-end gap-3 md:grid-cols-[1fr_auto_auto]">
           <label className="grid gap-1">
             <span className="text-xs font-medium text-zinc-600">Select Member</span>
             <select
@@ -152,35 +187,64 @@ export default function MemberReport() {
         </div>
 
         {loadingReport && <div className="mt-3 text-sm text-zinc-500">Loading report…</div>}
-        {err && <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div>}
+        {err && (
+          <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {err}
+          </div>
+        )}
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card title="Member Profile">
+      <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <Card title="Member Profile" className="min-w-0">
           {member ? (
-            <div className="grid gap-2 text-sm text-zinc-700">
-              <div><span className="text-zinc-500">Name:</span> {member.name}</div>
-              <div><span className="text-zinc-500">Member ID:</span> {member.member_id || "-"}</div>
-              <div><span className="text-zinc-500">Membership:</span> {member.membership_type || "-"}</div>
-              <div><span className="text-zinc-500">Sponsor:</span> {member.sponsor_name || "SDS"}</div>
-              <div><span className="text-zinc-500">Member Since:</span> {member.created_at || "-"}</div>
+            <div className="grid gap-y-2 text-sm sm:grid-cols-[130px_1fr]">
+              <div className="font-medium text-zinc-500">Name</div>
+              <div className="text-zinc-800">{member.name}</div>
+
+              <div className="font-medium text-zinc-500">Member ID</div>
+              <div className="text-zinc-800">{member.member_id || "-"}</div>
+
+              <div className="font-medium text-zinc-500">Membership</div>
+              <div className="text-zinc-800">{member.membership_type || "-"}</div>
+
+              <div className="font-medium text-zinc-500">Sponsor</div>
+              <div className="text-zinc-800">{member.sponsor_name || "SDS"}</div>
+
+              <div className="font-medium text-zinc-500">Member Since</div>
+              <div className="break-all text-zinc-800">{member.created_at || "-"}</div>
             </div>
           ) : (
-            <div className="text-sm text-zinc-500">Generate a report to view member profile.</div>
+            <div className="text-sm text-zinc-500">
+              Generate a report to view member profile.
+            </div>
           )}
         </Card>
 
-        <Card title="Bonus Summary">
+        <Card title="Bonus Summary" className="min-w-0">
           {totals ? (
             <div className="grid gap-3">
               <div className="grid grid-cols-2 gap-3">
-                <Stat label="Total Cash Issued" value={prettyMoney(totals.total_cash)} hint="Includes Outright 600" />
-                <Stat label="Redeemable Cash" value={prettyMoney(totals.redeemable_cash)} hint="Excludes Outright" />
+                <Stat
+                  label="Total Cash Issued"
+                  value={prettyMoney(totals.total_cash)}
+                  hint="Includes Outright 600"
+                />
+                <Stat
+                  label="Redeemable Cash"
+                  value={prettyMoney(totals.redeemable_cash)}
+                  hint="Excludes Outright"
+                />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <Stat label="Cash Redeemed" value={prettyMoney(totals.redeemed_cash)} />
-                <Stat label="Cash Balance" value={prettyMoney(totals.balance_cash)} hint="Redeemable - Redeemed" />
+                <Stat
+                  label="Cash Balance"
+                  value={prettyMoney(totals.balance_cash)}
+                  hint="Redeemable - Redeemed"
+                />
               </div>
+
               <div className="grid grid-cols-3 gap-3">
                 <Stat label="Total Product" value={String(totals.total_product ?? 0)} />
                 <Stat label="Product Redeemed" value={String(totals.redeemed_product ?? 0)} />
@@ -188,11 +252,122 @@ export default function MemberReport() {
               </div>
             </div>
           ) : (
-            <div className="text-sm text-zinc-500">Generate a report to view totals.</div>
+            <div className="text-sm text-zinc-500">
+              Generate a report to view totals.
+            </div>
           )}
         </Card>
       </div>
 
+      <Card
+        title="Downlines by Level"
+        className="min-w-0"
+        right={
+          <div className="flex items-center gap-2">
+            <span className="hidden text-xs text-zinc-500 md:inline">
+              Swipe or use arrows to view more levels
+            </span>
+            <button
+              type="button"
+              onClick={() => scrollLevels(-1)}
+              disabled={!canScrollLeft}
+              className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
+            >
+              ←
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollLevels(1)}
+              disabled={!canScrollRight}
+              className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
+            >
+              →
+            </button>
+          </div>
+        }
+      >
+        {!report ? (
+          <div className="text-sm text-zinc-500">
+            Generate a report to view downlines by level.
+          </div>
+        ) : (
+          <div className="relative max-w-full overflow-hidden">
+            {canScrollLeft && (
+              <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
+            )}
+            {canScrollRight && (
+              <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
+            )}
+
+            <div
+              ref={scrollRef}
+              className="w-full overflow-x-auto overflow-y-hidden pb-3"
+            >
+              <div className="flex w-max gap-4 pr-2">
+                {levels.map((level) => (
+                  <div
+                    key={level.level}
+                    className="w-[280px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
+                  >
+                    <div className="border-b border-zinc-200 bg-white px-4 py-3">
+                      <div className="text-sm font-bold text-zinc-900">
+                        {level.level_title}
+                      </div>
+                      <div className="mt-1 text-xs text-zinc-500">
+                        {level.label || "No bonus"}
+                        {level.level <= 7
+                          ? ` • Total: ${prettyMoney(level.bonus_total)}`
+                          : ""}
+                      </div>
+                    </div>
+
+                    <div className="border-b border-zinc-200 bg-zinc-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                      Names ({level.member_count})
+                    </div>
+
+                    <div className="max-h-[420px] overflow-y-auto">
+                      {(level.members || []).length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-zinc-400">
+                          No members
+                        </div>
+                      ) : (
+                        <table className="w-full border-collapse text-sm">
+                          <thead className="sticky top-0 bg-white">
+                            <tr className="border-b border-zinc-200">
+                              <th className="px-4 py-2 text-left font-semibold text-zinc-700">
+                                Name
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {level.members.map((m, idx) => (
+                              <tr
+                                key={`${level.level}-${m.name}-${idx}`}
+                                className="border-b border-zinc-100"
+                              >
+                                <td className="px-4 py-2 text-zinc-800">{m.name}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-2 h-2 rounded-full bg-zinc-200">
+              <div
+                className={`h-2 rounded-full bg-zinc-500 transition-all ${
+                  canScrollLeft || canScrollRight ? "opacity-100" : "opacity-0"
+                }`}
+                style={{ width: "28%" }}
+              />
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
