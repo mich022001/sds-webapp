@@ -1,9 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Members from "./pages/Members";
 import BonusLedger from "./pages/BonusLedger";
 import Dashboard from "./pages/Dashboard";
-
-// ✅ NEW: reports pages
 import MemberReport from "./pages/MemberReport";
 import RegionalReport from "./pages/RegionalReport";
 
@@ -14,7 +12,6 @@ const nav = [
   { key: "ledger", label: "Bonus Ledger" },
   { key: "sales", label: "Sales Entry" },
   { key: "reports", label: "Reports" },
-  // ✅ NEW: real report pages (so you can open them)
   { key: "report_member", label: "Member Report" },
   { key: "report_regional", label: "Regional Report" },
   { key: "redemptions", label: "Redemptions" },
@@ -60,7 +57,9 @@ function Stat({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">{value}</div>
+      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
+        {value}
+      </div>
       {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
     </div>
   );
@@ -68,11 +67,11 @@ function Stat({ label, value, hint }) {
 
 function Input({ label, ...props }) {
   return (
-    <label className="grid gap-1">
+    <label className="grid min-w-0 gap-1">
       <span className="text-xs font-medium text-zinc-600">{label}</span>
       <input
         {...props}
-        className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 focus:border-zinc-900"
+        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 focus:border-zinc-900"
       />
     </label>
   );
@@ -80,11 +79,11 @@ function Input({ label, ...props }) {
 
 function Select({ label, children, ...props }) {
   return (
-    <label className="grid gap-1">
+    <label className="grid min-w-0 gap-1">
       <span className="text-xs font-medium text-zinc-600">{label}</span>
       <select
         {...props}
-        className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 truncate"
+        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 truncate"
       >
         {children}
       </select>
@@ -99,7 +98,8 @@ function Button({ children, variant = "primary", ...props }) {
       className={cls(
         "h-10 rounded-xl px-4 text-sm font-semibold transition",
         variant === "primary" && "bg-zinc-900 text-white hover:bg-zinc-800",
-        variant === "ghost" && "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50"
+        variant === "ghost" &&
+          "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50"
       )}
     >
       {children}
@@ -118,7 +118,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
-        {/* Sidebar */}
         <aside className="hidden w-64 shrink-0 md:block">
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <div className="text-lg font-extrabold text-zinc-900">SDS Admin</div>
@@ -143,9 +142,7 @@ export default function App() {
           </div>
         </aside>
 
-        {/* Main */}
-        <main className="flex-1">
-          {/* Top bar */}
+        <main className="flex-1 min-w-0">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <div className="text-xl font-extrabold text-zinc-900">{pageTitle}</div>
@@ -167,37 +164,67 @@ export default function App() {
           {active === "registration" && <Registration />}
           {active === "members" && <Members />}
           {active === "ledger" && <BonusLedger />}
-          {active === "sales" && <Placeholder title="Sales Entry" desc="Checkout + RM rebates + upline bonuses" />}
-
-          {/* ✅ Reports hub now navigates to real report pages */}
+          {active === "sales" && (
+            <Placeholder
+              title="Sales Entry"
+              desc="Checkout + RM rebates + upline bonuses"
+            />
+          )}
           {active === "reports" && <Reports go={setActive} />}
-
-          {/* ✅ Real report pages */}
           {active === "report_member" && <MemberReport />}
           {active === "report_regional" && <RegionalReport />}
-
-          {active === "redemptions" && <Placeholder title="Redemptions" desc="List + filter + notes" />}
+          {active === "redemptions" && (
+            <Placeholder title="Redemptions" desc="List + filter + notes" />
+          )}
         </main>
       </div>
     </div>
   );
 }
 
-/*dashboard function deleted*/
-
 function Registration() {
+  const [members, setMembers] = useState([]);
   const [form, setForm] = useState({
     name: "",
     contact: "",
     email: "",
     membershipType: "Member",
     address: "",
-    sponsor: "",
+    sponsor: "SDS",
     areaRegion: PH_REGIONS[0],
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMembers() {
+      try {
+        const res = await fetch("/api/members/list");
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+
+        const rows = Array.isArray(json?.data) ? json.data : [];
+        const sorted = [...rows].sort((a, b) =>
+          String(a.name || "").localeCompare(String(b.name || ""))
+        );
+
+        if (!cancelled) {
+          setMembers(sorted);
+        }
+      } catch {
+        // no-op for now
+      }
+    }
+
+    loadMembers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-4">
       <Card
         title="Register New Member"
         right={
@@ -240,9 +267,25 @@ function Registration() {
               email: "",
               membershipType: "Member",
               address: "",
-              sponsor: "",
-              areaRegion: "",
+              sponsor: "SDS",
+              areaRegion: PH_REGIONS[0],
             });
+
+            try {
+              const refreshRes = await fetch("/api/members/list");
+              const refreshJson = await refreshRes.json().catch(() => ({}));
+              if (refreshRes.ok) {
+                const rows = Array.isArray(refreshJson?.data)
+                  ? refreshJson.data
+                  : [];
+                const sorted = [...rows].sort((a, b) =>
+                  String(a.name || "").localeCompare(String(b.name || ""))
+                );
+                setMembers(sorted);
+              }
+            } catch {
+              // ignore refresh failure
+            }
           }}
         >
           <div className="grid gap-3 md:grid-cols-2">
@@ -267,7 +310,9 @@ function Registration() {
             <Select
               label="Membership Type"
               value={form.membershipType}
-              onChange={(e) => setForm({ ...form, membershipType: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, membershipType: e.target.value })
+              }
             >
               <option>Member</option>
               <option>Distributor</option>
@@ -284,25 +329,30 @@ function Registration() {
           />
 
           <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Sponsor (name or SDS)"
+            <Select
+              label="Sponsor"
               value={form.sponsor}
               onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
-            />
+            >
+              <option value="SDS">SDS</option>
+              {members.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.name}
+                </option>
+              ))}
+            </Select>
 
-            <div className="min-w-0">
-              <Select
-                label="Area/Region"
-                value={form.areaRegion}
-                onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
-              >
-                {PH_REGIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </Select>
-            </div>
+            <Select
+              label="Area/Region"
+              value={form.areaRegion}
+              onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
+            >
+              {PH_REGIONS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </Select>
           </div>
 
           <div className="mt-2 flex gap-2">
@@ -317,8 +367,8 @@ function Registration() {
                   email: "",
                   membershipType: "Member",
                   address: "",
-                  sponsor: "",
-                  areaRegion: "",
+                  sponsor: "SDS",
+                  areaRegion: PH_REGIONS[0],
                 })
               }
             >
@@ -326,17 +376,6 @@ function Registration() {
             </Button>
           </div>
         </form>
-      </Card>
-
-      <Card title="What happens when you save (same as Apps Script)">
-        <ul className="list-disc space-y-2 pl-5 text-sm text-zinc-600">
-          <li>Creates Member ID (2026EM000001...)</li>
-          <li>Assigns level based on sponsor</li>
-          <li>Assigns Regional Manager</li>
-          <li>Promotes sponsor after first recruit</li>
-          <li>Distributes bonuses up to 7 uplines</li>
-          <li>Updates Members_Bonuses balances</li>
-        </ul>
       </Card>
     </div>
   );
@@ -347,7 +386,11 @@ function Reports({ go }) {
     <div className="grid gap-4 md:grid-cols-3">
       <Card
         title="Member Report"
-        right={<span className="text-xs font-semibold text-zinc-500">Sheet: Member_Report</span>}
+        right={
+          <span className="text-xs font-semibold text-zinc-500">
+            Sheet: Member_Report
+          </span>
+        }
       >
         <div className="text-sm text-zinc-600">
           Shows profile + summary + bonus tree (levels 1–7) + genealogy.
@@ -359,7 +402,11 @@ function Reports({ go }) {
 
       <Card
         title="Regional Report"
-        right={<span className="text-xs font-semibold text-zinc-500">Sheet: Regional_Report</span>}
+        right={
+          <span className="text-xs font-semibold text-zinc-500">
+            Sheet: Regional_Report
+          </span>
+        }
       >
         <div className="text-sm text-zinc-600">
           RM summary + rebates + genealogy by level + bonus totals (1–7).
@@ -371,13 +418,21 @@ function Reports({ go }) {
 
       <Card
         title="Sales Analytics"
-        right={<span className="text-xs font-semibold text-zinc-500">Sheet: Sales_Analytics</span>}
+        right={
+          <span className="text-xs font-semibold text-zinc-500">
+            Sheet: Sales_Analytics
+          </span>
+        }
       >
         <div className="text-sm text-zinc-600">
           Highest products sold, top buyers, per package, per product (date range).
         </div>
         <div className="mt-4">
-          <Button onClick={() => alert("Next: /api/reports/sales?from=...&to=...")}>Open (next)</Button>
+          <Button
+            onClick={() => alert("Next: /api/reports/sales?from=...&to=...")}
+          >
+            Open (next)
+          </Button>
         </div>
       </Card>
     </div>
