@@ -227,12 +227,6 @@ function Registration() {
     <div className="grid gap-4">
       <Card
         title="Register New Member"
-        right={
-          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-            Sheet: Registration_Sheet
-          </span>
-        }
-      >
         <form
           className="grid gap-3"
           onSubmit={async (e) => {
@@ -384,14 +378,7 @@ function Registration() {
 function Reports({ go }) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      <Card
-        title="Member Report"
-        right={
-          <span className="text-xs font-semibold text-zinc-500">
-            Sheet: Member_Report
-          </span>
-        }
-      >
+      <Card title="Member Report">
         <div className="text-sm text-zinc-600">
           Shows profile + summary + bonus tree (levels 1–7) + genealogy.
         </div>
@@ -400,14 +387,7 @@ function Reports({ go }) {
         </div>
       </Card>
 
-      <Card
-        title="Regional Report"
-        right={
-          <span className="text-xs font-semibold text-zinc-500">
-            Sheet: Regional_Report
-          </span>
-        }
-      >
+      <Card title="Regional Report">
         <div className="text-sm text-zinc-600">
           RM summary + rebates + genealogy by level + bonus totals (1–7).
         </div>
@@ -416,14 +396,7 @@ function Reports({ go }) {
         </div>
       </Card>
 
-      <Card
-        title="Sales Analytics"
-        right={
-          <span className="text-xs font-semibold text-zinc-500">
-            Sheet: Sales_Analytics
-          </span>
-        }
-      >
+      <Card title="Sales Analytics">
         <div className="text-sm text-zinc-600">
           Highest products sold, top buyers, per package, per product (date range).
         </div>
