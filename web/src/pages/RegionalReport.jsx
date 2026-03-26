@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-function Card({ title, children, right }) {
+function Card({ title, children, right, className = "" }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className={`rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm ${className}`}>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-zinc-900">{title}</div>
         {right}
@@ -124,7 +124,7 @@ export default function RegionalReport() {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollBy({
-      left: direction * 320,
+      left: direction * 380,
       behavior: "smooth",
     });
   }
@@ -154,9 +154,9 @@ export default function RegionalReport() {
 
       {data && (
         <>
-          <div className="grid gap-4 xl:grid-cols-3">
-            <Card title="Regional Manager Profile">
-              <div className="grid gap-y-2 text-sm sm:grid-cols-[140px_1fr]">
+          <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+            <Card title="Regional Manager Profile" className="min-w-0">
+              <div className="grid gap-y-2 text-sm sm:grid-cols-[130px_1fr]">
                 <div className="font-medium text-zinc-500">Name</div>
                 <div className="text-zinc-800">{data.profile?.name || "-"}</div>
 
@@ -174,8 +174,8 @@ export default function RegionalReport() {
               </div>
             </Card>
 
-            <Card title="Summary" right={<span className="text-xs text-zinc-500">Compact view</span>}>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-2">
+            <Card title="Summary" className="min-w-0">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 <CompactMetric label="Total Members" value={fmtNumber(data.totals?.totalMembers)} />
                 <CompactMetric label="Total Rebates" value={fmtNumber(data.totals?.totalRebates)} />
                 <CompactMetric label="Total Cash Bonus" value={fmtNumber(data.totals?.totalCashBonus)} />
@@ -189,23 +189,23 @@ export default function RegionalReport() {
                 />
               </div>
             </Card>
-
-            <Card title="Counts by Membership Type">
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(data.byType || {}).map(([k, v]) => (
-                  <div
-                    key={k}
-                    className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm text-zinc-700"
-                  >
-                    {k}: {v}
-                  </div>
-                ))}
-                {Object.keys(data.byType || {}).length === 0 && (
-                  <div className="text-sm text-zinc-500">No data.</div>
-                )}
-              </div>
-            </Card>
           </div>
+
+          <Card title="Counts by Membership Type">
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(data.byType || {}).map(([k, v]) => (
+                <div
+                  key={k}
+                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm text-zinc-700"
+                >
+                  {k}: {v}
+                </div>
+              ))}
+              {Object.keys(data.byType || {}).length === 0 && (
+                <div className="text-sm text-zinc-500">No data.</div>
+              )}
+            </div>
+          </Card>
 
           <Card
             title="Members under this RM by Level"
@@ -235,21 +235,18 @@ export default function RegionalReport() {
           >
             <div className="relative">
               {canScrollLeft && (
-                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-8 bg-gradient-to-r from-white to-transparent" />
+                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
               )}
               {canScrollRight && (
-                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-8 bg-gradient-to-l from-white to-transparent" />
+                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
               )}
 
-              <div
-                ref={scrollRef}
-                className="overflow-x-auto overflow-y-hidden pb-3"
-              >
+              <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden pb-3">
                 <div className="flex min-w-max gap-4">
                   {levels.map((level) => (
                     <div
                       key={level.level}
-                      className="w-[300px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
+                      className="w-[360px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
                     >
                       <div className="border-b border-zinc-200 bg-white px-4 py-3">
                         <div className="text-sm font-bold text-zinc-900">{level.level_title}</div>
