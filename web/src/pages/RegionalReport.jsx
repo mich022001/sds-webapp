@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 
 function Card({ title, children, right }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-start justify-between gap-3">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-zinc-900">{title}</div>
         {right}
       </div>
@@ -15,11 +15,11 @@ function Card({ title, children, right }) {
 
 function Stat({ label, value }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
-        {value}
+    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+        {label}
       </div>
+      <div className="mt-2 text-xl font-extrabold text-zinc-900">{value}</div>
     </div>
   );
 }
@@ -123,28 +123,27 @@ export default function RegionalReport() {
 
       {data && (
         <>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 xl:grid-cols-3">
             <Card title="Regional Manager Profile">
-              <div className="grid gap-2 text-sm text-zinc-700">
-                <div>
-                  <span className="font-medium text-zinc-500">Name:</span> {data.profile?.name || "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-zinc-500">ID Number:</span> {data.profile?.member_id || "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-zinc-500">Address:</span> {data.profile?.address || "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-zinc-500">Contact Number:</span> {data.profile?.contact || "-"}
-                </div>
-                <div>
-                  <span className="font-medium text-zinc-500">Email Address:</span> {data.profile?.email || "-"}
-                </div>
+              <div className="grid gap-y-2 text-sm sm:grid-cols-[140px_1fr]">
+                <div className="font-medium text-zinc-500">Name</div>
+                <div className="text-zinc-800">{data.profile?.name || "-"}</div>
+
+                <div className="font-medium text-zinc-500">ID Number</div>
+                <div className="text-zinc-800">{data.profile?.member_id || "-"}</div>
+
+                <div className="font-medium text-zinc-500">Address</div>
+                <div className="text-zinc-800">{data.profile?.address || "-"}</div>
+
+                <div className="font-medium text-zinc-500">Contact Number</div>
+                <div className="text-zinc-800">{data.profile?.contact || "-"}</div>
+
+                <div className="font-medium text-zinc-500">Email Address</div>
+                <div className="break-all text-zinc-800">{data.profile?.email || "-"}</div>
               </div>
             </Card>
 
-            <div className="grid gap-4 lg:col-span-2 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:col-span-2 xl:grid-cols-4">
               <Stat label="Total Members" value={fmtNumber(data.totals?.totalMembers)} />
               <Stat label="Total Rebates" value={fmtNumber(data.totals?.totalRebates)} />
               <Stat label="Total Cash Bonus" value={fmtNumber(data.totals?.totalCashBonus)} />
@@ -152,19 +151,25 @@ export default function RegionalReport() {
               <Stat label="Redeemed Cash" value={fmtNumber(data.totals?.redeemedCash)} />
               <Stat label="Running Cash Balance" value={fmtNumber(data.totals?.runningBalanceCash)} />
               <Stat label="Total Product Bonus" value={fmtNumber(data.totals?.totalProductBonus)} />
-              <Stat label="Remaining Product Balance" value={fmtNumber(data.totals?.remainingProductBalance)} />
+              <Stat
+                label="Remaining Product Balance"
+                value={fmtNumber(data.totals?.remainingProductBalance)}
+              />
             </div>
           </div>
 
           <Card title="Counts by Membership Type">
-            <div className="grid gap-2 text-sm text-zinc-700 md:grid-cols-2 xl:grid-cols-4">
+            <div className="flex flex-wrap gap-2">
               {Object.entries(data.byType || {}).map(([k, v]) => (
-                <div key={k}>
-                  <span className="text-zinc-500">{k}:</span> {v}
+                <div
+                  key={k}
+                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm text-zinc-700"
+                >
+                  {k}: {v}
                 </div>
               ))}
               {Object.keys(data.byType || {}).length === 0 && (
-                <div className="text-zinc-500">No data.</div>
+                <div className="text-sm text-zinc-500">No data.</div>
               )}
             </div>
           </Card>
@@ -175,15 +180,13 @@ export default function RegionalReport() {
                 {levels.map((level) => (
                   <div
                     key={level.level}
-                    className="w-72 shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
+                    className="w-80 shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
                   >
                     <div className="border-b border-zinc-200 bg-white px-4 py-3">
-                      <div className="text-sm font-bold text-zinc-900">
-                        {level.level_title}
-                      </div>
+                      <div className="text-sm font-bold text-zinc-900">{level.level_title}</div>
                       <div className="mt-1 text-xs text-zinc-500">
-                        {level.label || "No bonus"}{" "}
-                        {level.level <= 7 ? `• Total: ${fmtNumber(level.bonus_total)}` : ""}
+                        {level.label || "No bonus"}
+                        {level.level <= 7 ? ` • Total: ${fmtNumber(level.bonus_total)}` : ""}
                       </div>
                     </div>
 
@@ -191,7 +194,7 @@ export default function RegionalReport() {
                       Names ({level.member_count})
                     </div>
 
-                    <div className="max-h-[820px] overflow-y-auto">
+                    <div className="max-h-[620px] overflow-y-auto">
                       {(level.members || []).length === 0 ? (
                         <div className="px-4 py-3 text-sm text-zinc-400">No members</div>
                       ) : (
@@ -209,9 +212,7 @@ export default function RegionalReport() {
                                 key={`${level.level}-${member.name}-${idx}`}
                                 className="border-b border-zinc-100"
                               >
-                                <td className="px-4 py-2 text-zinc-800">
-                                  {member.name}
-                                </td>
+                                <td className="px-4 py-2 text-zinc-800">{member.name}</td>
                               </tr>
                             ))}
                           </tbody>
