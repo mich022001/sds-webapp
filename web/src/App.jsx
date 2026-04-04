@@ -4,6 +4,7 @@ import BonusLedger from "./pages/BonusLedger";
 import Dashboard from "./pages/Dashboard";
 import MemberReport from "./pages/MemberReport";
 import RegionalReport from "./pages/RegionalReport";
+import Login from "./pages/Login";
 
 const nav = [
   { key: "dashboard", label: "Dashboard" },
@@ -109,11 +110,63 @@ function Button({ children, variant = "primary", ...props }) {
 
 export default function App() {
   const [active, setActive] = useState("dashboard");
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const pageTitle = useMemo(
     () => nav.find((n) => n.key === active)?.label ?? "Dashboard",
     [active]
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me", {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        const json = await res.json().catch(() => ({}));
+
+        if (!cancelled) {
+          if (res.ok) {
+            setUser(json.user ?? null);
+          } else {
+            setUser(null);
+          }
+        }
+      } catch {
+        if (!cancelled) setUser(null);
+      } finally {
+        if (!cancelled) setAuthLoading(false);
+      }
+    }
+
+    checkAuth();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <div className="text-sm text-zinc-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Login
+        onLogin={(loggedInUser) => {
+          setUser(loggedInUser);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -142,20 +195,27 @@ export default function App() {
           </div>
         </aside>
 
-        <main className="flex-1 min-w-0">
+        <main className="min-w-0 flex-1 overflow-x-hidden">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <div className="text-xl font-extrabold text-zinc-900">{pageTitle}</div>
               <div className="text-sm text-zinc-500">
-                Website UI first — next we connect database + reports.
+                Logged in as {user?.username || "user"}
               </div>
             </div>
+
             <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => alert("Next: add login + roles")}>
-                Login (next)
-              </Button>
-              <Button onClick={() => alert("Next: connect Supabase API")}>
-                Connect DB (next)
+              <Button
+                variant="ghost"
+                onClick={async () => {
+                  try {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                  } finally {
+                    setUser(null);
+                  }
+                }}
+              >
+                Logout
               </Button>
             </div>
           </div>
@@ -226,7 +286,7 @@ function Registration() {
   return (
     <div className="grid gap-4">
       <Card title="Register New Member">
-	  <form
+        <form
           className="grid gap-3"
           onSubmit={async (e) => {
             e.preventDefault();
