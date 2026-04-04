@@ -70,7 +70,7 @@ export default function ProductCatalog() {
       setErr("");
 
       const qs = filterType ? `?item_type=${encodeURIComponent(filterType)}` : "";
-      const res = await fetch(`/api/products/list${qs}`);
+      const res = await fetch(`/api/products${qs}`);
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) throw new Error(json.error || "Failed to load catalog");
