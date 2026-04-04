@@ -42,9 +42,11 @@ function cls(...a) {
   return a.filter(Boolean).join(" ");
 }
 
-function Card({ title, children, right }) {
+function Card({ title, children, right, className = "" }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <div
+      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
+    >
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-zinc-900">{title}</div>
         {right}
@@ -130,11 +132,8 @@ export default function App() {
         const json = await res.json().catch(() => ({}));
 
         if (!cancelled) {
-          if (res.ok) {
-            setUser(json.user ?? null);
-          } else {
-            setUser(null);
-          }
+          if (res.ok) setUser(json.user ?? null);
+          else setUser(null);
         }
       } catch {
         if (!cancelled) setUser(null);
@@ -195,7 +194,7 @@ export default function App() {
           </div>
         </aside>
 
-	<main className="min-w-0 flex-1 overflow-x-hidden pb-8">
+        <main className="min-w-0 flex-1 overflow-x-hidden pb-8">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <div className="text-xl font-extrabold text-zinc-900">{pageTitle}</div>
@@ -444,56 +443,77 @@ function Reports() {
   });
 
   return (
-    <div className="grid gap-4">
-      <Card title="Sales Analytics">
+    <div className="grid max-w-full gap-4 overflow-x-hidden">
+      <Card title="Sales Analytics" className="min-w-0">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <Input
-            label="From Date"
-            type="date"
-            value={filters.from}
-            onChange={(e) => setFilters({ ...filters, from: e.target.value })}
-          />
+          <label className="grid gap-1">
+            <span className="text-xs font-medium text-zinc-600">From Date</span>
+            <input
+              type="date"
+              value={filters.from}
+              onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+            />
+          </label>
 
-          <Input
-            label="To Date"
-            type="date"
-            value={filters.to}
-            onChange={(e) => setFilters({ ...filters, to: e.target.value })}
-          />
+          <label className="grid gap-1">
+            <span className="text-xs font-medium text-zinc-600">To Date</span>
+            <input
+              type="date"
+              value={filters.to}
+              onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+            />
+          </label>
 
-          <Input
-            label="Buyer / Member"
-            placeholder="Search buyer or member"
-            value={filters.buyer}
-            onChange={(e) => setFilters({ ...filters, buyer: e.target.value })}
-          />
+          <label className="grid gap-1">
+            <span className="text-xs font-medium text-zinc-600">Buyer / Member</span>
+            <input
+              type="text"
+              placeholder="Search buyer or member"
+              value={filters.buyer}
+              onChange={(e) => setFilters({ ...filters, buyer: e.target.value })}
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+            />
+          </label>
 
-          <Input
-            label="Package Type"
-            placeholder="e.g. Starter, Premium"
-            value={filters.packageType}
-            onChange={(e) =>
-              setFilters({ ...filters, packageType: e.target.value })
-            }
-          />
+          <label className="grid gap-1">
+            <span className="text-xs font-medium text-zinc-600">Package Type</span>
+            <input
+              type="text"
+              placeholder="e.g. Starter, Premium"
+              value={filters.packageType}
+              onChange={(e) =>
+                setFilters({ ...filters, packageType: e.target.value })
+              }
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+            />
+          </label>
 
-          <Input
-            label="Product"
-            placeholder="Search product"
-            value={filters.product}
-            onChange={(e) =>
-              setFilters({ ...filters, product: e.target.value })
-            }
-          />
+          <label className="grid gap-1 xl:col-span-2">
+            <span className="text-xs font-medium text-zinc-600">Product</span>
+            <input
+              type="text"
+              placeholder="Search product"
+              value={filters.product}
+              onChange={(e) =>
+                setFilters({ ...filters, product: e.target.value })
+              }
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+            />
+          </label>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => alert("Next: connect /api/reports/sales")}>
+          <button
+            className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            onClick={() => alert("Next: connect /api/reports/sales")}
+          >
             Apply Filters
-          </Button>
+          </button>
 
-          <Button
-            variant="ghost"
+          <button
+            className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
             onClick={() =>
               setFilters({
                 from: "",
@@ -505,7 +525,7 @@ function Reports() {
             }
           >
             Clear
-          </Button>
+          </button>
         </div>
       </Card>
 
@@ -520,22 +540,22 @@ function Reports() {
         <Stat label="Total Buyers / Members" value="0" />
       </div>
 
-      <Card title="Membership Package Purchases">
+      <Card title="Membership Package Purchases" className="min-w-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                <th className="px-3 py-2 font-semibold">Date</th>
-                <th className="px-3 py-2 font-semibold">Member Name</th>
-                <th className="px-3 py-2 font-semibold">Package</th>
-                <th className="px-3 py-2 font-semibold">Amount</th>
-                <th className="px-3 py-2 font-semibold">Sponsor</th>
-                <th className="px-3 py-2 font-semibold">Regional Manager</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Member Name</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Package</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Sponsor</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Regional Manager</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td className="px-3 py-3 text-zinc-500" colSpan={6}>
+              <tr className="border-b border-zinc-100">
+                <td className="px-4 py-3 text-zinc-500" colSpan={6}>
                   No package purchase data yet.
                 </td>
               </tr>
@@ -544,22 +564,22 @@ function Reports() {
         </div>
       </Card>
 
-      <Card title="Regular Sales Transactions">
+      <Card title="Regular Sales Transactions" className="min-w-0">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                <th className="px-3 py-2 font-semibold">Date</th>
-                <th className="px-3 py-2 font-semibold">Buyer / Member</th>
-                <th className="px-3 py-2 font-semibold">Product</th>
-                <th className="px-3 py-2 font-semibold">Qty</th>
-                <th className="px-3 py-2 font-semibold">Amount</th>
-                <th className="px-3 py-2 font-semibold">Encoded By</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Buyer / Member</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Product</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Encoded By</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td className="px-3 py-3 text-zinc-500" colSpan={6}>
+              <tr className="border-b border-zinc-100">
+                <td className="px-4 py-3 text-zinc-500" colSpan={6}>
                   No sales transaction data yet.
                 </td>
               </tr>
@@ -569,13 +589,13 @@ function Reports() {
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="Top Products">
+        <Card title="Top Products" className="min-w-0">
           <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
             Top products summary will appear here after connecting the sales report API.
           </div>
         </Card>
 
-        <Card title="Top Packages">
+        <Card title="Top Packages" className="min-w-0">
           <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
             Top membership packages summary will appear here after connecting the package sales API.
           </div>
