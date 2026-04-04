@@ -435,27 +435,143 @@ function Registration() {
 }
 
 function Reports() {
+  const [filters, setFilters] = useState({
+    from: "",
+    to: "",
+    buyer: "",
+    packageType: "",
+    product: "",
+  });
+
   return (
-    <div className="grid gap-4 md:grid-cols-1">
+    <div className="grid gap-4">
       <Card title="Sales Analytics">
-        <div className="text-sm text-zinc-600">
-          Sales report including:
+        <div className="grid gap-3 md:grid-cols-5">
+          <Input
+            label="From Date"
+            type="date"
+            value={filters.from}
+            onChange={(e) => setFilters({ ...filters, from: e.target.value })}
+          />
+          <Input
+            label="To Date"
+            type="date"
+            value={filters.to}
+            onChange={(e) => setFilters({ ...filters, to: e.target.value })}
+          />
+          <Input
+            label="Buyer / Member"
+            placeholder="Search buyer or member"
+            value={filters.buyer}
+            onChange={(e) => setFilters({ ...filters, buyer: e.target.value })}
+          />
+          <Input
+            label="Package Type"
+            placeholder="e.g. Starter, Premium"
+            value={filters.packageType}
+            onChange={(e) =>
+              setFilters({ ...filters, packageType: e.target.value })
+            }
+          />
+          <Input
+            label="Product"
+            placeholder="Search product"
+            value={filters.product}
+            onChange={(e) =>
+              setFilters({ ...filters, product: e.target.value })
+            }
+          />
         </div>
 
-        <ul className="mt-2 list-disc pl-5 text-sm text-zinc-600">
-          <li>Membership package purchases</li>
-          <li>Regular product sales</li>
-          <li>Top buyers</li>
-          <li>Top products / packages</li>
-          <li>Date range filtering</li>
-        </ul>
-
-        <div className="mt-4">
-          <Button onClick={() => alert("Next: Build Sales Analytics page")}>
-            Open Sales Analytics
+        <div className="mt-4 flex gap-2">
+          <Button onClick={() => alert("Next: connect /api/reports/sales")}>
+            Apply Filters
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() =>
+              setFilters({
+                from: "",
+                to: "",
+                buyer: "",
+                packageType: "",
+                product: "",
+              })
+            }
+          >
+            Clear
           </Button>
         </div>
       </Card>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Stat label="Total Sales Amount" value="0.00" hint="Regular + package sales" />
+        <Stat label="Total Packages Sold" value="0" />
+        <Stat label="Total Products Sold" value="0" />
+        <Stat label="Total Buyers / Members" value="0" />
+      </div>
+
+      <Card title="Membership Package Purchases">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
+                <th className="px-3 py-2 font-semibold">Date</th>
+                <th className="px-3 py-2 font-semibold">Member Name</th>
+                <th className="px-3 py-2 font-semibold">Package</th>
+                <th className="px-3 py-2 font-semibold">Amount</th>
+                <th className="px-3 py-2 font-semibold">Sponsor</th>
+                <th className="px-3 py-2 font-semibold">Regional Manager</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="px-3 py-3 text-zinc-500" colSpan={6}>
+                  No package purchase data yet.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card title="Regular Sales Transactions">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
+                <th className="px-3 py-2 font-semibold">Date</th>
+                <th className="px-3 py-2 font-semibold">Buyer / Member</th>
+                <th className="px-3 py-2 font-semibold">Product</th>
+                <th className="px-3 py-2 font-semibold">Qty</th>
+                <th className="px-3 py-2 font-semibold">Amount</th>
+                <th className="px-3 py-2 font-semibold">Encoded By</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="px-3 py-3 text-zinc-500" colSpan={6}>
+                  No sales transaction data yet.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card title="Top Products">
+          <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+            Top products summary will appear here after connecting the sales report API.
+          </div>
+        </Card>
+
+        <Card title="Top Packages">
+          <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+            Top membership packages summary will appear here after connecting the package sales API.
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
