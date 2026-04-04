@@ -227,10 +227,10 @@ export default function App() {
           {active === "sales" && (
             <Placeholder
               title="Sales Entry"
-              desc="Checkout + RM rebates + upline bonuses"
+              desc="Regular sales entry and membership package sales logging"
             />
           )}
-          {active === "reports" && <Reports go={setActive} />}
+          {active === "reports" && <Reports />}
           {active === "report_member" && <MemberReport />}
           {active === "report_regional" && <RegionalReport />}
           {active === "redemptions" && (
@@ -434,36 +434,25 @@ function Registration() {
   );
 }
 
-function Reports({ go }) {
+function Reports() {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <Card title="Member Report">
-        <div className="text-sm text-zinc-600">
-          Shows profile + summary + bonus tree (levels 1–7) + genealogy.
-        </div>
-        <div className="mt-4">
-          <Button onClick={() => go("report_member")}>Open</Button>
-        </div>
-      </Card>
-
-      <Card title="Regional Report">
-        <div className="text-sm text-zinc-600">
-          RM summary + rebates + genealogy by level + bonus totals (1–7).
-        </div>
-        <div className="mt-4">
-          <Button onClick={() => go("report_regional")}>Open</Button>
-        </div>
-      </Card>
-
+    <div className="grid gap-4 md:grid-cols-1">
       <Card title="Sales Analytics">
         <div className="text-sm text-zinc-600">
-          Highest products sold, top buyers, per package, per product (date range).
+          Sales report including:
         </div>
+
+        <ul className="mt-2 list-disc pl-5 text-sm text-zinc-600">
+          <li>Membership package purchases</li>
+          <li>Regular product sales</li>
+          <li>Top buyers</li>
+          <li>Top products / packages</li>
+          <li>Date range filtering</li>
+        </ul>
+
         <div className="mt-4">
-          <Button
-            onClick={() => alert("Next: /api/reports/sales?from=...&to=...")}
-          >
-            Open (next)
+          <Button onClick={() => alert("Next: Build Sales Analytics page")}>
+            Open Sales Analytics
           </Button>
         </div>
       </Card>
