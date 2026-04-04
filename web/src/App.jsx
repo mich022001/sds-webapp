@@ -446,25 +446,28 @@ function Reports() {
   return (
     <div className="grid gap-4">
       <Card title="Sales Analytics">
-        <div className="grid gap-3 md:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-5">
           <Input
             label="From Date"
             type="date"
             value={filters.from}
             onChange={(e) => setFilters({ ...filters, from: e.target.value })}
           />
+
           <Input
             label="To Date"
             type="date"
             value={filters.to}
             onChange={(e) => setFilters({ ...filters, to: e.target.value })}
           />
+
           <Input
             label="Buyer / Member"
             placeholder="Search buyer or member"
             value={filters.buyer}
             onChange={(e) => setFilters({ ...filters, buyer: e.target.value })}
           />
+
           <Input
             label="Package Type"
             placeholder="e.g. Starter, Premium"
@@ -473,6 +476,7 @@ function Reports() {
               setFilters({ ...filters, packageType: e.target.value })
             }
           />
+
           <Input
             label="Product"
             placeholder="Search product"
@@ -483,10 +487,11 @@ function Reports() {
           />
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={() => alert("Next: connect /api/reports/sales")}>
             Apply Filters
           </Button>
+
           <Button
             variant="ghost"
             onClick={() =>
@@ -504,8 +509,12 @@ function Reports() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Stat label="Total Sales Amount" value="0.00" hint="Regular + package sales" />
+      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4">
+        <Stat
+          label="Total Sales Amount"
+          value="0.00"
+          hint="Regular + package sales"
+        />
         <Stat label="Total Packages Sold" value="0" />
         <Stat label="Total Products Sold" value="0" />
         <Stat label="Total Buyers / Members" value="0" />
@@ -559,7 +568,7 @@ function Reports() {
         </div>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-1 xl:grid-cols-2">
         <Card title="Top Products">
           <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
             Top products summary will appear here after connecting the sales report API.
