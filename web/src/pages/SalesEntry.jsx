@@ -56,36 +56,40 @@ function Stat({ label, value, hint }) {
   );
 }
 
-const PRODUCT_CATALOG = [
-  { name: "Coffee Mix", srp: 250, distributor: 220, stockiest: 200 },
-  { name: "Collagen Drink", srp: 450, distributor: 400, stockiest: 370 },
-  { name: "Slim Tea", srp: 300, distributor: 260, stockiest: 240 },
-  { name: "Soap Bar", srp: 150, distributor: 130, stockiest: 115 },
-];
-
 function normalizeMembershipType(v) {
   return String(v || "").trim().toLowerCase();
 }
 
-function getUnitPrice(product, membershipType) {
-  if (!product) return 0;
+function getPricingBasis(membershipType) {
   const mt = normalizeMembershipType(membershipType);
 
-  if (mt === "stockiest") return Number(product.stockiest ?? product.distributor ?? product.srp ?? 0);
-  if (
-    mt === "distributor" ||
-    mt === "area manager" ||
-    mt === "regional manager"
-  ) {
-    return Number(product.distributor ?? product.srp ?? 0);
+  if (mt === "stockiest") return "Stockiest";
+  if (mt === "distributor" || mt === "area manager" || mt === "regional manager") {
+    return "Distributor";
   }
+  if (mt === "member") return "Member";
+  return "SRP";
+}
 
-  return Number(product.srp ?? 0);
+function getUnitPrice(product, membershipType) {
+  if (!product) return 0;
+
+  const mt = normalizeMembershipType(membershipType);
+
+  if (mt === "stockiest") return Number(product.stockiest_price ?? 0);
+  if (mt === "distributor" || mt === "area manager" || mt === "regional manager") {
+    return Number(product.distributor_price ?? 0);
+  }
+  if (mt === "member") return Number(product.member_price ?? 0);
+
+  return Number(product.srp_price ?? 0);
 }
 
 export default function SalesEntry() {
   const [members, setMembers] = useState([]);
+  const [products, setProducts] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [err, setErr] = useState("");
 
   const [form, setForm] = useState({
@@ -97,21 +101,12 @@ export default function SalesEntry() {
     quantity: 1,
   });
 
-  const selectedMember = useMemo(() => {
-    return members.find((m) => m.name === form.memberName) || null;
-  }, [members, form.memberName]);
-
-  const selectedProduct = useMemo(() => {
-    return PRODUCT_CATALOG.find((p) => p.name === form.productName) || null;
-  }, [form.productName]);
-
   useEffect(() => {
     let cancelled = false;
 
     async function loadMembers() {
       try {
         setLoadingMembers(true);
-        setErr("");
 
         const res = await fetch("/api/members/list");
         const json = await res.json().catch(() => ({}));
@@ -128,10 +123,51 @@ export default function SalesEntry() {
     }
 
     loadMembers();
+
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProducts() {
+      try {
+        setLoadingProducts(true);
+
+        const res = await fetch("/api/products?item_type=product");
+        const json = await res.json().catch(() => ({}));
+        const data = Array.isArray(json?.data) ? json.data : [];
+
+        if (!res.ok) {
+          throw new Error(json.error || "Failed to load products");
+        }
+
+        if (!cancelled) {
+          setProducts(data);
+        }
+      } catch (e) {
+        if (!cancelled) setErr(e?.message || "Failed to load products");
+      } finally {
+        if (!cancelled) setLoadingProducts(false);
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const selectedMember = useMemo(() => {
+    return members.find((m) => m.name === form.memberName) || null;
+  }, [members, form.memberName]);
+
+  const selectedProduct = useMemo(() => {
+    return products.find((p) => p.item_name === form.productName) || null;
+  }, [products, form.productName]);
 
   useEffect(() => {
     if (!selectedMember) {
@@ -150,9 +186,19 @@ export default function SalesEntry() {
     }));
   }, [selectedMember]);
 
+  useEffect(() => {
+    if (!selectedProduct) return;
+
+    setForm((prev) => ({
+      ...prev,
+      unitType: selectedProduct.unit_type || "Per Piece",
+    }));
+  }, [selectedProduct]);
+
   const quantityNum = Math.max(1, Number(form.quantity || 1));
   const unitPrice = getUnitPrice(selectedProduct, form.membershipType);
   const totalAmount = unitPrice * quantityNum;
+  const pricingBasis = getPricingBasis(form.membershipType);
 
   async function handleCheckout(e) {
     e.preventDefault();
@@ -167,23 +213,23 @@ export default function SalesEntry() {
       return;
     }
 
-    if (!quantityNum || quantityNum < 1) {
+    if (quantityNum < 1) {
       alert("Quantity must be at least 1.");
       return;
     }
 
-    // Placeholder until API is built
     alert(
       [
         "Sales checkout preview",
         `Member: ${form.memberName}`,
         `Member ID: ${form.memberId || "-"}`,
         `Membership Type: ${form.membershipType}`,
-        `Unit Type: ${form.unitType}`,
         `Product: ${form.productName}`,
+        `Unit Type: ${form.unitType}`,
         `Quantity: ${quantityNum}`,
         `Unit Price: ${unitPrice.toFixed(2)}`,
         `Total Amount: ${totalAmount.toFixed(2)}`,
+        `Pricing Basis: ${pricingBasis}`,
       ].join("\n")
     );
   }
@@ -201,7 +247,7 @@ export default function SalesEntry() {
 
   return (
     <div className="grid max-w-full gap-4 overflow-x-hidden">
-      <Card title="Sales Entry">
+      <Card title="Sales Entry" className="min-w-0">
         <form className="grid gap-4" onSubmit={handleCheckout}>
           <div className="grid gap-3 md:grid-cols-2">
             <Select
@@ -238,31 +284,29 @@ export default function SalesEntry() {
               placeholder="Auto-filled"
             />
 
-            <Select
+            <Input
               label="Unit Type"
               value={form.unitType}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, unitType: e.target.value }))
-              }
-            >
-              <option>Per Piece</option>
-              <option>Per Box</option>
-              <option>Per Set</option>
-            </Select>
+              readOnly
+              placeholder="Auto-filled from product"
+            />
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
             <Select
               label="Product Name"
               value={form.productName}
+              disabled={loadingProducts}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, productName: e.target.value }))
               }
             >
-              <option value="">Select product</option>
-              {PRODUCT_CATALOG.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
+              <option value="">
+                {loadingProducts ? "Loading products..." : "Select product"}
+              </option>
+              {products.map((p) => (
+                <option key={p.id} value={p.item_name}>
+                  {p.item_name}
                 </option>
               ))}
             </Select>
@@ -283,15 +327,7 @@ export default function SalesEntry() {
             <Stat label="Total Amount" value={totalAmount.toFixed(2)} />
             <Stat
               label="Pricing Basis"
-              value={
-                normalizeMembershipType(form.membershipType) === "stockiest"
-                  ? "Stockiest"
-                  : normalizeMembershipType(form.membershipType) === "distributor" ||
-                    normalizeMembershipType(form.membershipType) === "area manager" ||
-                    normalizeMembershipType(form.membershipType) === "regional manager"
-                  ? "Distributor"
-                  : "SRP"
-              }
+              value={pricingBasis}
               hint="Derived from membership type"
             />
           </div>
@@ -321,26 +357,50 @@ export default function SalesEntry() {
         </form>
       </Card>
 
-      <Card title="Product Price Reference">
+      <Card title="Product Price Reference" className="min-w-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] border-collapse text-sm">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-4 py-2 font-semibold text-zinc-700">Product</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">SRP</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Distributor</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Stockiest</th>
               </tr>
             </thead>
             <tbody>
-              {PRODUCT_CATALOG.map((p) => (
-                <tr key={p.name} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-800">{p.name}</td>
-                  <td className="px-4 py-3 text-zinc-700">{Number(p.srp).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-zinc-700">{Number(p.distributor).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-zinc-700">{Number(p.stockiest).toFixed(2)}</td>
+              {loadingProducts ? (
+                <tr>
+                  <td className="px-4 py-3 text-zinc-500" colSpan={5}>
+                    Loading products...
+                  </td>
                 </tr>
-              ))}
+              ) : products.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-3 text-zinc-500" colSpan={5}>
+                    No products found.
+                  </td>
+                </tr>
+              ) : (
+                products.map((p) => (
+                  <tr key={p.id} className="border-b border-zinc-100">
+                    <td className="px-4 py-3 text-zinc-800">{p.item_name}</td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(p.srp_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(p.member_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(p.distributor_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(p.stockiest_price || 0).toFixed(2)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
