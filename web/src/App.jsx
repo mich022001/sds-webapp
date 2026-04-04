@@ -5,6 +5,7 @@ import Dashboard from "./pages/Dashboard";
 import MemberReport from "./pages/MemberReport";
 import RegionalReport from "./pages/RegionalReport";
 import Login from "./pages/Login";
+import SalesEntry from "./pages/SalesEntry";
 
 const nav = [
   { key: "dashboard", label: "Dashboard" },
@@ -223,13 +224,8 @@ export default function App() {
           {active === "registration" && <Registration />}
           {active === "members" && <Members />}
           {active === "ledger" && <BonusLedger />}
-          {active === "sales" && (
-            <Placeholder
-              title="Sales Entry"
-              desc="Regular sales entry and membership package sales logging"
-            />
-          )}
-          {active === "reports" && <Reports />}
+          {active === "sales" && <SalesEntry />}
+	  {active === "reports" && <Reports />}
           {active === "report_member" && <MemberReport />}
           {active === "report_regional" && <RegionalReport />}
           {active === "redemptions" && (
