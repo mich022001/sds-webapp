@@ -32,6 +32,13 @@ export default async function handler(req, res) {
     }
 
     const sb = supabaseAdmin();
+    console.log("LOGIN_DEBUG", {
+      hasUsername: !!cleanUsername,
+      hasPassword: !!cleanPassword,
+      hasSupabaseUrl: !!process.env.SUPABASE_URL,
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasAuthSecret: !!process.env.SDS_AUTH_SECRET,
+    });
 
     const { data: account, error } = await sb
       .from("app_accounts")
@@ -93,6 +100,10 @@ export default async function handler(req, res) {
       },
     });
   } catch (e) {
-    return res.status(500).json({ error: String(e?.message ?? e) });
+    console.error("LOGIN_API_ERROR:", e);
+    return res.status(500).json({
+      error: String(e?.message ?? e),
+      name: e?.name || null,
+    });
   }
 }
