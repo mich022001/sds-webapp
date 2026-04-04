@@ -446,7 +446,7 @@ function Reports() {
   return (
     <div className="grid gap-4">
       <Card title="Sales Analytics">
-        <div className="grid gap-3 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <Input
             label="From Date"
             type="date"
@@ -509,7 +509,7 @@ function Reports() {
         </div>
       </Card>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
         <Stat
           label="Total Sales Amount"
           value="0.00"
@@ -522,7 +522,7 @@ function Reports() {
 
       <Card title="Membership Package Purchases">
         <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full border-collapse text-sm">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-3 py-2 font-semibold">Date</th>
@@ -546,7 +546,7 @@ function Reports() {
 
       <Card title="Regular Sales Transactions">
         <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full border-collapse text-sm">
+          <table className="w-full min-w-[900px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-3 py-2 font-semibold">Date</th>
@@ -568,7 +568,7 @@ function Reports() {
         </div>
       </Card>
 
-      <div className="grid gap-4 grid-cols-1 xl:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <Card title="Top Products">
           <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
             Top products summary will appear here after connecting the sales report API.
