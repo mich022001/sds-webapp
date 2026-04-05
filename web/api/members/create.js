@@ -1,77 +1,93 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+function supabaseAdmin() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-function normStr(v) {
-  if (v === undefined || v === null) return null;
-  const s = String(v).trim();
-  return s.length ? s : null;
+  if (!url || !key) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  }
+
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+function normalizeCode(code) {
+  return String(code || "").trim().toUpperCase();
+}
+
+function normalizeText(v) {
+  return String(v || "").trim();
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "POST only" });
   }
 
   try {
-    const body = req.body || {};
+    const sb = supabaseAdmin();
 
-    const name = normStr(body.name);
-    const contact = normStr(body.contact);
-    const email = normStr(body.email);
-    const membership_type = normStr(body.membership_type);
-    const address = normStr(body.address);
-    const sponsorRaw = normStr(body.sponsor);
-    const area_region = normStr(body.area_region);
+    const {
+      name,
+      contact,
+      email,
+      membership_type,
+      address,
+      sponsor,
+      area_region,
+      package_name,
+      registration_code,
+    } = req.body ?? {};
 
-    // Required checks (same idea as Apps Script)
-    if (!name) return res.status(400).json({ error: "Name is required" });
-    if (!membership_type) {
+    const cleanName = normalizeText(name);
+    const cleanContact = normalizeText(contact);
+    const cleanEmail = normalizeText(email);
+    const cleanMembershipType = normalizeText(membership_type) || "Member";
+    const cleanAddress = normalizeText(address);
+    const cleanSponsor = normalizeText(sponsor) || "SDS";
+    const cleanAreaRegion = normalizeText(area_region);
+    const cleanPackageName = normalizeText(package_name);
+    const cleanCode = normalizeCode(registration_code);
+
+    if (!cleanName) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+
+    if (!cleanMembershipType) {
       return res.status(400).json({ error: "Membership type is required" });
     }
 
-    // Sponsor rules (same as Apps Script):
-    // - empty => no sponsor
-    // - "SDS"  => treat as root / no sponsor
-    const sponsor =
-      sponsorRaw && sponsorRaw.toUpperCase() === "SDS" ? null : sponsorRaw;
+    if (!cleanPackageName) {
+      return res.status(400).json({ error: "Package is required" });
+    }
 
-    /**
-     * register_member MUST implement the Apps Script behavior ATOMICALLY:
-     * - sequential member_id (YYYYEM000001) concurrency-safe (use member_counters / row lock)
-     * - duplicate name check
-     * - sponsor lookup + throw "Sponsor not found." if missing
-     * - level calculation
-     * - regional_manager assignment rules
-     * - promote sponsor Member -> Distributor when eligible
-     * - bonus distribution up to 7 uplines with duplicate protection
-     * - update member_bonus_summary (Members_Bonuses equivalent)
-     *
-     * Recommended: have register_member RETURN the created member row
-     * (and optionally how many ledger rows were inserted).
-     */
-    const { data, error } = await supabase.rpc("register_member", {
-      p_name: name,
-      p_contact: contact,
-      p_email: email,
-      p_membership_type: membership_type,
-      p_address: address,
-      p_sponsor: sponsor, // null means SDS/root
-      p_area_region: area_region,
+    if (!cleanCode) {
+      return res.status(400).json({ error: "Registration code is required" });
+    }
+
+    const { data, error } = await sb.rpc("register_member_with_code", {
+      p_name: cleanName,
+      p_contact: cleanContact || null,
+      p_email: cleanEmail || null,
+      p_membership_type: cleanMembershipType,
+      p_address: cleanAddress || null,
+      p_sponsor: cleanSponsor,
+      p_area_region: cleanAreaRegion || null,
+      p_package_name: cleanPackageName,
+      p_code: cleanCode,
     });
 
     if (error) {
-      // If your DB function raises exceptions like:
-      // "This member is already registered." / "Sponsor not found."
-      // then returning 400 is correct.
       return res.status(400).json({ error: error.message });
     }
 
-    return res.status(200).json({ ok: true, data });
+    return res.status(200).json({
+      ok: true,
+      member: data,
+    });
   } catch (e) {
-    return res.status(500).json({ error: e?.message || "Server error" });
+    return res.status(500).json({ error: String(e?.message ?? e) });
   }
 }
