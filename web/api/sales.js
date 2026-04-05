@@ -42,7 +42,7 @@ export default async function handler(req, res) {
 
       const cleanMemberName = normalizeText(member_name);
       const cleanMemberId = normalizeText(member_id);
-      const cleanMembershipType = normalizeText(membership_type);
+      const cleanMembership = normalizeText(membership_type);
       const cleanProductName = normalizeText(product_name);
       const cleanUnitType = normalizeText(unit_type) || "Per Piece";
       const cleanPricingBasis = normalizeText(pricing_basis) || "SRP";
@@ -54,6 +54,10 @@ export default async function handler(req, res) {
 
       if (!cleanMemberName) {
         return res.status(400).json({ error: "member_name is required" });
+      }
+
+      if (!cleanMembership) {
+        return res.status(400).json({ error: "membership_type is required" });
       }
 
       if (!cleanProductName) {
@@ -71,7 +75,7 @@ export default async function handler(req, res) {
             created_at: new Date().toISOString(),
             member_name: cleanMemberName,
             member_id: cleanMemberId || null,
-            membership_type: cleanMembershipType || null,
+            membership: cleanMembership,
             product_name: cleanProductName,
             unit_type: cleanUnitType,
             quantity: qty,
