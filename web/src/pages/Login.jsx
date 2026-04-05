@@ -1,22 +1,38 @@
 import { useState } from "react";
 
+function cls(...a) {
+  return a.filter(Boolean).join(" ");
+}
+
 export default function Login({ onLogin }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+  });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setErr("");
-    setLoading(true);
+
+    const username = String(form.username || "").trim();
+    const password = String(form.password || "");
+
+    if (!username || !password) {
+      setErr("Username and password are required.");
+      return;
+    }
 
     try {
-      const res = await fetch("/api/auth/login", {
+      setLoading(true);
+      setErr("");
+
+      const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: username.trim(),
+          action: "login",
+          username,
           password,
         }),
       });
@@ -27,9 +43,11 @@ export default function Login({ onLogin }) {
         throw new Error(json.error || "Login failed");
       }
 
-      onLogin?.(json.user);
-    } catch (e2) {
-      setErr(e2?.message || "Login failed");
+      if (typeof onLogin === "function") {
+        onLogin(json.user ?? null);
+      }
+    } catch (e) {
+      setErr(e?.message || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -50,11 +68,13 @@ export default function Login({ onLogin }) {
             <span className="text-xs font-medium text-zinc-600">Username</span>
             <input
               type="text"
-              className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              value={form.username}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, username: e.target.value }))
+              }
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
               placeholder="Enter username"
-              required
             />
           </label>
 
@@ -62,11 +82,13 @@ export default function Login({ onLogin }) {
             <span className="text-xs font-medium text-zinc-600">Password</span>
             <input
               type="password"
-              className="h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              value={form.password}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, password: e.target.value }))
+              }
+              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
               placeholder="Enter password"
-              required
             />
           </label>
 
@@ -79,7 +101,11 @@ export default function Login({ onLogin }) {
           <button
             type="submit"
             disabled={loading}
-            className="h-11 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className={cls(
+              "h-10 rounded-xl px-4 text-sm font-semibold transition",
+              "bg-zinc-900 text-white hover:bg-zinc-800",
+              loading && "cursor-not-allowed opacity-60"
+            )}
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>

@@ -48,7 +48,7 @@ export default function RegionalReport() {
     async function loadRMs() {
       try {
         setErr("");
-        const res = await fetch("/api/members/list");
+        const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
         const rows = Array.isArray(json?.data) ? json.data : [];
 
@@ -80,7 +80,7 @@ export default function RegionalReport() {
       setLoading(true);
       setData(null);
 
-      const res = await fetch(`/api/reports/regional?rm=${encodeURIComponent(rmName)}`);
+      const res = await fetch(`/api/reports?type=regional&rm=${encodeURIComponent(rmName)}`);
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) throw new Error(json.error || res.statusText);

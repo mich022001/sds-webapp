@@ -108,7 +108,7 @@ export default function SalesEntry() {
       try {
         setLoadingMembers(true);
 
-        const res = await fetch("/api/members/list");
+        const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
         const data = Array.isArray(json?.data) ? json.data : [];
 

@@ -130,7 +130,7 @@ export default function App() {
 
     async function checkAuth() {
       try {
-        const res = await fetch("/api/auth/me", {
+        const res = await fetch("/api/auth", {
           method: "GET",
           headers: { Accept: "application/json" },
         });
@@ -163,13 +163,7 @@ export default function App() {
   }
 
   if (!user) {
-    return (
-      <Login
-        onLogin={(loggedInUser) => {
-          setUser(loggedInUser);
-        }}
-      />
-    );
+    return <Login onLogin={setUser} />;
   }
 
   return (
@@ -213,7 +207,11 @@ export default function App() {
                 variant="ghost"
                 onClick={async () => {
                   try {
-                    await fetch("/api/auth/logout", { method: "POST" });
+                    await fetch("/api/auth", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "logout" }),
+                    });
                   } finally {
                     setUser(null);
                   }
@@ -263,7 +261,7 @@ function Registration() {
 
     async function loadMembers() {
       try {
-        const res = await fetch("/api/members/list");
+        const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
         if (!res.ok) return;
 
@@ -276,7 +274,7 @@ function Registration() {
           setMembers(sorted);
         }
       } catch {
-        // no-op for now
+        // no-op
       }
     }
 
@@ -305,7 +303,7 @@ function Registration() {
           setPackages(sorted);
         }
       } catch {
-        // no-op for now
+        // no-op
       }
     }
 
@@ -334,7 +332,7 @@ function Registration() {
               return;
             }
 
-            const res = await fetch("/api/members/create", {
+            const res = await fetch("/api/members", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -372,7 +370,7 @@ function Registration() {
             });
 
             try {
-              const refreshRes = await fetch("/api/members/list");
+              const refreshRes = await fetch("/api/members");
               const refreshJson = await refreshRes.json().catch(() => ({}));
               if (refreshRes.ok) {
                 const rows = Array.isArray(refreshJson?.data)

@@ -52,7 +52,7 @@ export default function MemberReport() {
         setLoadingMembers(true);
         setErr("");
 
-        const res = await fetch("/api/members/list");
+        const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
         const data = Array.isArray(json?.data) ? json.data : [];
 
@@ -80,7 +80,7 @@ export default function MemberReport() {
       setLoadingReport(true);
       setReport(null);
 
-      const res = await fetch(`/api/reports/member?name=${encodeURIComponent(name)}`);
+      const res = await fetch(`/api/reports?type=member&name=${encodeURIComponent(name)}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || res.statusText);
 
@@ -139,7 +139,7 @@ export default function MemberReport() {
         title="Member Report"
         right={
           <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-            API: /api/reports/member
+            API: /api/reports?type=member
           </span>
         }
       >

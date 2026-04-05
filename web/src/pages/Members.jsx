@@ -13,7 +13,7 @@ export default function Members() {
         setLoading(true);
         setErr("");
 
-        const res = await fetch("/api/members/list", {
+        const res = await fetch("/api/members", {
           method: "GET",
           headers: { Accept: "application/json" },
         });
