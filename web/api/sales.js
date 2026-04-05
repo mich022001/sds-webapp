@@ -31,6 +31,7 @@ export default async function handler(req, res) {
         member_name,
         member_id,
         membership_type,
+        regional_manager,
         product_name,
         unit_type,
         quantity,
@@ -42,7 +43,8 @@ export default async function handler(req, res) {
 
       const cleanMemberName = normalizeText(member_name);
       const cleanMemberId = normalizeText(member_id);
-      const cleanMembership = normalizeText(membership_type);
+      const cleanMembershipType = normalizeText(membership_type);
+      const cleanRegionalManager = normalizeText(regional_manager);
       const cleanProductName = normalizeText(product_name);
       const cleanUnitType = normalizeText(unit_type) || "Per Piece";
       const cleanPricingBasis = normalizeText(pricing_basis) || "SRP";
@@ -56,7 +58,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "member_name is required" });
       }
 
-      if (!cleanMembership) {
+      if (!cleanMemberId) {
+        return res.status(400).json({ error: "member_id is required" });
+      }
+
+      if (!cleanMembershipType) {
         return res.status(400).json({ error: "membership_type is required" });
       }
 
@@ -68,23 +74,24 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "quantity must be at least 1" });
       }
 
+      const payload = {
+        created_at: new Date().toISOString(),
+        member_name: cleanMemberName,
+        member_id: cleanMemberId,
+        membership_type: cleanMembershipType,
+        regional_manager: cleanRegionalManager || null,
+        product_name: cleanProductName,
+        unit_type: cleanUnitType,
+        quantity: qty,
+        unit_price: price,
+        total_amount: total,
+        pricing_basis: cleanPricingBasis,
+        encoded_by: cleanEncodedBy,
+      };
+
       const { data, error } = await sb
         .from("sales_ledger")
-        .insert([
-          {
-            created_at: new Date().toISOString(),
-            member_name: cleanMemberName,
-            member_id: cleanMemberId || null,
-            membership: cleanMembership,
-            product_name: cleanProductName,
-            unit_type: cleanUnitType,
-            quantity: qty,
-            unit_price: price,
-            total_amount: total,
-            pricing_basis: cleanPricingBasis,
-            encoded_by: cleanEncodedBy,
-          },
-        ])
+        .insert([payload])
         .select("*")
         .single();
 
@@ -92,10 +99,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
-      return res.status(200).json({
-        ok: true,
-        data,
-      });
+      return res.status(200).json({ ok: true, data });
     }
 
     if (req.method === "GET") {
@@ -120,9 +124,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
-      return res.status(200).json({
-        data: data ?? [],
-      });
+      return res.status(200).json({ data: data ?? [] });
     }
 
     return res.status(405).json({ error: "Method not allowed" });
