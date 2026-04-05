@@ -10,7 +10,50 @@ function fmtDate(v) {
 function fmtAmount(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? "");
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function norm(v) {
+  return String(v ?? "").trim().toLowerCase();
+}
+
+function getBonusLabel(level) {
+  const n = Number(level || 0);
+  if (n === 1) return "D.C. BONUS";
+  if (n === 2) return "IND. BONUS";
+  if (n >= 3 && n <= 7) return "DEV. BONUS";
+  return "";
+}
+
+function getDisplayAmount(row) {
+  const amountNum = Number(row?.amount_num);
+  if (Number.isFinite(amountNum) && amountNum !== 0) {
+    return amountNum;
+  }
+
+  const rawAmount = Number(row?.amount);
+  if (Number.isFinite(rawAmount) && rawAmount !== 0) {
+    return rawAmount;
+  }
+
+  if (norm(row?.amount_text) === "outright") {
+    return 600;
+  }
+
+  return 0;
+}
+
+function getBonusType(row) {
+  const type = String(row?.bonus_type ?? "").trim();
+  if (type) return type;
+
+  const level = Number(row?.relative_level ?? row?.level ?? 0);
+  if (level === 2) return "Product";
+  if (level >= 1) return "Cash";
+  return "";
 }
 
 export default function BonusLedger() {
@@ -18,7 +61,6 @@ export default function BonusLedger() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  // simple client-side filters (like your sheet filter)
   const [qEarner, setQEarner] = useState("");
   const [qReason, setQReason] = useState("");
 
@@ -47,7 +89,9 @@ export default function BonusLedger() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -72,7 +116,12 @@ export default function BonusLedger() {
             value={qEarner}
             onChange={(e) => setQEarner(e.target.value)}
             placeholder="name or member id"
-            style={{ height: 36, padding: "0 10px", border: "1px solid #ddd", borderRadius: 10 }}
+            style={{
+              height: 36,
+              padding: "0 10px",
+              border: "1px solid #ddd",
+              borderRadius: 10,
+            }}
           />
         </label>
 
@@ -82,7 +131,12 @@ export default function BonusLedger() {
             value={qReason}
             onChange={(e) => setQReason(e.target.value)}
             placeholder="reason"
-            style={{ height: 36, padding: "0 10px", border: "1px solid #ddd", borderRadius: 10 }}
+            style={{
+              height: 36,
+              padding: "0 10px",
+              border: "1px solid #ddd",
+              borderRadius: 10,
+            }}
           />
         </label>
       </div>
@@ -95,12 +149,18 @@ export default function BonusLedger() {
           <p>Total: {filtered.length}</p>
 
           <div style={{ overflowX: "auto" }}>
-            <table border="1" cellPadding="8" style={{ borderCollapse: "collapse", width: "100%" }}>
+            <table
+              border="1"
+              cellPadding="8"
+              style={{ borderCollapse: "collapse", width: "100%" }}
+            >
               <thead>
                 <tr>
                   <th>Date</th>
                   <th>Earner</th>
                   <th>Earner Member ID</th>
+                  <th>Bonus Label</th>
+                  <th>Bonus Type</th>
                   <th>Amount</th>
                   <th>Reason</th>
                   <th>Source</th>
@@ -111,20 +171,29 @@ export default function BonusLedger() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="7">No ledger entries yet.</td>
+                    <td colSpan="9">No ledger entries yet.</td>
                   </tr>
                 ) : (
-                  filtered.map((x) => (
-                    <tr key={x.id}>
-                      <td>{fmtDate(x.created_at)}</td>
-                      <td>{x.earner_name ?? ""}</td>
-                      <td>{x.earner_member_id ?? ""}</td>
-                      <td style={{ textAlign: "right" }}>{fmtAmount(x.amount)}</td>
-                      <td>{x.reason ?? ""}</td>
-                      <td>{x.source_name ?? x.source_member_id ?? ""}</td>
-                      <td>{x.level ?? ""}</td>
-                    </tr>
-                  ))
+                  filtered.map((x) => {
+                    const level = x.relative_level ?? x.level ?? "";
+                    const bonusLabel = getBonusLabel(level);
+                    const bonusType = getBonusType(x);
+                    const displayAmount = getDisplayAmount(x);
+
+                    return (
+                      <tr key={x.id}>
+                        <td>{fmtDate(x.created_at)}</td>
+                        <td>{x.earner_name ?? ""}</td>
+                        <td>{x.earner_member_id ?? ""}</td>
+                        <td>{bonusLabel}</td>
+                        <td>{bonusType}</td>
+                        <td style={{ textAlign: "right" }}>{fmtAmount(displayAmount)}</td>
+                        <td>{x.reason ?? ""}</td>
+                        <td>{x.source_member_name ?? x.source_name ?? x.source_member_id ?? ""}</td>
+                        <td>{level}</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
