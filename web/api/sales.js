@@ -22,6 +22,16 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function computeRmRebate(productName, unitType, qty) {
+  if (unitType === "Package") return qty * 15;
+  if (productName === "Balatinaw Coffee") return qty * 5;
+  if (productName === "Promix Juice") return qty * 10;
+  if (productName === "Compact C") return qty * 20;
+  if (productName === "Vigomaxx") return qty * 30;
+  if (productName === "Zepamacs") return qty * 10;
+  return 0;
+}
+
 export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
@@ -97,6 +107,38 @@ export default async function handler(req, res) {
 
       if (error) {
         return res.status(400).json({ error: error.message });
+      }
+
+      // ===== RM rebate logic =====
+      const { data: memberRow, error: memberError } = await sb
+        .from("members")
+        .select("regional_manager")
+        .eq("member_id", cleanMemberId)
+        .maybeSingle();
+
+      if (!memberError && memberRow?.regional_manager) {
+        const rmName = normalizeText(memberRow.regional_manager);
+        const rebate = computeRmRebate(cleanProductName, cleanUnitType, qty);
+
+        if (rmName && rebate > 0) {
+          const { error: rebateError } = await sb
+            .from("rm_rebates_ledger")
+            .insert([
+              {
+                created_at: new Date().toISOString(),
+                receiver_name: rmName,
+                buyer_name: cleanMemberName,
+                product: cleanProductName,
+                qty,
+                unit_type: cleanUnitType,
+                rebate,
+              },
+            ]);
+
+          if (rebateError) {
+            console.error("RM rebate insert failed:", rebateError.message);
+          }
+        }
       }
 
       return res.status(200).json({ ok: true, data });
