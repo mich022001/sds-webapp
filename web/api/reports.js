@@ -22,17 +22,6 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function isOutright(amountText) {
-  return norm(amountText) === "outright";
-}
-
-function cashAmount(b) {
-  const n = Number(b?.amount_num);
-  if (Number.isFinite(n) && n !== 0) return n;
-  if (isOutright(b?.amount_text)) return 600;
-  return Number.isFinite(n) ? n : 0;
-}
-
 function ordinal(level) {
   if (level % 100 >= 11 && level % 100 <= 13) return `${level}th`;
   if (level % 10 === 1) return `${level}st`;
@@ -41,18 +30,61 @@ function ordinal(level) {
   return `${level}th`;
 }
 
-function bonusLabel(level) {
+function fallbackBonusLabel(level) {
   if (level === 1) return "D.C. BONUS";
   if (level === 2) return "IND. BONUS";
   if (level >= 3 && level <= 7) return "DEV. BONUS";
   return "";
 }
 
-function levelBonusType(level) {
+function fallbackBonusType(level) {
   if (level === 1) return "Cash";
   if (level === 2) return "Product";
   if (level >= 3 && level <= 7) return "Cash";
   return null;
+}
+
+function bonusAmount(row) {
+  const amount = Number(row?.amount);
+  if (Number.isFinite(amount)) return amount;
+
+  const amountNum = Number(row?.amount_num);
+  if (Number.isFinite(amountNum)) return amountNum;
+
+  return 0;
+}
+
+function bonusType(row) {
+  const type = String(row?.bonus_type ?? "").trim();
+  if (type) return type;
+
+  const level = Number(row?.relative_level ?? row?.level ?? 0);
+  return fallbackBonusType(level) || "";
+}
+
+function bonusLabel(row) {
+  const label = String(row?.bonus_label ?? "").trim();
+  if (label) return label;
+
+  const level = Number(row?.relative_level ?? row?.level ?? 0);
+  return fallbackBonusLabel(level);
+}
+
+function isRedeemableBonus(row) {
+  if (typeof row?.is_redeemable === "boolean") {
+    return row.is_redeemable;
+  }
+
+  const level = Number(row?.relative_level ?? row?.level ?? 0);
+  const type = norm(bonusType(row));
+  const amount = bonusAmount(row);
+  const rule = norm(row?.rule_applied);
+
+  if (level === 1 && type === "cash" && rule === "direct bonus" && amount === 600) {
+    return false;
+  }
+
+  return true;
 }
 
 async function trySelectByColumn(sb, table, candidates, value) {
@@ -85,7 +117,7 @@ async function handleMemberReport(sb, req, res) {
   let { data: bonuses, error: bonusErr } = await sb
     .from("bonus_ledger")
     .select(
-      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount_num, amount_text, rule_applied, reason"
+      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, amount_num, amount_text, rule_applied, reason, bonus_label, is_redeemable"
     )
     .ilike("earner_name", memberName)
     .order("relative_level", { ascending: true })
@@ -98,7 +130,7 @@ async function handleMemberReport(sb, req, res) {
     const r2 = await sb
       .from("bonus_ledger")
       .select(
-        "created_at, earner_name, source_member_name, relative_level, bonus_type, amount_num, amount_text, rule_applied, reason"
+        "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, amount_num, amount_text, rule_applied, reason, bonus_label, is_redeemable"
       )
       .ilike("earner_name", `%${memberName}%`)
       .order("relative_level", { ascending: true })
@@ -128,7 +160,6 @@ async function handleMemberReport(sb, req, res) {
     if (!r2.error && Array.isArray(r2.data)) redemptions = r2.data;
   }
 
-  // RM rebates earned by this member, if this member is acting as an RM
   let { data: rmRebates, error: rmRebatesErr } = await sb
     .from("rm_rebates_ledger")
     .select("created_at, receiver_name, buyer_name, product, qty, unit_type, rebate")
@@ -210,17 +241,19 @@ async function handleMemberReport(sb, req, res) {
   let total_product = 0;
 
   for (const b of bonuses ?? []) {
-    if (b.bonus_type === "Cash") {
-      const amt = cashAmount(b);
+    const type = norm(bonusType(b));
+    const amt = bonusAmount(b);
+
+    if (type === "cash") {
       total_cash += amt;
-      if (!isOutright(b.amount_text)) redeemable_cash += amt;
-    } else if (b.bonus_type === "Product") {
-      const n = Number(b.amount_num ?? 0) || 0;
-      total_product += n;
+      if (isRedeemableBonus(b)) {
+        redeemable_cash += amt;
+      }
+    } else if (type === "product") {
+      total_product += amt;
     }
   }
 
-  // Include RM rebates as earned cash
   const total_rm_rebates = (rmRebates ?? []).reduce(
     (sum, row) => sum + toNumber(row.rebate),
     0
@@ -234,8 +267,8 @@ async function handleMemberReport(sb, req, res) {
 
   for (const r of redemptions ?? []) {
     const q = Number(r.qty ?? 0) || 0;
-    if (r.redeem_type === "Cash") redeemed_cash += q;
-    else if (r.redeem_type === "Product") redeemed_product += q;
+    if (norm(r.redeem_type) === "cash") redeemed_cash += q;
+    else if (norm(r.redeem_type) === "product") redeemed_product += q;
   }
 
   const balance_cash = redeemable_cash - redeemed_cash;
@@ -264,32 +297,20 @@ async function handleMemberReport(sb, req, res) {
       (b) => toNumber(b.relative_level) === level
     );
 
-    const type = levelBonusType(level);
+    const label = levelBonusRows[0]?.bonus_label
+      ? bonusLabel(levelBonusRows[0])
+      : fallbackBonusLabel(level);
 
-    let bonusTotal = 0;
-    if (level === 1) {
-      bonusTotal = levelBonusRows
-        .filter((b) => norm(b.bonus_type) === "cash")
-        .reduce((sum, b) => sum + cashAmount(b), 0);
-    } else if (level === 2) {
-      bonusTotal = levelBonusRows
-        .filter((b) => norm(b.bonus_type) === "product")
-        .reduce((sum, b) => sum + toNumber(b.amount_num), 0);
-    } else if (level >= 3 && level <= 7) {
-      bonusTotal = levelBonusRows
-        .filter((b) => norm(b.bonus_type) === "cash")
-        .reduce((sum, b) => sum + cashAmount(b), 0);
-    }
+    const type = levelBonusRows[0]?.bonus_type
+      ? bonusType(levelBonusRows[0])
+      : fallbackBonusType(level);
+
+    const bonusTotal = levelBonusRows.reduce((sum, b) => sum + bonusAmount(b), 0);
 
     const memberRows = levelMembers.map((m) => {
       const matchingBonus = levelBonusRows.find(
         (b) => norm(b.source_member_name) === norm(m.name)
       );
-
-      let bonusValue = 0;
-      if (level === 1 && matchingBonus) bonusValue = cashAmount(matchingBonus);
-      if (level === 2 && matchingBonus) bonusValue = toNumber(matchingBonus.amount_num);
-      if (level >= 3 && level <= 7 && matchingBonus) bonusValue = cashAmount(matchingBonus);
 
       return {
         name: m.name,
@@ -297,14 +318,17 @@ async function handleMemberReport(sb, req, res) {
         sponsor_name: m.sponsor_name || "SDS",
         created_at: m.created_at,
         relative_level: level,
-        bonus_value: level <= 7 ? bonusValue : 0,
+        bonus_value: matchingBonus ? bonusAmount(matchingBonus) : 0,
+        bonus_type: matchingBonus ? bonusType(matchingBonus) : type,
+        bonus_label: matchingBonus ? bonusLabel(matchingBonus) : label,
+        is_redeemable: matchingBonus ? isRedeemableBonus(matchingBonus) : null,
       };
     });
 
     return {
       level,
       level_title: `${ordinal(level)} Level`,
-      label: bonusLabel(level),
+      label,
       bonus_type: type,
       bonus_total: bonusTotal,
       member_count: memberRows.length,
@@ -419,7 +443,7 @@ async function handleRegionalReport(sb, req, res) {
   const { data: bonusRows, error: bonusErr } = await sb
     .from("bonus_ledger")
     .select(
-      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount_num, amount_text, rule_applied, reason"
+      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, amount_num, amount_text, rule_applied, reason, bonus_label, is_redeemable"
     )
     .eq("earner_name", rm)
     .order("relative_level", { ascending: true })
@@ -463,12 +487,12 @@ async function handleRegionalReport(sb, req, res) {
   }, 0);
 
   const totalCashBonus = bonuses
-    .filter((b) => norm(b.bonus_type) === "cash")
-    .reduce((sum, b) => sum + cashAmount(b), 0);
+    .filter((b) => norm(bonusType(b)) === "cash")
+    .reduce((sum, b) => sum + bonusAmount(b), 0);
 
   const totalProductBonus = bonuses
-    .filter((b) => norm(b.bonus_type) === "product")
-    .reduce((sum, b) => sum + toNumber(b.amount_num), 0);
+    .filter((b) => norm(bonusType(b)) === "product")
+    .reduce((sum, b) => sum + bonusAmount(b), 0);
 
   const totalCashEarned = totalCashBonus + totalRebates;
   const runningBalanceCash = totalCashEarned - redeemedCash;
@@ -496,32 +520,20 @@ async function handleRegionalReport(sb, req, res) {
       (b) => toNumber(b.relative_level) === level
     );
 
-    const type = levelBonusType(level);
+    const label = levelBonusRows[0]?.bonus_label
+      ? bonusLabel(levelBonusRows[0])
+      : fallbackBonusLabel(level);
 
-    let bonusTotal = 0;
-    if (level === 1) {
-      bonusTotal = levelBonusRows
-        .filter((b) => norm(b.bonus_type) === "cash")
-        .reduce((sum, b) => sum + cashAmount(b), 0);
-    } else if (level === 2) {
-      bonusTotal = levelBonusRows
-        .filter((b) => norm(b.bonus_type) === "product")
-        .reduce((sum, b) => sum + toNumber(b.amount_num), 0);
-    } else if (level >= 3 && level <= 7) {
-      bonusTotal = levelBonusRows
-        .filter((b) => norm(b.bonus_type) === "cash")
-        .reduce((sum, b) => sum + cashAmount(b), 0);
-    }
+    const type = levelBonusRows[0]?.bonus_type
+      ? bonusType(levelBonusRows[0])
+      : fallbackBonusType(level);
+
+    const bonusTotal = levelBonusRows.reduce((sum, b) => sum + bonusAmount(b), 0);
 
     const memberRows = levelMembers.map((m) => {
       const matchingBonus = levelBonusRows.find(
         (b) => norm(b.source_member_name) === norm(m.name)
       );
-
-      let bonusValue = 0;
-      if (level === 1 && matchingBonus) bonusValue = cashAmount(matchingBonus);
-      if (level === 2 && matchingBonus) bonusValue = toNumber(matchingBonus.amount_num);
-      if (level >= 3 && level <= 7 && matchingBonus) bonusValue = cashAmount(matchingBonus);
 
       return {
         name: m.name,
@@ -529,14 +541,17 @@ async function handleRegionalReport(sb, req, res) {
         sponsor_name: m.sponsor_name || "SDS",
         created_at: m.created_at,
         relative_level: level,
-        bonus_value: level <= 7 ? bonusValue : 0,
+        bonus_value: matchingBonus ? bonusAmount(matchingBonus) : 0,
+        bonus_type: matchingBonus ? bonusType(matchingBonus) : type,
+        bonus_label: matchingBonus ? bonusLabel(matchingBonus) : label,
+        is_redeemable: matchingBonus ? isRedeemableBonus(matchingBonus) : null,
       };
     });
 
     return {
       level,
       level_title: `${ordinal(level)} Level`,
-      label: bonusLabel(level),
+      label,
       bonus_type: type,
       bonus_total: bonusTotal,
       member_count: memberRows.length,

@@ -16,44 +16,14 @@ function fmtAmount(v) {
   });
 }
 
-function norm(v) {
-  return String(v ?? "").trim().toLowerCase();
-}
+function getRowAmount(row) {
+  const amount = Number(row?.amount);
+  if (Number.isFinite(amount)) return amount;
 
-function getBonusLabel(level) {
-  const n = Number(level || 0);
-  if (n === 1) return "D.C. BONUS";
-  if (n === 2) return "IND. BONUS";
-  if (n >= 3 && n <= 7) return "DEV. BONUS";
-  return "";
-}
-
-function getDisplayAmount(row) {
   const amountNum = Number(row?.amount_num);
-  if (Number.isFinite(amountNum) && amountNum !== 0) {
-    return amountNum;
-  }
-
-  const rawAmount = Number(row?.amount);
-  if (Number.isFinite(rawAmount) && rawAmount !== 0) {
-    return rawAmount;
-  }
-
-  if (norm(row?.amount_text) === "outright") {
-    return 600;
-  }
+  if (Number.isFinite(amountNum)) return amountNum;
 
   return 0;
-}
-
-function getBonusType(row) {
-  const type = String(row?.bonus_type ?? "").trim();
-  if (type) return type;
-
-  const level = Number(row?.relative_level ?? row?.level ?? 0);
-  if (level === 2) return "Product";
-  if (level >= 1) return "Cash";
-  return "";
 }
 
 export default function BonusLedger() {
@@ -80,15 +50,23 @@ export default function BonusLedger() {
 
         const json = await res.json();
         const data = Array.isArray(json?.data) ? json.data : [];
-        if (!cancelled) setRows(data);
+
+        if (!cancelled) {
+          setRows(data);
+        }
       } catch (e) {
-        if (!cancelled) setErr(e?.message || "Failed to load bonus ledger");
+        if (!cancelled) {
+          setErr(e?.message || "Failed to load bonus ledger");
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     load();
+
     return () => {
       cancelled = true;
     };
@@ -101,6 +79,7 @@ export default function BonusLedger() {
     return rows.filter((x) => {
       const earner = `${x.earner_name ?? ""} ${x.earner_member_id ?? ""}`.toLowerCase();
       const reason = `${x.reason ?? ""}`.toLowerCase();
+
       return (!a || earner.includes(a)) && (!r || reason.includes(r));
     });
   }, [rows, qEarner, qReason]);
@@ -109,7 +88,14 @@ export default function BonusLedger() {
     <div style={{ padding: 16 }}>
       <h2>Bonus Ledger</h2>
 
-      <div style={{ display: "flex", gap: 12, margin: "12px 0", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          margin: "12px 0",
+          flexWrap: "wrap",
+        }}
+      >
         <label style={{ display: "grid", gap: 4 }}>
           <span style={{ fontSize: 12, color: "#666" }}>Filter by earner</span>
           <input
@@ -162,6 +148,7 @@ export default function BonusLedger() {
                   <th>Bonus Label</th>
                   <th>Bonus Type</th>
                   <th>Amount</th>
+                  <th>Redeemable</th>
                   <th>Reason</th>
                   <th>Source</th>
                   <th>Level</th>
@@ -171,25 +158,37 @@ export default function BonusLedger() {
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="9">No ledger entries yet.</td>
+                    <td colSpan="10">No ledger entries yet.</td>
                   </tr>
                 ) : (
                   filtered.map((x) => {
                     const level = x.relative_level ?? x.level ?? "";
-                    const bonusLabel = getBonusLabel(level);
-                    const bonusType = getBonusType(x);
-                    const displayAmount = getDisplayAmount(x);
+                    const displayAmount = getRowAmount(x);
 
                     return (
                       <tr key={x.id}>
                         <td>{fmtDate(x.created_at)}</td>
                         <td>{x.earner_name ?? ""}</td>
                         <td>{x.earner_member_id ?? ""}</td>
-                        <td>{bonusLabel}</td>
-                        <td>{bonusType}</td>
-                        <td style={{ textAlign: "right" }}>{fmtAmount(displayAmount)}</td>
+                        <td>{x.bonus_label ?? ""}</td>
+                        <td>{x.bonus_type ?? ""}</td>
+                        <td style={{ textAlign: "right" }}>
+                          {fmtAmount(displayAmount)}
+                        </td>
+                        <td>
+                          {x.is_redeemable === true
+                            ? "Yes"
+                            : x.is_redeemable === false
+                              ? "No"
+                              : ""}
+                        </td>
                         <td>{x.reason ?? ""}</td>
-                        <td>{x.source_member_name ?? x.source_name ?? x.source_member_id ?? ""}</td>
+                        <td>
+                          {x.source_member_name ??
+                            x.source_name ??
+                            x.source_member_id ??
+                            ""}
+                        </td>
                         <td>{level}</td>
                       </tr>
                     );
