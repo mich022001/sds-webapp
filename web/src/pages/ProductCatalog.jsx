@@ -51,6 +51,7 @@ const emptyForm = {
   item_type: "product",
   unit_type: "Per Piece",
   srp_price: "",
+  member_price: "",
   distributor_price: "",
   stockiest_price: "",
   is_active: true,
@@ -106,17 +107,20 @@ export default function ProductCatalog() {
       setSaving(true);
       setErr("");
 
-      const endpoint = isEdit ? "/api/products/update" : "/api/products/create";
+      const endpoint = "/api/products";
+      const method = isEdit ? "PUT" : "POST";
+
       const payload = {
         ...form,
         id: isEdit ? Number(form.id) : undefined,
         srp_price: Number(form.srp_price || 0),
+        member_price: Number(form.member_price || 0),
         distributor_price: Number(form.distributor_price || 0),
         stockiest_price: Number(form.stockiest_price || 0),
       };
 
       const res = await fetch(endpoint, {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -134,6 +138,31 @@ export default function ProductCatalog() {
     }
   }
 
+  async function deleteRow(id) {
+    const ok = window.confirm("Delete this catalog item?");
+    if (!ok) return;
+
+    try {
+      setErr("");
+
+      const res = await fetch(`/api/products?id=${id}`, {
+        method: "DELETE",
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Delete failed");
+
+      if (String(form.id) === String(id)) {
+        setForm(emptyForm);
+      }
+
+      await loadRows();
+      alert("Catalog item deleted.");
+    } catch (e) {
+      setErr(e?.message || "Delete failed");
+    }
+  }
+
   function editRow(r) {
     setForm({
       id: String(r.id),
@@ -142,6 +171,7 @@ export default function ProductCatalog() {
       item_type: r.item_type || "product",
       unit_type: r.unit_type || "Per Piece",
       srp_price: String(r.srp_price ?? ""),
+      member_price: String(r.member_price ?? ""),
       distributor_price: String(r.distributor_price ?? ""),
       stockiest_price: String(r.stockiest_price ?? ""),
       is_active: !!r.is_active,
@@ -188,13 +218,21 @@ export default function ProductCatalog() {
             </Select>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Input
               label="SRP Price"
               type="number"
               step="0.01"
               value={form.srp_price}
               onChange={(e) => setForm({ ...form, srp_price: e.target.value })}
+            />
+
+            <Input
+              label="Member Price"
+              type="number"
+              step="0.01"
+              value={form.member_price}
+              onChange={(e) => setForm({ ...form, member_price: e.target.value })}
             />
 
             <Input
@@ -265,7 +303,7 @@ export default function ProductCatalog() {
         }
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <table className="w-full min-w-[1200px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-4 py-2 font-semibold text-zinc-700">Code</th>
@@ -273,6 +311,7 @@ export default function ProductCatalog() {
                 <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Unit</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">SRP</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Distributor</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Stockiest</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Active</th>
@@ -282,13 +321,13 @@ export default function ProductCatalog() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-4 py-3 text-zinc-500" colSpan={9}>
+                  <td className="px-4 py-3 text-zinc-500" colSpan={10}>
                     Loading catalog...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-3 text-zinc-500" colSpan={9}>
+                  <td className="px-4 py-3 text-zinc-500" colSpan={10}>
                     No catalog items found.
                   </td>
                 </tr>
@@ -299,18 +338,39 @@ export default function ProductCatalog() {
                     <td className="px-4 py-3 text-zinc-800">{r.item_name}</td>
                     <td className="px-4 py-3 text-zinc-700">{r.item_type}</td>
                     <td className="px-4 py-3 text-zinc-700">{r.unit_type}</td>
-                    <td className="px-4 py-3 text-zinc-700">{Number(r.srp_price || 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-zinc-700">{Number(r.distributor_price || 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-zinc-700">{Number(r.stockiest_price || 0).toFixed(2)}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.is_active ? "Yes" : "No"}</td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(r.srp_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(r.member_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(r.distributor_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(r.stockiest_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {r.is_active ? "Yes" : "No"}
+                    </td>
                     <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => editRow(r)}
-                        className="rounded-lg border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-900 hover:bg-zinc-50"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editRow(r)}
+                          className="rounded-lg border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-900 hover:bg-zinc-50"
+                        >
+                          Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteRow(r.id)}
+                          className="rounded-lg border border-red-200 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

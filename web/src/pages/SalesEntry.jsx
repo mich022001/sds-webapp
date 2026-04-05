@@ -61,7 +61,7 @@ function normalizeMembershipType(v) {
 }
 
 function getPricingBasis(membershipType) {
-  const mt = normalizeMembershipType(membershipType);
+  const mt = String(membershipType || "").trim().toLowerCase();
 
   if (mt === "stockiest") return "Stockiest";
   if (mt === "distributor" || mt === "area manager" || mt === "regional manager") {
@@ -74,7 +74,7 @@ function getPricingBasis(membershipType) {
 function getUnitPrice(product, membershipType) {
   if (!product) return 0;
 
-  const mt = normalizeMembershipType(membershipType);
+  const mt = String(membershipType || "").trim().toLowerCase();
 
   if (mt === "stockiest") return Number(product.stockiest_price ?? 0);
   if (mt === "distributor" || mt === "area manager" || mt === "regional manager") {
