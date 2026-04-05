@@ -44,7 +44,9 @@ export default function RMRebates() {
     to: "",
   });
   const [rows, setRows] = useState([]);
+  const [rmOptions, setRmOptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingRms, setLoadingRms] = useState(false);
   const [err, setErr] = useState("");
 
   async function loadData(currentFilters = filters) {
@@ -75,8 +77,39 @@ export default function RMRebates() {
     }
   }
 
+  async function loadRmOptions() {
+    try {
+      setLoadingRms(true);
+
+      const res = await fetch("/api/members");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to load RM list");
+      }
+
+      const rows = Array.isArray(json?.data) ? json.data : [];
+
+      const unique = Array.from(
+        new Set(
+          rows
+            .map((row) => String(row.regional_manager || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b));
+
+      setRmOptions(unique);
+    } catch (e) {
+      setErr(e?.message || "Failed to load RM list");
+      setRmOptions([]);
+    } finally {
+      setLoadingRms(false);
+    }
+  }
+
   useEffect(() => {
     loadData();
+    loadRmOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -100,15 +133,23 @@ export default function RMRebates() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <label className="grid gap-1">
             <span className="text-xs font-medium text-zinc-600">Receiver Name</span>
-            <input
-              type="text"
-              placeholder="Search regional manager"
+            <select
               value={filters.receiver}
+              disabled={loadingRms}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, receiver: e.target.value }))
               }
               className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-            />
+            >
+              <option value="">
+                {loadingRms ? "Loading regional managers..." : "All regional managers"}
+              </option>
+              {rmOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="grid gap-1">
