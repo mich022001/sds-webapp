@@ -226,12 +226,12 @@ export default function App() {
 
           {active === "dashboard" && <Dashboard />}
           {active === "registration" && <Registration />}
-	  {active === "registration_codes" && <RegistrationCodes />}
+          {active === "registration_codes" && <RegistrationCodes />}
           {active === "members" && <Members />}
           {active === "ledger" && <BonusLedger />}
           {active === "sales" && <SalesEntry />}
-	  {active === "catalog" && <ProductCatalog />}
-	  {active === "reports" && <Reports />}
+          {active === "catalog" && <ProductCatalog />}
+          {active === "reports" && <Reports />}
           {active === "report_member" && <MemberReport />}
           {active === "report_regional" && <RegionalReport />}
           {active === "redemptions" && (
@@ -245,6 +245,7 @@ export default function App() {
 
 function Registration() {
   const [members, setMembers] = useState([]);
+  const [packages, setPackages] = useState([]);
   const [form, setForm] = useState({
     name: "",
     contact: "",
@@ -253,6 +254,8 @@ function Registration() {
     address: "",
     sponsor: "SDS",
     areaRegion: PH_REGIONS[0],
+    packageName: "",
+    registrationCode: "",
   });
 
   useEffect(() => {
@@ -284,6 +287,35 @@ function Registration() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPackages() {
+      try {
+        const res = await fetch("/api/products?item_type=package");
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+
+        const rows = Array.isArray(json?.data) ? json.data : [];
+        const sorted = [...rows].sort((a, b) =>
+          String(a.item_name || "").localeCompare(String(b.item_name || ""))
+        );
+
+        if (!cancelled) {
+          setPackages(sorted);
+        }
+      } catch {
+        // no-op for now
+      }
+    }
+
+    loadPackages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="grid gap-4">
       <Card title="Register New Member">
@@ -291,6 +323,16 @@ function Registration() {
           className="grid gap-3"
           onSubmit={async (e) => {
             e.preventDefault();
+
+            if (!form.packageName) {
+              alert("Please select a package.");
+              return;
+            }
+
+            if (!form.registrationCode.trim()) {
+              alert("Registration code is required.");
+              return;
+            }
 
             const res = await fetch("/api/members/create", {
               method: "POST",
@@ -303,6 +345,8 @@ function Registration() {
                 address: form.address,
                 sponsor: form.sponsor,
                 area_region: form.areaRegion,
+                package_name: form.packageName,
+                registration_code: form.registrationCode.trim().toUpperCase(),
               }),
             });
 
@@ -323,6 +367,8 @@ function Registration() {
               address: "",
               sponsor: "SDS",
               areaRegion: PH_REGIONS[0],
+              packageName: "",
+              registrationCode: "",
             });
 
             try {
@@ -409,6 +455,33 @@ function Registration() {
             </Select>
           </div>
 
+          <div className="grid gap-3 md:grid-cols-2">
+            <Select
+              label="Package"
+              value={form.packageName}
+              onChange={(e) => setForm({ ...form, packageName: e.target.value })}
+            >
+              <option value="">Select package</option>
+              {packages.map((p) => (
+                <option key={p.id} value={p.item_name}>
+                  {p.item_name}
+                </option>
+              ))}
+            </Select>
+
+            <Input
+              label="Registration Code"
+              value={form.registrationCode}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  registrationCode: e.target.value.toUpperCase(),
+                })
+              }
+              placeholder="Enter unique registration code"
+            />
+          </div>
+
           <div className="mt-2 flex gap-2">
             <Button type="submit">Save Member</Button>
             <Button
@@ -423,6 +496,8 @@ function Registration() {
                   address: "",
                   sponsor: "SDS",
                   areaRegion: PH_REGIONS[0],
+                  packageName: "",
+                  registrationCode: "",
                 })
               }
             >
