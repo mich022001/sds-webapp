@@ -17,11 +17,17 @@ function fmtAmount(v) {
 }
 
 function getRowAmount(row) {
-  const amount = Number(row?.amount);
-  if (Number.isFinite(amount)) return amount;
+  const rawAmount = row?.amount;
+  const amount = Number(rawAmount);
+  if (rawAmount !== null && rawAmount !== undefined && Number.isFinite(amount)) {
+    return amount;
+  }
 
-  const amountNum = Number(row?.amount_num);
-  if (Number.isFinite(amountNum)) return amountNum;
+  const rawAmountNum = row?.amount_num;
+  const amountNum = Number(rawAmountNum);
+  if (rawAmountNum !== null && rawAmountNum !== undefined && Number.isFinite(amountNum)) {
+    return amountNum;
+  }
 
   return 0;
 }
