@@ -7,10 +7,12 @@ import RegionalReport from "./pages/RegionalReport";
 import Login from "./pages/Login";
 import SalesEntry from "./pages/SalesEntry";
 import ProductCatalog from "./pages/ProductCatalog";
+import RegistrationCodes from "./pages/RegistrationCodes";
 
 const nav = [
   { key: "dashboard", label: "Dashboard" },
   { key: "registration", label: "Registration" },
+  { key: "registration_codes", label: "Registration Codes" },
   { key: "members", label: "Members" },
   { key: "ledger", label: "Bonus Ledger" },
   { key: "sales", label: "Sales Entry" },
@@ -224,6 +226,7 @@ export default function App() {
 
           {active === "dashboard" && <Dashboard />}
           {active === "registration" && <Registration />}
+	  {active === "registration_codes" && <RegistrationCodes />}
           {active === "members" && <Members />}
           {active === "ledger" && <BonusLedger />}
           {active === "sales" && <SalesEntry />}
