@@ -128,6 +128,27 @@ async function handleMemberReport(sb, req, res) {
     if (!r2.error && Array.isArray(r2.data)) redemptions = r2.data;
   }
 
+  // RM rebates earned by this member, if this member is acting as an RM
+  let { data: rmRebates, error: rmRebatesErr } = await sb
+    .from("rm_rebates_ledger")
+    .select("created_at, receiver_name, buyer_name, product, qty, unit_type, rebate")
+    .ilike("receiver_name", memberName)
+    .order("created_at", { ascending: false })
+    .limit(1000);
+
+  if (rmRebatesErr) return res.status(400).json({ error: rmRebatesErr.message });
+
+  if ((rmRebates ?? []).length === 0) {
+    const r2 = await sb
+      .from("rm_rebates_ledger")
+      .select("created_at, receiver_name, buyer_name, product, qty, unit_type, rebate")
+      .ilike("receiver_name", `%${memberName}%`)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+
+    if (!r2.error && Array.isArray(r2.data)) rmRebates = r2.data;
+  }
+
   const { data: allMembers, error: allMembersErr } = await sb
     .from("members")
     .select(
@@ -198,6 +219,15 @@ async function handleMemberReport(sb, req, res) {
       total_product += n;
     }
   }
+
+  // Include RM rebates as earned cash
+  const total_rm_rebates = (rmRebates ?? []).reduce(
+    (sum, row) => sum + toNumber(row.rebate),
+    0
+  );
+
+  total_cash += total_rm_rebates;
+  redeemable_cash += total_rm_rebates;
 
   let redeemed_cash = 0;
   let redeemed_product = 0;
@@ -292,9 +322,11 @@ async function handleMemberReport(sb, req, res) {
       total_product,
       redeemed_product,
       balance_product,
+      total_rm_rebates,
     },
     bonuses: bonuses ?? [],
     redemptions: redemptions ?? [],
+    rm_rebates: rmRebates ?? [],
     levels,
     downlines,
   });
@@ -421,23 +453,13 @@ async function handleRegionalReport(sb, req, res) {
   const rebateLookup = await trySelectByColumn(
     sb,
     "rm_rebates_ledger",
-    ["rm_name", "member_name", "name"],
+    ["receiver_name"],
     rm
   );
 
   const rebateRows = rebateLookup.data || [];
   const totalRebates = rebateRows.reduce((sum, row) => {
-    return (
-      sum +
-      toNumber(
-        row.amount_num ??
-          row.amount ??
-          row.rebate_amount ??
-          row.value ??
-          row.qty ??
-          0
-      )
-    );
+    return sum + toNumber(row.rebate);
   }, 0);
 
   const totalCashBonus = bonuses
@@ -548,6 +570,7 @@ async function handleRegionalReport(sb, req, res) {
     byType,
     levels,
     members: downlines,
+    rm_rebates: rebateRows,
   });
 }
 
