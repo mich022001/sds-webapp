@@ -199,7 +199,7 @@ export default function SalesEntry() {
   const unitPrice = getUnitPrice(selectedProduct, form.membershipType);
   const totalAmount = unitPrice * quantityNum;
   const pricingBasis = getPricingBasis(form.membershipType);
-
+ 
   async function handleCheckout(e) {
     e.preventDefault();
 
@@ -218,20 +218,39 @@ export default function SalesEntry() {
       return;
     }
 
-    alert(
-      [
-        "Sales checkout preview",
-        `Member: ${form.memberName}`,
-        `Member ID: ${form.memberId || "-"}`,
-        `Membership Type: ${form.membershipType}`,
-        `Product: ${form.productName}`,
-        `Unit Type: ${form.unitType}`,
-        `Quantity: ${quantityNum}`,
-        `Unit Price: ${unitPrice.toFixed(2)}`,
-        `Total Amount: ${totalAmount.toFixed(2)}`,
-        `Pricing Basis: ${pricingBasis}`,
-      ].join("\n")
-    );
+    try {
+      setErr("");
+
+      const res = await fetch("/api/sales", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          member_name: form.memberName,
+          member_id: form.memberId || "",
+          membership_type: form.membershipType || "",
+          product_name: form.productName,
+          unit_type: form.unitType || "Per Piece",
+          quantity: quantityNum,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
+          pricing_basis: pricingBasis,
+          encoded_by: "admin",
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to save sale");
+      }
+
+      alert("Sale saved successfully.");
+      clearForm();
+    } catch (e) {
+      setErr(e?.message || "Failed to save sale");
+    }
   }
 
   function clearForm() {
