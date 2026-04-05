@@ -30,67 +30,20 @@ function ordinal(level) {
   return `${level}th`;
 }
 
-function fallbackBonusLabel(level) {
-  if (level === 1) return "D.C. BONUS";
-  if (level === 2) return "IND. BONUS";
-  if (level >= 3 && level <= 7) return "DEV. BONUS";
-  return "";
-}
-
-function fallbackBonusType(level) {
-  if (level === 1) return "Cash";
-  if (level === 2) return "Product";
-  if (level >= 3 && level <= 7) return "Cash";
-  return null;
-}
-
 function bonusAmount(row) {
-  const rawAmount = row?.amount;
-  const amount = Number(rawAmount);
-  if (rawAmount !== null && rawAmount !== undefined && Number.isFinite(amount)) {
-    return amount;
-  }
-
-  const rawAmountNum = row?.amount_num;
-  const amountNum = Number(rawAmountNum);
-  if (rawAmountNum !== null && rawAmountNum !== undefined && Number.isFinite(amountNum)) {
-    return amountNum;
-  }
-
-  return 0;
+  return toNumber(row?.amount);
 }
 
 function bonusType(row) {
-  const type = String(row?.bonus_type ?? "").trim();
-  if (type) return type;
-
-  const level = Number(row?.relative_level ?? row?.level ?? 0);
-  return fallbackBonusType(level) || "";
+  return String(row?.bonus_type ?? "").trim();
 }
 
 function bonusLabel(row) {
-  const label = String(row?.bonus_label ?? "").trim();
-  if (label) return label;
-
-  const level = Number(row?.relative_level ?? row?.level ?? 0);
-  return fallbackBonusLabel(level);
+  return String(row?.bonus_label ?? "").trim();
 }
 
 function isRedeemableBonus(row) {
-  if (typeof row?.is_redeemable === "boolean") {
-    return row.is_redeemable;
-  }
-
-  const level = Number(row?.relative_level ?? row?.level ?? 0);
-  const type = norm(bonusType(row));
-  const amount = bonusAmount(row);
-  const rule = norm(row?.rule_applied);
-
-  if (level === 1 && type === "cash" && rule === "direct bonus" && amount === 600) {
-    return false;
-  }
-
-  return true;
+  return row?.is_redeemable === true;
 }
 
 async function trySelectByColumn(sb, table, candidates, value) {
@@ -123,7 +76,7 @@ async function handleMemberReport(sb, req, res) {
   let { data: bonuses, error: bonusErr } = await sb
     .from("bonus_ledger")
     .select(
-      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, amount_num, amount_text, rule_applied, reason, bonus_label, is_redeemable"
+      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, rule_applied, reason, bonus_label, is_redeemable"
     )
     .ilike("earner_name", memberName)
     .order("relative_level", { ascending: true })
@@ -136,7 +89,7 @@ async function handleMemberReport(sb, req, res) {
     const r2 = await sb
       .from("bonus_ledger")
       .select(
-        "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, amount_num, amount_text, rule_applied, reason, bonus_label, is_redeemable"
+        "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, rule_applied, reason, bonus_label, is_redeemable"
       )
       .ilike("earner_name", `%${memberName}%`)
       .order("relative_level", { ascending: true })
@@ -272,7 +225,7 @@ async function handleMemberReport(sb, req, res) {
   let redeemed_product = 0;
 
   for (const r of redemptions ?? []) {
-    const q = Number(r.qty ?? 0) || 0;
+    const q = toNumber(r.qty);
     if (norm(r.redeem_type) === "cash") redeemed_cash += q;
     else if (norm(r.redeem_type) === "product") redeemed_product += q;
   }
@@ -303,14 +256,8 @@ async function handleMemberReport(sb, req, res) {
       (b) => toNumber(b.relative_level) === level
     );
 
-    const label = levelBonusRows[0]?.bonus_label
-      ? bonusLabel(levelBonusRows[0])
-      : fallbackBonusLabel(level);
-
-    const type = levelBonusRows[0]?.bonus_type
-      ? bonusType(levelBonusRows[0])
-      : fallbackBonusType(level);
-
+    const label = levelBonusRows[0] ? bonusLabel(levelBonusRows[0]) : "";
+    const type = levelBonusRows[0] ? bonusType(levelBonusRows[0]) : "";
     const bonusTotal = levelBonusRows.reduce((sum, b) => sum + bonusAmount(b), 0);
 
     const memberRows = levelMembers.map((m) => {
@@ -449,7 +396,7 @@ async function handleRegionalReport(sb, req, res) {
   const { data: bonusRows, error: bonusErr } = await sb
     .from("bonus_ledger")
     .select(
-      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, amount_num, amount_text, rule_applied, reason, bonus_label, is_redeemable"
+      "created_at, earner_name, source_member_name, relative_level, bonus_type, amount, rule_applied, reason, bonus_label, is_redeemable"
     )
     .eq("earner_name", rm)
     .order("relative_level", { ascending: true })
@@ -496,12 +443,16 @@ async function handleRegionalReport(sb, req, res) {
     .filter((b) => norm(bonusType(b)) === "cash")
     .reduce((sum, b) => sum + bonusAmount(b), 0);
 
+  const redeemableCashBonus = bonuses
+    .filter((b) => norm(bonusType(b)) === "cash" && isRedeemableBonus(b))
+    .reduce((sum, b) => sum + bonusAmount(b), 0);
+
   const totalProductBonus = bonuses
     .filter((b) => norm(bonusType(b)) === "product")
     .reduce((sum, b) => sum + bonusAmount(b), 0);
 
   const totalCashEarned = totalCashBonus + totalRebates;
-  const runningBalanceCash = totalCashEarned - redeemedCash;
+  const runningBalanceCash = redeemableCashBonus + totalRebates - redeemedCash;
   const remainingProductBalance = totalProductBonus - redeemedProduct;
 
   const maxDownlineLevel = downlines.reduce(
@@ -526,14 +477,8 @@ async function handleRegionalReport(sb, req, res) {
       (b) => toNumber(b.relative_level) === level
     );
 
-    const label = levelBonusRows[0]?.bonus_label
-      ? bonusLabel(levelBonusRows[0])
-      : fallbackBonusLabel(level);
-
-    const type = levelBonusRows[0]?.bonus_type
-      ? bonusType(levelBonusRows[0])
-      : fallbackBonusType(level);
-
+    const label = levelBonusRows[0] ? bonusLabel(levelBonusRows[0]) : "";
+    const type = levelBonusRows[0] ? bonusType(levelBonusRows[0]) : "";
     const bonusTotal = levelBonusRows.reduce((sum, b) => sum + bonusAmount(b), 0);
 
     const memberRows = levelMembers.map((m) => {
@@ -581,6 +526,7 @@ async function handleRegionalReport(sb, req, res) {
       totalMembers: downlines.length,
       totalRebates,
       totalCashBonus,
+      redeemableCashBonus,
       totalCashEarned,
       redeemedCash,
       runningBalanceCash,
