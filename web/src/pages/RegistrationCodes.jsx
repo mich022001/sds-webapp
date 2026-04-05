@@ -167,6 +167,8 @@ export default function RegistrationCodes() {
   }
 
   async function toggleActive(row) {
+    if (row.is_used) return;
+
     try {
       setErr("");
 
@@ -187,6 +189,21 @@ export default function RegistrationCodes() {
       setErr(e?.message || "Failed to update code");
     }
   }
+
+  const filteredRows = rows.filter((r) => {
+    if (!search.trim()) return true;
+    const s = search.trim().toLowerCase();
+
+    return [
+      r.code,
+      r.used_by_member_id,
+      r.used_by_member_name,
+      r.sponsor_name,
+      r.recruited_by_name,
+    ]
+      .map((x) => String(x || "").toLowerCase())
+      .some((x) => x.includes(s));
+  });
 
   return (
     <div className="grid max-w-full gap-4 overflow-x-hidden">
@@ -229,6 +246,19 @@ export default function RegistrationCodes() {
               value={bulkQty}
               onChange={(e) => setBulkQty(e.target.value)}
             />
+
+            <div className="flex flex-wrap gap-2">
+              {[10, 25, 50, 100].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setBulkQty(n)}
+                  className="rounded-lg border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-900 hover:bg-zinc-50"
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
 
             <div className="flex flex-wrap gap-2">
               <button
@@ -282,19 +312,10 @@ export default function RegistrationCodes() {
             onClick={() => {
               setSearch("");
               setStatus("");
-              loadRows();
             }}
             className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
           >
             Clear Filters
-          </button>
-
-          <button
-            type="button"
-            onClick={loadRows}
-            className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
-          >
-            Apply Search
           </button>
         </div>
 
@@ -327,49 +348,41 @@ export default function RegistrationCodes() {
                     Loading codes...
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <tr>
                   <td className="px-4 py-3 text-zinc-500" colSpan={10}>
                     No registration codes found.
                   </td>
                 </tr>
               ) : (
-                rows
-                  .filter((r) => {
-                    if (!search.trim()) return true;
-                    const s = search.trim().toLowerCase();
-                    return [
-                      r.code,
-                      r.used_by_member_id,
-                      r.used_by_member_name,
-                      r.sponsor_name,
-                      r.recruited_by_name,
-                    ]
-                      .map((x) => String(x || "").toLowerCase())
-                      .some((x) => x.includes(s));
-                  })
-                  .map((r) => (
-                    <tr key={r.id} className="border-b border-zinc-100">
-                      <td className="px-4 py-3 font-mono text-zinc-800">{r.code}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.is_active ? "Yes" : "No"}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.is_used ? "Yes" : "No"}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.used_by_member_id || "-"}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.used_by_member_name || "-"}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.sponsor_name || "-"}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.recruited_by_name || "-"}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.used_at || "-"}</td>
-                      <td className="px-4 py-3 text-zinc-700">{r.created_at || "-"}</td>
-                      <td className="px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleActive(r)}
-                          className="rounded-lg border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-900 hover:bg-zinc-50"
-                        >
-                          {r.is_active ? "Deactivate" : "Activate"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                filteredRows.map((r) => (
+                  <tr key={r.id} className="border-b border-zinc-100">
+                    <td className="px-4 py-3 font-mono text-zinc-800">{r.code}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.is_active ? "Yes" : "No"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.is_used ? "Yes" : "No"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.used_by_member_id || "-"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.used_by_member_name || "-"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.sponsor_name || "-"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.recruited_by_name || "-"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.used_at || "-"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{r.created_at || "-"}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        disabled={r.is_used}
+                        onClick={() => toggleActive(r)}
+                        className={cls(
+                          "rounded-lg border px-3 py-1 text-xs font-semibold",
+                          r.is_used
+                            ? "cursor-not-allowed border-zinc-200 text-zinc-400"
+                            : "border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                        )}
+                      >
+                        {r.is_used ? "Used" : r.is_active ? "Deactivate" : "Activate"}
+                      </button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

@@ -29,7 +29,7 @@ async function generateUniqueCodes(sb, qty) {
     const { data, error } = await sb
       .from("registration_codes")
       .select("id")
-      .eq("code", candidate)
+      .ilike("code", candidate)
       .maybeSingle();
 
     if (error) {
@@ -139,12 +139,31 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "valid id is required" });
       }
 
-      const payload = {};
-      if (is_active !== undefined) payload.is_active = !!is_active;
+      const { data: existing, error: fetchError } = await sb
+        .from("registration_codes")
+        .select("id, is_used, is_active")
+        .eq("id", rowId)
+        .maybeSingle();
+
+      if (fetchError) {
+        return res.status(400).json({ error: fetchError.message });
+      }
+
+      if (!existing) {
+        return res.status(404).json({ error: "Registration code not found" });
+      }
+
+      if (existing.is_used) {
+        return res.status(400).json({
+          error: "Used registration codes cannot be reactivated or modified",
+        });
+      }
 
       const { data, error } = await sb
         .from("registration_codes")
-        .update(payload)
+        .update({
+          is_active: !!is_active,
+        })
         .eq("id", rowId)
         .select("*")
         .single();
