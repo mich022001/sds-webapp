@@ -21,6 +21,51 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
+function num(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function extractMemberRow(data) {
+  if (!data) return null;
+  if (Array.isArray(data)) return data[0] || null;
+  if (typeof data === "object") return data;
+  return null;
+}
+
+function getPricingBasis(membershipType) {
+  const mt = normalizeText(membershipType).toLowerCase();
+
+  if (mt === "stockiest") return "Stockiest";
+  if (
+    mt === "distributor" ||
+    mt === "area manager" ||
+    mt === "regional manager"
+  ) {
+    return "Distributor";
+  }
+  if (mt === "member") return "Member";
+  return "SRP";
+}
+
+function getUnitPrice(productRow, membershipType) {
+  if (!productRow) return 0;
+
+  const mt = normalizeText(membershipType).toLowerCase();
+
+  if (mt === "stockiest") return num(productRow.stockiest_price);
+  if (
+    mt === "distributor" ||
+    mt === "area manager" ||
+    mt === "regional manager"
+  ) {
+    return num(productRow.distributor_price);
+  }
+  if (mt === "member") return num(productRow.member_price);
+
+  return num(productRow.srp_price);
+}
+
 export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
@@ -28,7 +73,9 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       const { data, error } = await sb
         .from("members")
-        .select("member_id, name, membership_type, sponsor_name, created_at")
+        .select(
+          "member_id, name, membership_type, sponsor_name, regional_manager, created_at, package_name"
+        )
         .order("created_at", { ascending: false })
         .limit(50);
 
@@ -78,6 +125,26 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Registration code is required" });
       }
 
+      const { data: packageRow, error: packageError } = await sb
+        .from("product_catalog")
+        .select(
+          "id, item_name, item_type, unit_type, srp_price, member_price, distributor_price, stockiest_price, is_active"
+        )
+        .eq("item_name", cleanPackageName)
+        .eq("item_type", "package")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (packageError) {
+        return res.status(400).json({ error: packageError.message });
+      }
+
+      if (!packageRow) {
+        return res.status(400).json({
+          error: "Selected package is invalid or inactive",
+        });
+      }
+
       const { data, error } = await sb.rpc("register_member_with_code", {
         p_name: cleanName,
         p_contact: cleanContact || null,
@@ -94,9 +161,50 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
+      const member = extractMemberRow(data);
+
+      if (!member?.member_id) {
+        return res.status(500).json({
+          error: "Member was created but could not be loaded for package sale recording",
+        });
+      }
+
+      const pricingBasis = getPricingBasis(cleanMembershipType);
+      const unitPrice = getUnitPrice(packageRow, cleanMembershipType);
+      const quantity = 1;
+      const totalAmount = unitPrice * quantity;
+
+      const regionalManager =
+        normalizeText(member.regional_manager) ||
+        normalizeText(member.regionalManager) ||
+        null;
+
+      const { error: salesError } = await sb.from("sales_ledger").insert([
+        {
+          created_at: new Date().toISOString(),
+          member_name: cleanName,
+          member_id: member.member_id,
+          membership_type: cleanMembershipType,
+          regional_manager: regionalManager,
+          product_name: cleanPackageName,
+          unit_type: normalizeText(packageRow.unit_type) || "Per Package",
+          quantity,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
+          pricing_basis: pricingBasis,
+          encoded_by: "admin",
+        },
+      ]);
+
+      if (salesError) {
+        return res.status(400).json({
+          error: `Member registered but package sale was not recorded: ${salesError.message}`,
+        });
+      }
+
       return res.status(200).json({
         ok: true,
-        member: data,
+        member,
       });
     }
 
