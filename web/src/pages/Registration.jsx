@@ -271,7 +271,17 @@ export default function Registration({ user }) {
         return;
       }
 
-      alert("Member saved successfully!");
+      const usernameText = json.account_username
+        ? `\nUsername: ${json.account_username}`
+        : "";
+      const passwordText = json.member?.member_id
+        ? `\nDefault Password: ${json.member.member_id}`
+        : "";
+
+      alert(
+        `Member and account created successfully!${usernameText}${passwordText}`
+      );
+
       resetForm();
 
       if (!isRestrictedRecruiter) {
