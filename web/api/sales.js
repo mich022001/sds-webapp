@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import jwt from "jsonwebtoken";
+import cookie from "cookie";
 
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL;
@@ -13,6 +15,14 @@ function supabaseAdmin() {
   });
 }
 
+function getAuthSecret() {
+  const secret = process.env.SDS_AUTH_SECRET;
+  if (!secret) {
+    throw new Error("Missing SDS_AUTH_SECRET");
+  }
+  return secret;
+}
+
 function normalizeText(v) {
   return String(v || "").trim();
 }
@@ -22,14 +32,162 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function computeRmRebate(productName, unitType, qty) {
-  if (unitType === "Package") return qty * 15;
-  if (productName === "Balatinaw Coffee") return qty * 5;
-  if (productName === "Promix Juice") return qty * 10;
-  if (productName === "Compact C") return qty * 20;
-  if (productName === "Vigomaxx") return qty * 30;
-  if (productName === "Zepamacs") return qty * 10;
-  return 0;
+function parseSessionUser(req) {
+  try {
+    const secret = getAuthSecret();
+    const cookies = cookie.parse(req.headers.cookie || "");
+    const token = cookies.sds_session;
+
+    if (!token) return null;
+
+    const payload = jwt.verify(token, secret);
+
+    return {
+      id: payload.sub,
+      username: payload.username,
+      full_name: payload.full_name,
+      role: payload.role,
+      member_id: payload.member_id ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isRestrictedUser(user) {
+  return user?.role === "rm" || user?.role === "normal";
+}
+
+function getPricingBasis(membershipType) {
+  const mt = normalizeText(membershipType).toLowerCase();
+
+  if (mt === "stockiest") return "Stockiest";
+  if (
+    mt === "distributor" ||
+    mt === "area manager" ||
+    mt === "regional manager"
+  ) {
+    return "Distributor";
+  }
+  if (mt === "member") return "Member";
+  return "SRP";
+}
+
+function getUnitPrice(itemRow, membershipType) {
+  if (!itemRow) return 0;
+
+  const mt = normalizeText(membershipType).toLowerCase();
+
+  if (mt === "stockiest") return num(itemRow.stockiest_price);
+  if (
+    mt === "distributor" ||
+    mt === "area manager" ||
+    mt === "regional manager"
+  ) {
+    return num(itemRow.distributor_price);
+  }
+  if (mt === "member") return num(itemRow.member_price);
+
+  return num(itemRow.srp_price);
+}
+
+async function resolveMemberContext(sb, sessionUser, body) {
+  if (!sessionUser) {
+    return {
+      ok: false,
+      status: 401,
+      error: "Not authenticated",
+    };
+  }
+
+  if (!sessionUser.role) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Account role is missing",
+    };
+  }
+
+  if (isRestrictedUser(sessionUser)) {
+    if (!sessionUser.member_id) {
+      return {
+        ok: false,
+        status: 403,
+        error: "Your account is not linked to a member. Contact admin.",
+      };
+    }
+
+    const { data, error } = await sb
+      .from("members")
+      .select("member_id, name, membership_type, regional_manager")
+      .eq("member_id", sessionUser.member_id)
+      .maybeSingle();
+
+    if (error) {
+      return {
+        ok: false,
+        status: 400,
+        error: error.message,
+      };
+    }
+
+    if (!data?.member_id) {
+      return {
+        ok: false,
+        status: 403,
+        error: "Linked member record was not found. Contact admin.",
+      };
+    }
+
+    return {
+      ok: true,
+      member: data,
+    };
+  }
+
+  const requestedMemberId = normalizeText(body?.member_id);
+  const requestedMemberName = normalizeText(body?.member_name);
+
+  if (!requestedMemberId && !requestedMemberName) {
+    return {
+      ok: false,
+      status: 400,
+      error: "member_id or member_name is required",
+    };
+  }
+
+  let query = sb
+    .from("members")
+    .select("member_id, name, membership_type, regional_manager");
+
+  if (requestedMemberId) {
+    query = query.eq("member_id", requestedMemberId);
+  } else {
+    query = query.eq("name", requestedMemberName);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    return {
+      ok: false,
+      status: 400,
+      error: error.message,
+    };
+  }
+
+  if (!data?.member_id) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Selected member was not found",
+    };
+  }
+
+  return {
+    ok: true,
+    member: data,
+  };
 }
 
 export default async function handler(req, res) {
@@ -37,66 +195,75 @@ export default async function handler(req, res) {
     const sb = supabaseAdmin();
 
     if (req.method === "POST") {
-      const {
-        member_name,
-        member_id,
-        membership_type,
-        regional_manager,
-        product_name,
-        unit_type,
-        quantity,
-        unit_price,
-        total_amount,
-        pricing_basis,
-        encoded_by,
-      } = req.body ?? {};
+      const sessionUser = parseSessionUser(req);
 
-      const cleanMemberName = normalizeText(member_name);
-      const cleanMemberId = normalizeText(member_id);
-      const cleanMembershipType = normalizeText(membership_type);
-      const cleanRegionalManager = normalizeText(regional_manager);
-      const cleanProductName = normalizeText(product_name);
-      const cleanUnitType = normalizeText(unit_type) || "Per Piece";
-      const cleanPricingBasis = normalizeText(pricing_basis) || "SRP";
-      const cleanEncodedBy = normalizeText(encoded_by) || "admin";
+      if (!sessionUser) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
 
+      const memberResult = await resolveMemberContext(sb, sessionUser, req.body ?? {});
+      if (!memberResult.ok) {
+        return res
+          .status(memberResult.status || 400)
+          .json({ error: memberResult.error });
+      }
+
+      const member = memberResult.member;
+      const { item_id, quantity } = req.body ?? {};
+
+      const itemId = Number(item_id);
       const qty = Math.max(1, Math.floor(num(quantity)));
-      const price = num(unit_price);
-      const total = num(total_amount);
 
-      if (!cleanMemberName) {
-        return res.status(400).json({ error: "member_name is required" });
-      }
-
-      if (!cleanMemberId) {
-        return res.status(400).json({ error: "member_id is required" });
-      }
-
-      if (!cleanMembershipType) {
-        return res.status(400).json({ error: "membership_type is required" });
-      }
-
-      if (!cleanProductName) {
-        return res.status(400).json({ error: "product_name is required" });
+      if (!Number.isFinite(itemId) || itemId <= 0) {
+        return res.status(400).json({ error: "item_id is required" });
       }
 
       if (qty < 1) {
         return res.status(400).json({ error: "quantity must be at least 1" });
       }
 
+      const { data: itemRow, error: itemError } = await sb
+        .from("product_catalog")
+        .select(
+          "id, item_name, item_type, unit_type, srp_price, member_price, distributor_price, stockiest_price, is_active"
+        )
+        .eq("id", itemId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (itemError) {
+        return res.status(400).json({ error: itemError.message });
+      }
+
+      if (!itemRow?.id) {
+        return res.status(400).json({ error: "Selected item was not found" });
+      }
+
+      const membershipType = normalizeText(member.membership_type) || "Member";
+      const unitType =
+        normalizeText(itemRow.unit_type) ||
+        (normalizeText(itemRow.item_type) === "package" ? "Package" : "Per Piece");
+      const pricingBasis = getPricingBasis(membershipType);
+      const unitPrice = getUnitPrice(itemRow, membershipType);
+      const totalAmount = unitPrice * qty;
+
       const payload = {
         created_at: new Date().toISOString(),
-        member_name: cleanMemberName,
-        member_id: cleanMemberId,
-        membership_type: cleanMembershipType,
-        regional_manager: cleanRegionalManager || null,
-        product_name: cleanProductName,
-        unit_type: cleanUnitType,
+        member_name: normalizeText(member.name),
+        member_id: normalizeText(member.member_id),
+        membership_type: membershipType,
+        regional_manager: normalizeText(member.regional_manager) || null,
+        item_type: normalizeText(itemRow.item_type),
+        product_name: normalizeText(itemRow.item_name),
+        unit_type: unitType,
         quantity: qty,
-        unit_price: price,
-        total_amount: total,
-        pricing_basis: cleanPricingBasis,
-        encoded_by: cleanEncodedBy,
+        unit_price: unitPrice,
+        total_amount: totalAmount,
+        pricing_basis: pricingBasis,
+        encoded_by:
+          normalizeText(sessionUser.username) ||
+          normalizeText(sessionUser.full_name) ||
+          "system",
       };
 
       const { data, error } = await sb
@@ -109,56 +276,43 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
-      // ===== RM rebate logic =====
-      const { data: memberRow, error: memberError } = await sb
-        .from("members")
-        .select("regional_manager")
-        .eq("member_id", cleanMemberId)
-        .maybeSingle();
-
-      if (!memberError && memberRow?.regional_manager) {
-        const rmName = normalizeText(memberRow.regional_manager);
-        const rebate = computeRmRebate(cleanProductName, cleanUnitType, qty);
-
-        if (rmName && rebate > 0) {
-          const { error: rebateError } = await sb
-            .from("rm_rebates_ledger")
-            .insert([
-              {
-                created_at: new Date().toISOString(),
-                receiver_name: rmName,
-                buyer_name: cleanMemberName,
-                product: cleanProductName,
-                qty,
-                unit_type: cleanUnitType,
-                rebate,
-              },
-            ]);
-
-          if (rebateError) {
-            console.error("RM rebate insert failed:", rebateError.message);
-          }
-        }
-      }
-
       return res.status(200).json({ ok: true, data });
     }
 
     if (req.method === "GET") {
+      const sessionUser = parseSessionUser(req);
+
+      if (!sessionUser) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
       const from = normalizeText(req.query?.from);
       const to = normalizeText(req.query?.to);
       const buyer = normalizeText(req.query?.buyer);
       const product = normalizeText(req.query?.product);
+      const itemType = normalizeText(req.query?.item_type);
 
       let query = sb
         .from("sales_ledger")
         .select("*")
         .order("id", { ascending: false });
 
+      if (isRestrictedUser(sessionUser)) {
+        if (!sessionUser.member_id) {
+          return res
+            .status(403)
+            .json({ error: "Your account is not linked to a member. Contact admin." });
+        }
+
+        query = query.eq("member_id", sessionUser.member_id);
+      } else {
+        if (buyer) query = query.ilike("member_name", `%${buyer}%`);
+      }
+
       if (from) query = query.gte("created_at", from);
       if (to) query = query.lte("created_at", to);
-      if (buyer) query = query.ilike("member_name", `%${buyer}%`);
       if (product) query = query.ilike("product_name", `%${product}%`);
+      if (itemType) query = query.eq("item_type", itemType);
 
       const { data, error } = await query;
 

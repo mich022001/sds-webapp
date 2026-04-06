@@ -33,7 +33,23 @@ function Card({ title, children, right, className = "" }) {
   );
 }
 
-export default function Dashboard() {
+function fmtAmount(v) {
+  const n = Number(v || 0);
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+}
+
+export default function Dashboard({ user }) {
+  const isAdminView =
+    user?.role === "super_admin" || user?.role === "admin";
+
+  if (!isAdminView) {
+    return <SelfDashboard user={user} />;
+  }
+
+  return <AdminDashboard />;
+}
+
+function AdminDashboard() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -133,8 +149,6 @@ export default function Dashboard() {
       map.get(lvl).sort((a, b) => String(a).localeCompare(String(b)));
     }
 
-    const maxLen = levels.reduce((mx, lvl) => Math.max(mx, map.get(lvl).length), 0);
-
     const levelItems = levels
       .filter((lvl) => lvl !== 0)
       .map((lvl) => ({
@@ -142,9 +156,9 @@ export default function Dashboard() {
         title: levelLabel(lvl),
         names: map.get(lvl) || [],
         count: map.get(lvl)?.length || 0,
-    }));
+      }));
 
-    return { map, levels, maxLen, levelItems };
+    return { map, levels, levelItems };
   }, [rows]);
 
   useEffect(() => {
@@ -300,21 +314,164 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="mt-2 h-2 rounded-full bg-zinc-100">
-                <div
-                  className={`h-2 rounded-full bg-zinc-300 transition-opacity ${
-                    canScrollLeft || canScrollRight ? "opacity-100" : "opacity-0"
-                  }`}
-                  style={{ width: "28%" }}
-                />
-              </div>
-
               <div className="mt-2 text-center text-xs text-zinc-500 md:hidden">
                 Swipe horizontally to view more levels
               </div>
             </div>
           )}
         </Card>
+      )}
+    </div>
+  );
+}
+
+function SelfDashboard({ user }) {
+  const [member, setMember] = useState(null);
+  const [report, setReport] = useState(null);
+  const [sales, setSales] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoading(true);
+        setErr("");
+
+        if (!user?.member_id) {
+          throw new Error("Your account is not linked to a member.");
+        }
+
+        const memberRes = await fetch(
+          `/api/members?member_id=${encodeURIComponent(user.member_id)}`
+        );
+        const memberJson = await memberRes.json().catch(() => ({}));
+        if (!memberRes.ok) {
+          throw new Error(memberJson.error || "Failed to load member");
+        }
+
+        const memberRow = Array.isArray(memberJson?.data)
+          ? memberJson.data[0]
+          : null;
+
+        if (!memberRow?.name) {
+          throw new Error("Linked member record not found.");
+        }
+
+        const [reportRes, salesRes] = await Promise.all([
+          fetch(`/api/reports?type=member&name=${encodeURIComponent(memberRow.name)}`),
+          fetch("/api/sales"),
+        ]);
+
+        const reportJson = await reportRes.json().catch(() => ({}));
+        const salesJson = await salesRes.json().catch(() => ({}));
+
+        if (!reportRes.ok) {
+          throw new Error(reportJson.error || "Failed to load bonuses");
+        }
+
+        if (!salesRes.ok) {
+          throw new Error(salesJson.error || "Failed to load sales");
+        }
+
+        if (!cancelled) {
+          setMember(memberRow);
+          setReport(reportJson);
+          setSales(Array.isArray(salesJson?.data) ? salesJson.data : []);
+        }
+      } catch (e) {
+        if (!cancelled) setErr(e?.message || "Failed to load dashboard");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.member_id]);
+
+  const totals = report?.totals || {};
+
+  return (
+    <div className="space-y-6 max-w-full overflow-x-hidden">
+      <div>
+        <div className="text-xl font-extrabold text-zinc-900">
+          Welcome, {member?.name || user?.full_name || "Member"}
+        </div>
+        <div className="text-sm text-zinc-500">Personal Dashboard</div>
+      </div>
+
+      {loading ? (
+        <Card title="My Summary">
+          <div className="text-sm text-zinc-500">Loading...</div>
+        </Card>
+      ) : err ? (
+        <Card title="My Summary">
+          <div className="text-sm text-red-600">{err}</div>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <CompactMetric label="Member ID" value={member?.member_id || "-"} />
+            <CompactMetric
+              label="Membership Type"
+              value={member?.membership_type || "-"}
+            />
+            <CompactMetric
+              label="Cash Balance"
+              value={fmtAmount(totals.balance_cash)}
+            />
+            <CompactMetric
+              label="Product Balance"
+              value={fmtAmount(totals.balance_product)}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card title="My Upline Details">
+              <div className="space-y-3 text-sm">
+                <div>
+                  <div className="text-xs font-medium text-zinc-500">Sponsor</div>
+                  <div className="text-zinc-900">{member?.sponsor_name || "-"}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-zinc-500">Regional Manager</div>
+                  <div className="text-zinc-900">
+                    {member?.regional_manager || "-"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-zinc-500">Area / Region</div>
+                  <div className="text-zinc-900">{member?.area_region || "-"}</div>
+                </div>
+              </div>
+            </Card>
+
+            <Card title="My Recent Sales Requests">
+              {sales.length === 0 ? (
+                <div className="text-sm text-zinc-500">No sales yet.</div>
+              ) : (
+                <div className="space-y-3">
+                  {sales.slice(0, 5).map((row, idx) => (
+                    <div key={`${row.id || idx}`} className="border-b border-zinc-100 pb-3 last:border-b-0">
+                      <div className="text-sm font-medium text-zinc-900">
+                        {row.product_name}
+                      </div>
+                      <div className="text-xs text-zinc-500">
+                        Qty {row.quantity} • Total {fmtAmount(row.total_amount)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        </>
       )}
     </div>
   );

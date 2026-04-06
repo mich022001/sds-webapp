@@ -11,6 +11,8 @@ import RegistrationCodes from "./pages/RegistrationCodes";
 import Reports from "./pages/Reports";
 import RMRebates from "./pages/RMRebates";
 import Registration from "./pages/Registration";
+import Profile from "./pages/Profile";
+import MyBonuses from "./pages/MyBonuses";
 
 const navByRole = {
   super_admin: [
@@ -236,7 +238,7 @@ export default function App() {
             </div>
           </div>
 
-          {active === "dashboard" && <Dashboard />}
+          {active === "dashboard" && <Dashboard user={user} />}
 
           {active === "registration" && <Registration user={user} />}
 
@@ -258,7 +260,7 @@ export default function App() {
               <RMRebates />
             )}
 
-          {active === "sales" && <SalesEntry />}
+          {active === "sales" && <SalesEntry user={user} />}
 
           {active === "catalog" &&
             user.role === "super_admin" && <ProductCatalog />}
@@ -298,10 +300,7 @@ export default function App() {
 
           {active === "my_bonuses" &&
             (user.role === "rm" || user.role === "normal") && (
-              <Placeholder
-                title="My Bonuses"
-                desc="Self-only bonus ledger and balance summary."
-              />
+              <MyBonuses user={user} />
             )}
 
           {active === "my_rebates" && user.role === "rm" && (
@@ -313,10 +312,7 @@ export default function App() {
 
           {active === "profile" &&
             (user.role === "rm" || user.role === "normal") && (
-              <Placeholder
-                title="Profile"
-                desc="Self profile, linked member details, and account info."
-              />
+              <Profile user={user} />
             )}
         </main>
       </div>
