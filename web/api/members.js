@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import jwt from "jsonwebtoken";
+import cookie from "cookie";
 
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL;
@@ -11,6 +13,14 @@ function supabaseAdmin() {
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+function getAuthSecret() {
+  const secret = process.env.SDS_AUTH_SECRET;
+  if (!secret) {
+    throw new Error("Missing SDS_AUTH_SECRET");
+  }
+  return secret;
 }
 
 function normalizeCode(code) {
@@ -26,6 +36,131 @@ function extractMemberRow(data) {
   if (Array.isArray(data)) return data[0] || null;
   if (typeof data === "object") return data;
   return null;
+}
+
+function parseSessionUser(req) {
+  try {
+    const secret = getAuthSecret();
+    const cookies = cookie.parse(req.headers.cookie || "");
+    const token = cookies.sds_session;
+
+    if (!token) return null;
+
+    const payload = jwt.verify(token, secret);
+
+    return {
+      id: payload.sub,
+      username: payload.username,
+      full_name: payload.full_name,
+      role: payload.role,
+      member_id: payload.member_id ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isRestrictedRecruiter(user) {
+  return user?.role === "rm" || user?.role === "normal";
+}
+
+async function resolveSponsorForRequest(sb, req, requestedSponsor) {
+  const sessionUser = parseSessionUser(req);
+
+  if (!sessionUser) {
+    return {
+      ok: false,
+      status: 401,
+      error: "Not authenticated",
+    };
+  }
+
+  if (!sessionUser.role) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Account role is missing",
+    };
+  }
+
+  if (isRestrictedRecruiter(sessionUser)) {
+    if (!sessionUser.member_id) {
+      return {
+        ok: false,
+        status: 403,
+        error: "Your account is not linked to a member. Contact admin.",
+      };
+    }
+
+    const { data, error } = await sb
+      .from("members")
+      .select("member_id, name")
+      .eq("member_id", sessionUser.member_id)
+      .maybeSingle();
+
+    if (error) {
+      return {
+        ok: false,
+        status: 400,
+        error: error.message,
+      };
+    }
+
+    if (!data?.name) {
+      return {
+        ok: false,
+        status: 403,
+        error: "Linked member record was not found. Contact admin.",
+      };
+    }
+
+    return {
+      ok: true,
+      sponsor: data.name,
+      sessionUser,
+      linkedMember: data,
+    };
+  }
+
+  const cleanSponsor = normalizeText(requestedSponsor);
+
+  if (!cleanSponsor || cleanSponsor.toUpperCase() === "SDS") {
+    return {
+      ok: true,
+      sponsor: "SDS",
+      sessionUser,
+      linkedMember: null,
+    };
+  }
+
+  const { data: sponsorRow, error: sponsorError } = await sb
+    .from("members")
+    .select("name")
+    .eq("name", cleanSponsor)
+    .maybeSingle();
+
+  if (sponsorError) {
+    return {
+      ok: false,
+      status: 400,
+      error: sponsorError.message,
+    };
+  }
+
+  if (!sponsorRow?.name) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Sponsor does not exist",
+    };
+  }
+
+  return {
+    ok: true,
+    sponsor: sponsorRow.name,
+    sessionUser,
+    linkedMember: sponsorRow,
+  };
 }
 
 export default async function handler(req, res) {
@@ -86,7 +221,6 @@ export default async function handler(req, res) {
       const cleanEmail = normalizeText(email);
       const cleanMembershipType = normalizeText(membership_type) || "Member";
       const cleanAddress = normalizeText(address);
-      const cleanSponsor = normalizeText(sponsor) || "SDS";
       const cleanAreaRegion = normalizeText(area_region);
       const cleanPackageName = normalizeText(package_name);
       const cleanCode = normalizeCode(registration_code);
@@ -107,13 +241,23 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Registration code is required" });
       }
 
+      const sponsorResult = await resolveSponsorForRequest(sb, req, sponsor);
+
+      if (!sponsorResult.ok) {
+        return res
+          .status(sponsorResult.status || 400)
+          .json({ error: sponsorResult.error });
+      }
+
+      const finalSponsor = sponsorResult.sponsor;
+
       const { data, error } = await sb.rpc("register_member_with_code", {
         p_name: cleanName,
         p_contact: cleanContact || null,
         p_email: cleanEmail || null,
         p_membership_type: cleanMembershipType,
         p_address: cleanAddress || null,
-        p_sponsor: cleanSponsor,
+        p_sponsor: finalSponsor,
         p_area_region: cleanAreaRegion || null,
         p_package_name: cleanPackageName,
         p_code: cleanCode,
@@ -133,6 +277,7 @@ export default async function handler(req, res) {
         },
         account_created: result.account_created === true,
         account_username: result.account_username ?? null,
+        sponsor_used: finalSponsor,
       });
     }
 
