@@ -71,6 +71,26 @@ export default async function handler(req, res) {
     const sb = supabaseAdmin();
 
     if (req.method === "GET") {
+      const memberId = normalizeText(req.query?.member_id);
+
+      if (memberId) {
+        const { data, error } = await sb
+          .from("members")
+          .select(
+            "member_id, name, membership_type, sponsor_name, regional_manager, created_at, package_name, level, contact, email, address, area_region"
+          )
+          .eq("member_id", memberId)
+          .maybeSingle();
+
+        if (error) {
+          return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json({
+          data: data ? [data] : [],
+        });
+      }
+
       const { data, error } = await sb
         .from("members")
         .select(

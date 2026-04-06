@@ -64,6 +64,7 @@ export default async function handler(req, res) {
             username: payload.username,
             full_name: payload.full_name,
             role: payload.role,
+            member_id: payload.member_id ?? null,
           },
         });
       } catch {
@@ -95,7 +96,9 @@ export default async function handler(req, res) {
 
         const { data: account, error } = await sb
           .from("app_accounts")
-          .select("id, username, password_hash, full_name, role, is_active")
+          .select(
+            "id, username, password_hash, full_name, role, member_id, is_active"
+          )
           .eq("username", cleanUsername)
           .maybeSingle();
 
@@ -104,7 +107,9 @@ export default async function handler(req, res) {
         }
 
         if (!account) {
-          return res.status(401).json({ error: "Invalid username or password" });
+          return res
+            .status(401)
+            .json({ error: "Invalid username or password" });
         }
 
         if (!account.is_active) {
@@ -113,7 +118,9 @@ export default async function handler(req, res) {
 
         const ok = await bcrypt.compare(cleanPassword, account.password_hash);
         if (!ok) {
-          return res.status(401).json({ error: "Invalid username or password" });
+          return res
+            .status(401)
+            .json({ error: "Invalid username or password" });
         }
 
         const secret = getAuthSecret();
@@ -124,6 +131,7 @@ export default async function handler(req, res) {
             username: account.username,
             role: account.role,
             full_name: account.full_name ?? "",
+            member_id: account.member_id ?? null,
           },
           secret,
           { expiresIn: "7d" }
@@ -138,6 +146,7 @@ export default async function handler(req, res) {
             username: account.username,
             full_name: account.full_name,
             role: account.role,
+            member_id: account.member_id ?? null,
           },
         });
       }

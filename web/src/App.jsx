@@ -10,41 +10,54 @@ import ProductCatalog from "./pages/ProductCatalog";
 import RegistrationCodes from "./pages/RegistrationCodes";
 import Reports from "./pages/Reports";
 import RMRebates from "./pages/RMRebates";
+import Registration from "./pages/Registration";
 
-const nav = [
-  { key: "dashboard", label: "Dashboard" },
-  { key: "registration", label: "Registration" },
-  { key: "registration_codes", label: "Registration Codes" },
-  { key: "members", label: "Members" },
-  { key: "ledger", label: "Bonus Ledger" },
-  { key: "rm_rebates", label: "RM Rebates" },
-  { key: "sales", label: "Sales Entry" },
-  { key: "catalog", label: "Product Catalog" },
-  { key: "reports", label: "Reports" },
-  { key: "report_member", label: "Member Report" },
-  { key: "report_regional", label: "Regional Report" },
-  { key: "redemptions", label: "Redemptions" },
-];
-
-const PH_REGIONS = [
-  "National Capital Region (NCR)",
-  "Cordillera Administrative Region (CAR)",
-  "Ilocos Region (Region I)",
-  "Cagayan Valley (Region II)",
-  "Central Luzon (Region III)",
-  "CALABARZON (Region IV-A)",
-  "MIMAROPA (Region IV-B)",
-  "Bicol Region (Region V)",
-  "Western Visayas (Region VI)",
-  "Central Visayas (Region VII)",
-  "Eastern Visayas (Region VIII)",
-  "Zamboanga Peninsula (Region IX)",
-  "Northern Mindanao (Region X)",
-  "Davao Region (Region XI)",
-  "SOCCSKSARGEN (Region XII)",
-  "Caraga (Region XIII)",
-  "Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)",
-];
+const navByRole = {
+  super_admin: [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "registration", label: "Registration" },
+    { key: "registration_codes", label: "Registration Codes" },
+    { key: "members", label: "Members" },
+    { key: "ledger", label: "Bonus Ledger" },
+    { key: "rm_rebates", label: "RM Rebates" },
+    { key: "sales", label: "Sales" },
+    { key: "catalog", label: "Product Catalog" },
+    { key: "reports", label: "Reports" },
+    { key: "report_member", label: "Member Report" },
+    { key: "report_regional", label: "Regional Report" },
+    { key: "redemptions", label: "Redemptions" },
+  ],
+  admin: [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "registration", label: "Registration" },
+    { key: "members", label: "Members" },
+    { key: "ledger", label: "Bonus Ledger" },
+    { key: "rm_rebates", label: "RM Rebates" },
+    { key: "sales", label: "Sales" },
+    { key: "reports", label: "Reports" },
+    { key: "report_member", label: "Member Report" },
+    { key: "report_regional", label: "Regional Report" },
+    { key: "redemptions", label: "Redemptions" },
+  ],
+  rm: [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "registration", label: "Registration" },
+    { key: "my_members", label: "My Members" },
+    { key: "my_bonuses", label: "My Bonuses" },
+    { key: "my_rebates", label: "My Rebates" },
+    { key: "sales", label: "Sales" },
+    { key: "redemptions", label: "Redemptions" },
+    { key: "profile", label: "Profile" },
+  ],
+  normal: [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "registration", label: "Registration" },
+    { key: "my_bonuses", label: "My Bonuses" },
+    { key: "sales", label: "Sales" },
+    { key: "redemptions", label: "Redemptions" },
+    { key: "profile", label: "Profile" },
+  ],
+};
 
 function cls(...a) {
   return a.filter(Boolean).join(" ");
@@ -64,44 +77,6 @@ function Card({ title, children, right, className = "" }) {
   );
 }
 
-function Stat({ label, value, hint }) {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
-        {value}
-      </div>
-      {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
-    </div>
-  );
-}
-
-function Input({ label, ...props }) {
-  return (
-    <label className="grid min-w-0 gap-1">
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      <input
-        {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 focus:border-zinc-900"
-      />
-    </label>
-  );
-}
-
-function Select({ label, children, ...props }) {
-  return (
-    <label className="grid min-w-0 gap-1">
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      <select
-        {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 truncate"
-      >
-        {children}
-      </select>
-    </label>
-  );
-}
-
 function Button({ children, variant = "primary", ...props }) {
   return (
     <button
@@ -118,14 +93,37 @@ function Button({ children, variant = "primary", ...props }) {
   );
 }
 
+function getAllowedNav(role) {
+  return navByRole[role] ?? [];
+}
+
+function getDefaultPage(role) {
+  const allowed = getAllowedNav(role);
+  return allowed[0]?.key ?? "dashboard";
+}
+
+function getShellTitle(role) {
+  if (role === "super_admin") return "SDS Super Admin";
+  if (role === "admin") return "SDS Admin";
+  if (role === "rm") return "SDS RM Portal";
+  if (role === "normal") return "SDS Member Portal";
+  return "SDS Web System";
+}
+
+function hasAccess(role, key) {
+  return getAllowedNav(role).some((n) => n.key === key);
+}
+
 export default function App() {
   const [active, setActive] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  const currentNav = useMemo(() => getAllowedNav(user?.role), [user?.role]);
+
   const pageTitle = useMemo(
-    () => nav.find((n) => n.key === active)?.label ?? "Dashboard",
-    [active]
+    () => currentNav.find((n) => n.key === active)?.label ?? "Dashboard",
+    [active, currentNav]
   );
 
   useEffect(() => {
@@ -157,6 +155,14 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!user?.role) return;
+
+    if (!hasAccess(user.role, active)) {
+      setActive(getDefaultPage(user.role));
+    }
+  }, [active, user?.role]);
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
@@ -174,11 +180,13 @@ export default function App() {
       <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
         <aside className="hidden w-64 shrink-0 md:block">
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="text-lg font-extrabold text-zinc-900">SDS Admin</div>
+            <div className="text-lg font-extrabold text-zinc-900">
+              {getShellTitle(user.role)}
+            </div>
             <div className="text-xs text-zinc-500">Direct Sales Web System</div>
 
             <div className="mt-4 grid gap-1">
-              {nav.map((n) => (
+              {currentNav.map((n) => (
                 <button
                   key={n.key}
                   onClick={() => setActive(n.key)}
@@ -199,9 +207,12 @@ export default function App() {
         <main className="min-w-0 flex-1 overflow-x-hidden pb-8">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <div className="text-xl font-extrabold text-zinc-900">{pageTitle}</div>
+              <div className="text-xl font-extrabold text-zinc-900">
+                {pageTitle}
+              </div>
               <div className="text-sm text-zinc-500">
-                Logged in as {user?.username || "user"}
+                Logged in as {user?.full_name || user?.username || "user"} (
+                {user?.role || "unknown"})
               </div>
             </div>
 
@@ -226,288 +237,89 @@ export default function App() {
           </div>
 
           {active === "dashboard" && <Dashboard />}
-          {active === "registration" && <Registration />}
-          {active === "registration_codes" && <RegistrationCodes />}
-          {active === "members" && <Members />}
-          {active === "ledger" && <BonusLedger />}
-	  {active === "rm_rebates" && <RMRebates />}
+
+          {active === "registration" && <Registration user={user} />}
+
+          {active === "registration_codes" &&
+            user.role === "super_admin" && <RegistrationCodes />}
+
+          {active === "members" &&
+            (user.role === "super_admin" || user.role === "admin") && (
+              <Members />
+            )}
+
+          {active === "ledger" &&
+            (user.role === "super_admin" || user.role === "admin") && (
+              <BonusLedger />
+            )}
+
+          {active === "rm_rebates" &&
+            (user.role === "super_admin" || user.role === "admin") && (
+              <RMRebates />
+            )}
+
           {active === "sales" && <SalesEntry />}
-          {active === "catalog" && <ProductCatalog />}
-          {active === "reports" && <Reports />}
-          {active === "report_member" && <MemberReport />}
-          {active === "report_regional" && <RegionalReport />}
+
+          {active === "catalog" &&
+            user.role === "super_admin" && <ProductCatalog />}
+
+          {active === "reports" &&
+            (user.role === "super_admin" || user.role === "admin") && (
+              <Reports />
+            )}
+
+          {active === "report_member" &&
+            (user.role === "super_admin" || user.role === "admin") && (
+              <MemberReport />
+            )}
+
+          {active === "report_regional" &&
+            (user.role === "super_admin" || user.role === "admin") && (
+              <RegionalReport />
+            )}
+
           {active === "redemptions" && (
-            <Placeholder title="Redemptions" desc="List + filter + notes" />
+            <Placeholder
+              title="Redemptions"
+              desc={
+                user.role === "super_admin" || user.role === "admin"
+                  ? "Admin redemption workflow: pending, approved, released, rejected."
+                  : "Your redemption requests and status history."
+              }
+            />
           )}
+
+          {active === "my_members" && user.role === "rm" && (
+            <Placeholder
+              title="My Members"
+              desc="RM-scoped member list and downline view."
+            />
+          )}
+
+          {active === "my_bonuses" &&
+            (user.role === "rm" || user.role === "normal") && (
+              <Placeholder
+                title="My Bonuses"
+                desc="Self-only bonus ledger and balance summary."
+              />
+            )}
+
+          {active === "my_rebates" && user.role === "rm" && (
+            <Placeholder
+              title="My Rebates"
+              desc="RM-only rebate summary and history."
+            />
+          )}
+
+          {active === "profile" &&
+            (user.role === "rm" || user.role === "normal") && (
+              <Placeholder
+                title="Profile"
+                desc="Self profile, linked member details, and account info."
+              />
+            )}
         </main>
       </div>
-    </div>
-  );
-}
-
-function Registration() {
-  const [members, setMembers] = useState([]);
-  const [packages, setPackages] = useState([]);
-  const [form, setForm] = useState({
-    name: "",
-    contact: "",
-    email: "",
-    membershipType: "Member",
-    address: "",
-    sponsor: "SDS",
-    areaRegion: PH_REGIONS[0],
-    packageName: "",
-    registrationCode: "",
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMembers() {
-      try {
-        const res = await fetch("/api/members");
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) return;
-
-        const rows = Array.isArray(json?.data) ? json.data : [];
-        const sorted = [...rows].sort((a, b) =>
-          String(a.name || "").localeCompare(String(b.name || ""))
-        );
-
-        if (!cancelled) {
-          setMembers(sorted);
-        }
-      } catch {
-        // no-op
-      }
-    }
-
-    loadMembers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadPackages() {
-      try {
-        const res = await fetch("/api/products?item_type=package");
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) return;
-
-        const rows = Array.isArray(json?.data) ? json.data : [];
-        const sorted = [...rows].sort((a, b) =>
-          String(a.item_name || "").localeCompare(String(b.item_name || ""))
-        );
-
-        if (!cancelled) {
-          setPackages(sorted);
-        }
-      } catch {
-        // no-op
-      }
-    }
-
-    loadPackages();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return (
-    <div className="grid gap-4">
-      <Card title="Register New Member">
-        <form
-          className="grid gap-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-
-            if (!form.packageName) {
-              alert("Please select a package.");
-              return;
-            }
-
-            if (!form.registrationCode.trim()) {
-              alert("Registration code is required.");
-              return;
-            }
-
-            const res = await fetch("/api/members", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                name: form.name,
-                contact: form.contact,
-                email: form.email,
-                membership_type: form.membershipType,
-                address: form.address,
-                sponsor: form.sponsor,
-                area_region: form.areaRegion,
-                package_name: form.packageName,
-                registration_code: form.registrationCode.trim().toUpperCase(),
-              }),
-            });
-
-            const json = await res.json().catch(() => ({}));
-
-            if (!res.ok) {
-              alert(json.error || "Failed to save member");
-              return;
-            }
-
-            alert("Member saved successfully!");
-
-            setForm({
-              name: "",
-              contact: "",
-              email: "",
-              membershipType: "Member",
-              address: "",
-              sponsor: "SDS",
-              areaRegion: PH_REGIONS[0],
-              packageName: "",
-              registrationCode: "",
-            });
-
-            try {
-              const refreshRes = await fetch("/api/members");
-              const refreshJson = await refreshRes.json().catch(() => ({}));
-              if (refreshRes.ok) {
-                const rows = Array.isArray(refreshJson?.data)
-                  ? refreshJson.data
-                  : [];
-                const sorted = [...rows].sort((a, b) =>
-                  String(a.name || "").localeCompare(String(b.name || ""))
-                );
-                setMembers(sorted);
-              }
-            } catch {
-              // ignore refresh failure
-            }
-          }}
-        >
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              label="Contact"
-              value={form.contact}
-              onChange={(e) => setForm({ ...form, contact: e.target.value })}
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            <Select
-              label="Membership Type"
-              value={form.membershipType}
-              onChange={(e) =>
-                setForm({ ...form, membershipType: e.target.value })
-              }
-            >
-              <option>Member</option>
-              <option>Distributor</option>
-              <option>Stockiest</option>
-              <option>Area Manager</option>
-              <option>Regional Manager</option>
-            </Select>
-          </div>
-
-          <Input
-            label="Address"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Select
-              label="Sponsor"
-              value={form.sponsor}
-              onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
-            >
-              <option value="SDS">SDS</option>
-              {members.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              label="Area/Region"
-              value={form.areaRegion}
-              onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
-            >
-              {PH_REGIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Select
-              label="Package"
-              value={form.packageName}
-              onChange={(e) => setForm({ ...form, packageName: e.target.value })}
-            >
-              <option value="">Select package</option>
-              {packages.map((p) => (
-                <option key={p.id} value={p.item_name}>
-                  {p.item_name}
-                </option>
-              ))}
-            </Select>
-
-            <Input
-              label="Registration Code"
-              value={form.registrationCode}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  registrationCode: e.target.value.toUpperCase(),
-                })
-              }
-              placeholder="Enter unique registration code"
-            />
-          </div>
-
-          <div className="mt-2 flex gap-2">
-            <Button type="submit">Save Member</Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() =>
-                setForm({
-                  name: "",
-                  contact: "",
-                  email: "",
-                  membershipType: "Member",
-                  address: "",
-                  sponsor: "SDS",
-                  areaRegion: PH_REGIONS[0],
-                  packageName: "",
-                  registrationCode: "",
-                })
-              }
-            >
-              Clear
-            </Button>
-          </div>
-        </form>
-      </Card>
     </div>
   );
 }
