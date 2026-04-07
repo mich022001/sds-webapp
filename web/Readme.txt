@@ -1,516 +1,804 @@
 # SDS Web App
 
-SDS Web App is a Direct Sales System admin panel designed to replace the original Google Sheets / Apps Script workflow with a structured web system backed by Supabase.
+SDS Web App is the web frontend and serverless API layer of the SDS Direct Sales System.
 
-The system manages:
+This project is designed to replace the original spreadsheet-based workflow with a structured web application connected to Supabase.
+
+The system handles:
 
 - Member registration
 - Sponsor / genealogy relationships
+- Regional Manager assignment
 - Bonus distribution
-- Cash and product balances
-- Redemptions
+- Product and package sales
+- Cash and product redemption workflow
 - Reporting dashboards
+- Role-based access (Super Admin, Admin, RM, Member)
 
-The architecture consists of:
+==================================================
+1. HIGH-LEVEL ARCHITECTURE
+==================================================
 
-Frontend (React + Vite)  
-API Routes (Vercel Serverless Functions)  
-Supabase PostgreSQL Database  
-Supabase RPC Functions for business logic
+Frontend:
+React + Vite + Tailwind CSS
 
----
+Backend:
+Vercel-style serverless API routes inside web/api
 
-# Architecture Overview
+Database:
+Supabase PostgreSQL
 
-Frontend (React + Vite)
+Business Logic:
+Mostly enforced in API routes and PostgreSQL / RPC functions
 
-↓ API Requests
+Flow:
 
-Vercel API Routes (web/api)
+React UI
+  ↓
+web/api/*
+  ↓
+Supabase PostgreSQL
+  ↓
+Tables + SQL functions (RPC)
 
-↓ Supabase Client
+IMPORTANT:
+This folder (web/) contains both:
+- the frontend React app
+- the deployed API route layer
 
-Supabase Database
+==================================================
+2. ACTUAL PROJECT STRUCTURE
+==================================================
 
-↓ SQL Functions (RPC)
-
-PostgreSQL Business Logic
-
----
-
-# Repository Structure
-.
-├── package.json
+web/
+├── README.md
+├── Readme.txt
+├── api
+│   ├── auth.js
+│   ├── bonus-ledger
+│   │   └── list.js
+│   ├── debug-env.js
+│   ├── health.js
+│   ├── members.js
+│   ├── products.js
+│   ├── redemptions.js
+│   ├── registration-codes.js
+│   ├── reports.js
+│   ├── rm-rebates.js
+│   └── sales.js
+├── dist
+├── eslint.config.js
+├── index.html
 ├── package-lock.json
-├── server
-│   ├── package.json
-│   ├── package-lock.json
-│   └── server.js
-└── web
-    ├── api
-    │   ├── bonus-ledger
-    │   ├── debug-env.js
-    │   ├── health.js
-    │   ├── members
-    │   │   ├── create.js
-    │   │   └── list.js
-    │   └── reports
-    ├── eslint.config.js
-    ├── index.html
-    ├── package.json
-    ├── package-lock.json
-    ├── postcss.config.js
-    ├── public
-    │   └── vite.svg
-    ├── README.md
-    ├── src
-    │   ├── App.css
-    │   ├── App.jsx
-    │   ├── assets
-    │   ├── index.css
-    │   ├── main.jsx
-    │   └── pages
-    ├── tailwind.config.js
-    └── vite.config.js
+├── package.json
+├── postcss.config.js
+├── public
+│   └── vite.svg
+├── src
+│   ├── App.css
+│   ├── App.jsx
+│   ├── assets
+│   │   └── react.svg
+│   ├── index.css
+│   ├── main.jsx
+│   └── pages
+│       ├── BonusLedger.jsx
+│       ├── Dashboard.jsx
+│       ├── Login.jsx
+│       ├── MemberReport.jsx
+│       ├── Members.jsx
+│       ├── MyBonuses.jsx
+│       ├── ProductCatalog.jsx
+│       ├── Profile.jsx
+│       ├── RMRebates.jsx
+│       ├── Redemptions.jsx
+│       ├── RegionalReport.jsx
+│       ├── Registration.jsx
+│       ├── RegistrationCodes.jsx
+│       ├── Reports.jsx
+│       └── SalesEntry.jsx
+├── tailwind.config.js
+└── vite.config.js
 
----
+==================================================
+3. ROOT-LEVEL FILES
+==================================================
 
+README.md
+- General markdown readme for the web app
+- Can be used for GitHub landing page
 
----
+Readme.txt
+- Plain-text documentation
+- Intended for internal understanding, transfer to another device, or onboarding
 
-# Root Files
+eslint.config.js
+- ESLint configuration for code quality
 
-## package.json
+index.html
+- Main Vite HTML file
+- Contains the root element where React mounts
 
-Defines metadata and dependencies for the project.
+package.json
+- Project metadata
+- Frontend dependencies
+- Scripts such as dev/build/preview
 
+package-lock.json
+- Locks installed dependency versions
+
+postcss.config.js
+- PostCSS configuration
+- Used together with Tailwind CSS
+
+tailwind.config.js
+- Tailwind CSS configuration
+
+vite.config.js
+- Vite bundler configuration
+
+==================================================
+4. BUILD OUTPUT
+==================================================
+
+dist/
+- Generated build output
+- Created when the frontend is built
+- Not source code
+
+Contents usually include:
+- bundled JS
+- bundled CSS
+- production HTML
+
+IMPORTANT:
+This folder should not be treated as the source of truth.
+The source of truth is in src/ and api/.
+
+==================================================
+5. PUBLIC ASSETS
+==================================================
+
+public/
+- Static files served directly by Vite / frontend build
+- Currently contains vite.svg
+
+src/assets/
+- Frontend asset files imported by React components
+- Currently contains react.svg
+
+==================================================
+6. FRONTEND ENTRY FILES
+==================================================
+
+src/main.jsx
+- React application entry point
+- Mounts the App component into the DOM
+
+src/App.jsx
+- Main application shell
+- Handles:
+  - auth check on load
+  - role-based navigation
+  - sidebar layout
+  - page switching
+- This is the main UI controller of the system
+
+src/App.css
+- Additional app-specific CSS
+
+src/index.css
+- Global CSS
+- Usually includes Tailwind base layers and shared styling
+
+==================================================
+7. FRONTEND PAGES
+==================================================
+
+All pages are under:
+src/pages/
+
+----------------------------------
+Dashboard.jsx
+----------------------------------
 Purpose:
+- Main landing page after login
 
-- lists dependencies
-- defines scripts
-- stores project metadata
+Behavior:
+- For admin/super admin:
+  - acts as admin overview dashboard
+- For rm/normal:
+  - acts as personal dashboard
 
-Importance:
-
-Without this file Node cannot install dependencies.
-
----
-
-## package-lock.json
-
-Locks dependency versions.
-
-Purpose:
-
-Ensures all environments install the same versions.
-
-Importance:
-
-Prevents dependency mismatch issues.
-
----
-
-# Server Folder
-
-This folder contains an Express backend implementation.
-
-⚠️ Note: The deployed system mainly uses the Vercel API routes in `web/api`.
-
----
-
-## server/package.json
-
-Defines dependencies for the Express backend.
-
-Common dependencies include:
-
-- express
-- cors
-- pg
-- dotenv
-
-Importance:
-
-Allows the backend server to run locally.
-
----
-
-## server/package-lock.json
-
-Locks dependency versions for the Express server.
-
----
-
-## server/server.js
-
-Main Express backend server.
-
-Responsibilities:
-
-- Member registration
-- Bonus calculation
-- Bonus ledger management
-- Redemption handling
-- Member bonus summary rebuilding
-
-Important functions inside this file:
-
-### nowPH()
-
-Generates formatted timestamps.
-
-Used when inserting records.
-
----
-
-### q()
-
-Helper for executing PostgreSQL queries.
-
-Simplifies database access.
-
----
-
-### getNextMemberId()
-
-Generates the next sequential member ID.
-
-Example:
-
-2026EM000001  
-2026EM000002
-
-Ensures unique member identifiers.
-
----
-
-### rebuildMemberBonusSummary(memberName)
-
-Recalculates member bonus statistics.
-
-Calculates:
-
-- total cash issued
-- redeemable cash
-- redeemed cash
-- product bonuses
+Typical content:
+- member summary
 - balances
+- recent sales / hierarchy overview
 
-Important rule:
+----------------------------------
+Login.jsx
+----------------------------------
+Purpose:
+- Login page
 
-Outright bonuses count in total cash  
-but are excluded from redeemable balance.
+Behavior:
+- submits credentials to /api/auth
+- stores authenticated session via cookie
+- redirects to main app layout after success
 
----
+----------------------------------
+Registration.jsx
+----------------------------------
+Purpose:
+- Register a new member
 
-### /api/registration
+Behavior:
+- collects name, contact, email, membership type, address
+- handles sponsor selection
+- handles package selection
+- requires registration code
+- for privileged users:
+  - sponsor may be SDS
+  - RM may need to be manually selected
+- for RM/normal:
+  - sponsor is locked to the logged-in linked member
 
-Handles member registration.
+Important:
+- registration calls /api/members
+- registration is expected to be atomic
+
+----------------------------------
+Members.jsx
+----------------------------------
+Purpose:
+- Display member list
+
+Behavior:
+- shows member data for admin/super admin
+- used for monitoring and future editing workflow
+
+Typical fields:
+- member_id
+- name
+- membership_type
+- sponsor_name
+- regional_manager
+- package_name
+- created_at
+
+----------------------------------
+BonusLedger.jsx
+----------------------------------
+Purpose:
+- Display all bonus ledger entries
+
+Behavior:
+- audit trail of bonus distribution
+- useful for validation and debugging
+
+----------------------------------
+SalesEntry.jsx
+----------------------------------
+Purpose:
+- Submit product and package sales
+
+Behavior:
+- supports both products and packages
+- role-aware:
+  - admin can choose members
+  - RM/normal are restricted to their linked member
+- writes through /api/sales
+
+Important:
+- item_type and item selection are part of the flow
+- pricing is derived from membership type
+
+----------------------------------
+ProductCatalog.jsx
+----------------------------------
+Purpose:
+- Manage products and packages
+
+Behavior:
+- add/edit product catalog items
+- supports both item types:
+  - product
+  - package
+
+Access:
+- intended for super admin
+
+----------------------------------
+RegistrationCodes.jsx
+----------------------------------
+Purpose:
+- Manage registration codes
+
+Behavior:
+- create, list, and monitor codes
+- codes are used during member onboarding
+
+Access:
+- intended for super admin
+
+----------------------------------
+Reports.jsx
+----------------------------------
+Purpose:
+- General reporting entry page
+
+Behavior:
+- consolidated reporting UI
+- may link to detailed member/regional reports
+
+----------------------------------
+MemberReport.jsx
+----------------------------------
+Purpose:
+- Member-level report
+
+Behavior:
+- shows bonus totals
+- shows redemption effect on balances
+- likely uses /api/reports?type=member
+
+Important:
+- should respect redemption status logic
+- rejected redemptions should not reduce balance
+
+----------------------------------
+RegionalReport.jsx
+----------------------------------
+Purpose:
+- Regional Manager-level report
+
+Behavior:
+- downline summary
+- cash bonus / product bonus / rebates visibility
+- likely uses /api/reports?type=regional
+
+----------------------------------
+Redemptions.jsx
+----------------------------------
+Purpose:
+- Redemption workflow UI
+
+Behavior for RM / Member:
+- submit redemption request
+- view own history and status
+
+Behavior for Admin / Super Admin:
+- view all requests
+- approve
+- release
+- reject
+
+Types:
+- Cash
+- Product
+
+Expected statuses:
+- pending
+- approved
+- released
+- rejected
+
+Important:
+- rejected should not deduct balance
+- pending/approved/released should count against balance
+
+----------------------------------
+RMRebates.jsx
+----------------------------------
+Purpose:
+- View RM rebate records
+
+Behavior:
+- shows rebate history
+- primarily for admin/super admin visibility
+
+----------------------------------
+MyBonuses.jsx
+----------------------------------
+Purpose:
+- Personal bonus view for RM / Member
+
+Behavior:
+- shows self-only bonus data
+- intended for restricted account roles
+
+----------------------------------
+Profile.jsx
+----------------------------------
+Purpose:
+- Personal account / member profile page
+
+Behavior:
+- shows linked account information
+- likely reads member data using member_id from auth session
+
+==================================================
+8. API ROUTES
+==================================================
+
+All backend API files are under:
+api/
+
+These routes act as the backend layer used by the React frontend.
+
+----------------------------------
+api/auth.js
+----------------------------------
+Purpose:
+- Authentication endpoint
 
 Responsibilities:
+- login
+- logout
+- current session check
 
-- validate input
-- sponsor lookup
-- genealogy level calculation
-- regional manager assignment
-- bonus distribution to uplines
+Important behavior:
+- uses JWT
+- stores token in cookie
+- returns role and linked member_id
 
----
+----------------------------------
+api/members.js
+----------------------------------
+Purpose:
+- Member read and member registration endpoint
 
-### /api/redemptions
+GET:
+- list members
+- fetch member by member_id
 
-Processes redemption requests.
+POST:
+- register a member
+- validate sponsor flow
+- validate RM rules
+- call RPC function for atomic creation
 
-Checks balances before allowing redemption.
+Important:
+- handles role-aware sponsor restrictions
+- handles manual RM selection for privileged SDS registration flow
 
----
-
-### /api/members
-
-Returns list of registered members.
-
-Used by the admin UI.
-
----
-
-# Web Folder
-
-The web folder contains the **frontend application and API routes**.
-
----
-
-# API Folder
-
-Contains serverless API endpoints used by the frontend.
-
-These endpoints run on Vercel.
-
----
-
-## web/api/debug-env.js
-
-Debug endpoint used to check environment variables.
-
-Helps verify:
-
-- Supabase connection
-- deployment configuration
-
-Importance:
-
-Useful during development and troubleshooting.
-
----
-
-## web/api/health.js
-
-Health check endpoint.
-
-Returns a simple response confirming the API is running.
-
-Importance:
-
-Useful for monitoring and deployment checks.
-
----
-
-# Members API
-
-## web/api/members/create.js
-
-Handles member registration from the website.
+----------------------------------
+api/products.js
+----------------------------------
+Purpose:
+- Product and package catalog endpoint
 
 Responsibilities:
+- fetch product list
+- fetch package list
+- create/update product catalog entries depending on implementation
 
-- receives POST request from frontend
-- validates input
-- normalizes values
-- calls Supabase RPC function `register_member`
+Important:
+- item_type is used to distinguish:
+  - product
+  - package
 
-Important note:
+----------------------------------
+api/sales.js
+----------------------------------
+Purpose:
+- Sales API
 
-The actual business logic is implemented inside the database function:
+GET:
+- read sales records
+- restricted users only see their own
 
-register_member()
+POST:
+- submit sales entry
+- supports both products and packages
+- uses item_id/item lookup
+- computes pricing based on membership type
 
-Importance:
+Important:
+- writes to sales_ledger
+- item_type should be stored correctly
 
-Acts as the bridge between the frontend form and database logic.
+----------------------------------
+api/redemptions.js
+----------------------------------
+Purpose:
+- Redemption API
 
----
+GET:
+- list redemptions
+- restricted users see only their own records
+- admin can view all
 
-## web/api/members/list.js
+POST:
+- submit redemption request
 
-Returns a list of members.
+PUT:
+- admin / super admin status actions:
+  - approve
+  - release
+  - reject
 
-Used by the Members page.
+Important:
+- redemption status affects balance logic
+- rejected records should not count against balance
 
-Responsibilities:
-
-- query Supabase members table
-- return sorted member list
-
----
-
-# Bonus Ledger API
-
-## web/api/bonus-ledger/
-
-Handles bonus ledger queries.
-
-Responsibilities:
-
-- fetch bonus ledger records
-- display bonus distribution history
-
-Importance:
-
-Used to audit bonus distribution.
-
----
-
-# Reports API
-
-## web/api/reports/
-
-Handles report generation.
-
-Examples:
-
-- Member Report
-- Regional Report
-
-Responsibilities:
-
-- aggregate bonus ledger data
-- calculate totals
-- return report data to frontend
-
----
-
-# Frontend (web/src)
-
-This folder contains the React application.
-
----
-
-## web/src/main.jsx
-
-Application entry point.
+----------------------------------
+api/reports.js
+----------------------------------
+Purpose:
+- Reporting API
 
 Responsibilities:
+- member reports
+- regional reports
+- bonus and redemption aggregation
 
-- bootstraps the React application
-- mounts React to the HTML DOM
+Important:
+- must subtract only valid redemption states:
+  - pending
+  - approved
+  - released
+- must ignore rejected
 
----
-
-## web/src/App.jsx
-
-Main application layout.
+----------------------------------
+api/registration-codes.js
+----------------------------------
+Purpose:
+- Registration code management endpoint
 
 Responsibilities:
+- create codes
+- list codes
+- manage active/used status
 
-- sidebar navigation
-- routing between pages
-- global layout structure
+----------------------------------
+api/rm-rebates.js
+----------------------------------
+Purpose:
+- RM rebate API
 
----
+Responsibilities:
+- fetch rebate records
+- support RM rebate reporting
 
-## web/src/App.css
+----------------------------------
+api/bonus-ledger/list.js
+----------------------------------
+Purpose:
+- Return bonus ledger records
 
-Global styles used by the main application.
+Responsibilities:
+- list ledger entries for auditing and UI display
 
----
+----------------------------------
+api/health.js
+----------------------------------
+Purpose:
+- Health check endpoint
 
-## web/src/index.css
+Responsibilities:
+- confirm API is alive
 
-Base CSS styles.
+Useful for:
+- deployment testing
+- environment verification
 
-Often includes Tailwind base styles.
+----------------------------------
+api/debug-env.js
+----------------------------------
+Purpose:
+- Debug environment variables / backend config
 
----
+Useful for:
+- troubleshooting deployment
+- confirming Supabase variables are loaded
 
-## web/src/assets/
+IMPORTANT:
+- should not remain exposed publicly in production unless intentionally protected
 
-Contains static frontend assets.
+==================================================
+9. DATABASE TABLES USED BY THIS WEB APP
+==================================================
 
-Examples:
+Main tables referenced by the current system include:
 
-- icons
-- images
-- logos
+members
+- member profile / hierarchy data
 
----
+app_accounts
+- login accounts and roles
 
-# Pages
+registration_codes
+- onboarding code inventory and usage
 
-The `pages` folder contains UI pages used in the admin panel.
+product_catalog or products
+- product and package master data
 
-Examples may include:
+sales_ledger
+- sales records
 
-- Dashboard
-- Registration
-- Members
-- Bonus Ledger
-- Sales Entry
-- Member Report
-- Regional Report
-- Redemptions
+bonus_ledger
+- bonus transaction records
 
-Each page typically:
+redemptions
+- redemption requests and status history
 
-- fetches data from API routes
-- displays tables or reports
-- allows admin actions
+rm_rebates_ledger
+- RM rebate transactions
 
----
+IMPORTANT:
+Exact table names should match the current Supabase schema.
+If schema changes, this documentation should be updated too.
 
-# Frontend Configuration
+==================================================
+10. CORE BUSINESS RULES
+==================================================
 
-## web/index.html
+----------------------------------
+Registration
+----------------------------------
+- registration requires package + registration code
+- registration should be atomic
+- if any part fails:
+  - no member should be created
+  - no account should remain partially created
+  - no code should be consumed
 
-Main HTML entry file used by Vite.
+----------------------------------
+Sponsor rules
+----------------------------------
+- RM / normal users cannot freely choose sponsor
+- sponsor is locked to their linked member
+- admin / super admin may register under SDS
 
-Contains the root DOM element where React is mounted.
+----------------------------------
+Regional Manager rules
+----------------------------------
+- if sponsor is SDS and membership type is not Regional Manager:
+  - RM must be manually selected by admin/super admin
+- if membership type is Regional Manager:
+  - RM should resolve to self
 
----
+----------------------------------
+Sales rules
+----------------------------------
+- supports both products and packages
+- pricing depends on membership type
+- restricted users submit only for themselves
 
-## web/package.json
+----------------------------------
+Redemption rules
+----------------------------------
+- RM / normal can submit
+- admin / super admin manage statuses
+- only pending / approved / released count against balance
+- rejected should restore or not deduct balance
 
-Defines dependencies used by the frontend.
+==================================================
+11. SETUP ON A NEW DEVICE
+==================================================
 
-Examples:
+Step 1:
+Install dependencies
 
-- react
-- vite
-- tailwind
-- supabase-js
+From project root:
+npm install
 
----
+From web folder:
+npm install
 
-## web/package-lock.json
+Step 2:
+Set environment variables
 
-Locks frontend dependency versions.
+Required:
+- SUPABASE_URL
+- SUPABASE_SERVICE_ROLE_KEY
+- SDS_AUTH_SECRET
 
----
+Step 3:
+Run development server
 
-## web/tailwind.config.js
+Typical command:
+npm run dev
 
-Tailwind CSS configuration.
+==================================================
+12. RESETTING DATA FOR FRESH TESTING
+==================================================
 
-Defines:
+Use with caution in development only.
 
-- theme
-- colors
-- utility extensions
+Typical reset pattern:
 
----
+set session_replication_role = replica;
 
-## web/postcss.config.js
+truncate table
+  public.redemptions,
+  public.sales_ledger,
+  public.bonus_ledger,
+  public.members,
+  public.app_accounts,
+  public.registration_codes
+restart identity cascade;
 
-Configures PostCSS processing.
+set session_replication_role = default;
 
-Used by Tailwind CSS.
+IMPORTANT:
+This deletes all accounts too, including admin/super_admin.
 
----
+==================================================
+13. ACCOUNT CREATION NOTES
+==================================================
 
-## web/vite.config.js
+Passwords must use bcrypt.
 
-Vite build configuration.
+Do NOT use:
+- SQL crypt()
 
-Controls:
+Use:
+- bcryptjs hash generation in Node
 
-- development server
-- build settings
-- plugin configuration
+Example workflow:
+1. generate bcrypt hash
+2. insert into app_accounts
 
----
+System-level admin accounts typically use:
+- member_id = null
 
-# Deployment
+That means:
+- they can log in
+- they are not part of member genealogy
 
-Frontend and API routes are deployed through Vercel.
+==================================================
+14. COMMON TROUBLESHOOTING
+==================================================
 
-Database and RPC logic run on Supabase.
+Login fails
+- password likely not hashed with bcrypt
+- account may be inactive
 
----
+Registration fails
+- registration code missing / inactive / already used
+- package missing
+- RM missing when sponsor is SDS
+- RPC function signature mismatch
 
-# Key Design Principle
+Sales insert fails
+- item_type column missing
+- item_id invalid
+- member linkage missing
 
-Business logic is implemented inside the database.
+Redemption page fails
+- redemptions table missing required status / audit columns
+- role restrictions not satisfied
 
-Example:
+Balances look wrong
+- reports.js likely still subtracts rejected redemptions
 
-register_member()
+==================================================
+15. IMPORTANT DEVELOPMENT NOTES
+==================================================
 
-This ensures:
+- dist/ is generated output, not source code
+- source code lives in src/ and api/
+- App.jsx controls page rendering and role-based navigation
+- documentation must be updated whenever:
+  - a new API file is added
+  - a new page is added
+  - schema changes
+  - business rules change
 
-- atomic operations
-- consistent bonus calculations
-- safer concurrency handling
+==================================================
+16. SUMMARY
+==================================================
 
----
+This web app is the operational UI + API layer of the SDS Direct Sales System.
 
-# Summary
+It provides:
+- role-based access
+- member onboarding
+- sales
+- bonuses
+- redemptions
+- reports
 
-This system replaces manual spreadsheet workflows with a scalable web-based system for managing a direct sales organization.
+The main goal is to replace manual spreadsheet operations with a scalable and maintainable web system.
