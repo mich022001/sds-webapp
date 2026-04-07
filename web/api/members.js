@@ -64,6 +64,10 @@ function isRestrictedRecruiter(user) {
   return user?.role === "rm" || user?.role === "normal";
 }
 
+function isPrivileged(user) {
+  return user?.role === "admin" || user?.role === "super_admin";
+}
+
 async function resolveSponsorForRequest(sb, req, requestedSponsor) {
   const sessionUser = parseSessionUser(req);
 
@@ -163,6 +167,92 @@ async function resolveSponsorForRequest(sb, req, requestedSponsor) {
   };
 }
 
+async function resolveRegionalManagerForRequest(
+  sb,
+  sessionUser,
+  sponsor,
+  requestedRegionalManager,
+  membershipType
+) {
+  const cleanMembershipType = normalizeText(membershipType);
+  const cleanRequestedRm = normalizeText(requestedRegionalManager);
+  const cleanSponsor = normalizeText(sponsor);
+
+  if (!sessionUser) {
+    return {
+      ok: false,
+      status: 401,
+      error: "Not authenticated",
+    };
+  }
+
+  if (cleanMembershipType === "Regional Manager") {
+    return {
+      ok: true,
+      regionalManager: null,
+    };
+  }
+
+  if (isRestrictedRecruiter(sessionUser)) {
+    return {
+      ok: true,
+      regionalManager: null,
+    };
+  }
+
+  if (cleanSponsor === "SDS") {
+    if (!cleanRequestedRm) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Regional Manager is required when sponsor is SDS",
+      };
+    }
+
+    const { data, error } = await sb
+      .from("members")
+      .select("name, membership_type")
+      .eq("name", cleanRequestedRm)
+      .maybeSingle();
+
+    if (error) {
+      return {
+        ok: false,
+        status: 400,
+        error: error.message,
+      };
+    }
+
+    if (!data?.name) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Selected Regional Manager does not exist",
+      };
+    }
+
+    if (
+      normalizeText(data.membership_type).toLowerCase() !== "regional manager"
+    ) {
+      return {
+        ok: false,
+        status: 400,
+        error: "Selected Regional Manager is not a Regional Manager account",
+      };
+    }
+
+    return {
+      ok: true,
+      regionalManager: data.name,
+    };
+  }
+
+  return {
+    ok: true,
+    regionalManager: null,
+  };
+}
+
 export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
@@ -194,7 +284,7 @@ export default async function handler(req, res) {
           "member_id, name, membership_type, sponsor_name, regional_manager, created_at, package_name"
         )
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(200);
 
       if (error) {
         return res.status(400).json({ error: error.message });
@@ -204,6 +294,12 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      const sessionUser = parseSessionUser(req);
+
+      if (!sessionUser) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+
       const {
         name,
         contact,
@@ -211,6 +307,7 @@ export default async function handler(req, res) {
         membership_type,
         address,
         sponsor,
+        regional_manager,
         area_region,
         package_name,
         registration_code,
@@ -251,6 +348,22 @@ export default async function handler(req, res) {
 
       const finalSponsor = sponsorResult.sponsor;
 
+      const rmResult = await resolveRegionalManagerForRequest(
+        sb,
+        sessionUser,
+        finalSponsor,
+        regional_manager,
+        cleanMembershipType
+      );
+
+      if (!rmResult.ok) {
+        return res
+          .status(rmResult.status || 400)
+          .json({ error: rmResult.error });
+      }
+
+      const finalRegionalManager = rmResult.regionalManager;
+
       const { data, error } = await sb.rpc("register_member_with_code", {
         p_name: cleanName,
         p_contact: cleanContact || null,
@@ -258,6 +371,10 @@ export default async function handler(req, res) {
         p_membership_type: cleanMembershipType,
         p_address: cleanAddress || null,
         p_sponsor: finalSponsor,
+        p_regional_manager:
+          isPrivileged(sessionUser) && finalSponsor === "SDS"
+            ? finalRegionalManager
+            : null,
         p_area_region: cleanAreaRegion || null,
         p_package_name: cleanPackageName,
         p_code: cleanCode,
@@ -278,6 +395,11 @@ export default async function handler(req, res) {
         account_created: result.account_created === true,
         account_username: result.account_username ?? null,
         sponsor_used: finalSponsor,
+        regional_manager_used:
+          result.regional_manager ??
+          (cleanMembershipType === "Regional Manager"
+            ? result.name ?? cleanName
+            : finalRegionalManager ?? null),
       });
     }
 

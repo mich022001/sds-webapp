@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const PH_REGIONS = [
   "National Capital Region (NCR)",
@@ -89,6 +89,8 @@ export default function Registration({ user }) {
 
   const isRestrictedRecruiter =
     user?.role === "rm" || user?.role === "normal";
+  const isPrivileged =
+    user?.role === "super_admin" || user?.role === "admin";
 
   const [form, setForm] = useState({
     name: "",
@@ -97,6 +99,7 @@ export default function Registration({ user }) {
     membershipType: "Member",
     address: "",
     sponsor: "SDS",
+    regionalManager: "",
     areaRegion: PH_REGIONS[0],
     packageName: "",
     registrationCode: "",
@@ -210,6 +213,19 @@ export default function Registration({ user }) {
     };
   }, [isRestrictedRecruiter, user?.member_id]);
 
+  const rmOptions = useMemo(() => {
+    return members.filter(
+      (m) =>
+        String(m.membership_type || "").trim().toLowerCase() ===
+        "regional manager"
+    );
+  }, [members]);
+
+  const requiresManualRm =
+    isPrivileged &&
+    form.sponsor === "SDS" &&
+    form.membershipType !== "Regional Manager";
+
   function resetForm() {
     setForm({
       name: "",
@@ -219,6 +235,7 @@ export default function Registration({ user }) {
       address: "",
       sponsor:
         isRestrictedRecruiter && linkedMemberName ? linkedMemberName : "SDS",
+      regionalManager: "",
       areaRegion: PH_REGIONS[0],
       packageName: "",
       registrationCode: "",
@@ -243,6 +260,11 @@ export default function Registration({ user }) {
       return;
     }
 
+    if (requiresManualRm && !form.regionalManager.trim()) {
+      alert("Regional Manager is required when sponsor is SDS.");
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -253,6 +275,7 @@ export default function Registration({ user }) {
         membership_type: form.membershipType,
         address: form.address,
         sponsor: form.sponsor,
+        regional_manager: form.regionalManager,
         area_region: form.areaRegion,
         package_name: form.packageName,
         registration_code: form.registrationCode.trim().toUpperCase(),
@@ -277,9 +300,12 @@ export default function Registration({ user }) {
       const passwordText = json.member?.member_id
         ? `\nDefault Password: ${json.member.member_id}`
         : "";
+      const rmText = json.regional_manager_used
+        ? `\nRegional Manager: ${json.regional_manager_used}`
+        : "";
 
       alert(
-        `Member and account created successfully!${usernameText}${passwordText}`
+        `Member and account created successfully!${usernameText}${passwordText}${rmText}`
       );
 
       resetForm();
@@ -343,7 +369,14 @@ export default function Registration({ user }) {
               label="Membership Type"
               value={form.membershipType}
               onChange={(e) =>
-                setForm({ ...form, membershipType: e.target.value })
+                setForm({
+                  ...form,
+                  membershipType: e.target.value,
+                  regionalManager:
+                    e.target.value === "Regional Manager"
+                      ? ""
+                      : form.regionalManager,
+                })
               }
             >
               <option>Member</option>
@@ -367,7 +400,14 @@ export default function Registration({ user }) {
               <Select
                 label="Sponsor"
                 value={form.sponsor}
-                onChange={(e) => setForm({ ...form, sponsor: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    sponsor: e.target.value,
+                    regionalManager:
+                      e.target.value === "SDS" ? form.regionalManager : "",
+                  })
+                }
               >
                 <option value="SDS">SDS</option>
                 {members.map((m) => (
@@ -390,6 +430,25 @@ export default function Registration({ user }) {
               ))}
             </Select>
           </div>
+
+          {requiresManualRm && (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Select
+                label="Regional Manager"
+                value={form.regionalManager}
+                onChange={(e) =>
+                  setForm({ ...form, regionalManager: e.target.value })
+                }
+              >
+                <option value="">Select Regional Manager</option>
+                {rmOptions.map((m) => (
+                  <option key={m.member_id || m.name} value={m.name}>
+                    {m.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
 
           <div className="grid gap-3 md:grid-cols-2">
             <Select
