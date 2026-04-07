@@ -13,6 +13,7 @@ import RMRebates from "./pages/RMRebates";
 import Registration from "./pages/Registration";
 import Profile from "./pages/Profile";
 import MyBonuses from "./pages/MyBonuses";
+import Redemptions from "./pages/Redemptions";
 
 const navByRole = {
   super_admin: [
@@ -280,16 +281,7 @@ export default function App() {
               <RegionalReport />
             )}
 
-          {active === "redemptions" && (
-            <Placeholder
-              title="Redemptions"
-              desc={
-                user.role === "super_admin" || user.role === "admin"
-                  ? "Admin redemption workflow: pending, approved, released, rejected."
-                  : "Your redemption requests and status history."
-              }
-            />
-          )}
+          {active === "redemptions" && <Redemptions user={user} />}
 
           {active === "my_members" && user.role === "rm" && (
             <Placeholder
