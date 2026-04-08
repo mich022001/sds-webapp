@@ -63,13 +63,22 @@ function StatusBadge({ status }) {
     s === "pending"
       ? "bg-amber-100 text-amber-800"
       : s === "approved"
-        ? "bg-emerald-100 text-emerald-800"
-        : s === "rejected"
-          ? "bg-red-100 text-red-800"
-          : "bg-zinc-100 text-zinc-700";
+        ? "bg-blue-100 text-blue-800"
+        : s === "paid"
+          ? "bg-purple-100 text-purple-800"
+          : s === "released"
+            ? "bg-emerald-100 text-emerald-800"
+            : s === "rejected"
+              ? "bg-red-100 text-red-800"
+              : "bg-zinc-100 text-zinc-700";
 
   return (
-    <span className={cls("rounded-full px-2.5 py-1 text-xs font-semibold", className)}>
+    <span
+      className={cls(
+        "rounded-full px-2.5 py-1 text-xs font-semibold",
+        className
+      )}
+    >
       {status || "-"}
     </span>
   );
@@ -332,7 +341,8 @@ export default function SalesEntry({ user }) {
   const filteredItems = useMemo(() => {
     if (!form.itemType) return items;
     return items.filter(
-      (item) => String(item.item_type || "").trim().toLowerCase() === form.itemType
+      (item) =>
+        String(item.item_type || "").trim().toLowerCase() === form.itemType
     );
   }, [items, form.itemType]);
 
@@ -391,7 +401,12 @@ export default function SalesEntry({ user }) {
           member_name: form.memberName,
           member_id: form.memberId || "",
           membership_type: form.membershipType || "",
+          regional_manager: selectedMember?.regional_manager || "",
           item_id: Number(form.itemId),
+          item_type: selectedItem?.item_type || "",
+          product_name: selectedItem?.item_name || "",
+          unit_price: unitPrice,
+          total_amount: totalAmount,
           quantity: quantityNum,
         }),
       });
@@ -460,6 +475,81 @@ export default function SalesEntry({ user }) {
     }));
   }
 
+  function renderActions(row) {
+    const status = String(row.status || "").toLowerCase();
+
+    if (status === "pending") {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handlePendingAction(row.id, "approve")}
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handlePendingAction(row.id, "reject")}
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            Reject
+          </button>
+        </div>
+      );
+    }
+
+    if (status === "approved") {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handlePendingAction(row.id, "paid")}
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Mark Paid
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handlePendingAction(row.id, "reject")}
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            Reject
+          </button>
+        </div>
+      );
+    }
+
+    if (status === "paid") {
+      return (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handlePendingAction(row.id, "release")}
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Release
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => handlePendingAction(row.id, "reject")}
+            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            Reject
+          </button>
+        </div>
+      );
+    }
+
+    return <div className="text-xs text-zinc-500">No actions</div>;
+  }
+
   return (
     <div className="grid max-w-full gap-4 overflow-x-hidden">
       <Card
@@ -467,7 +557,8 @@ export default function SalesEntry({ user }) {
         right={
           isRestricted ? (
             <div className="text-xs text-zinc-500">
-              Packages are auto-approved. Regular product sales require admin approval.
+              Packages are auto-approved. Regular product sales require admin
+              approval.
             </div>
           ) : null
         }
@@ -623,38 +714,68 @@ export default function SalesEntry({ user }) {
       </Card>
 
       {isAdmin && (
-        <Card title="Pending Sales Approvals" className="min-w-0">
+        <Card title="Sales Approval Queue" className="min-w-0">
           {loadingPending ? (
             <div className="text-sm text-zinc-500">Loading...</div>
           ) : pendingRows.length === 0 ? (
-            <div className="text-sm text-zinc-500">No pending sales found.</div>
+            <div className="text-sm text-zinc-500">
+              No pending sales found.
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1200px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Item</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Requested By</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Actions</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Date
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Member
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Item
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Type
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Qty
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Amount
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Requested By
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Status
+                    </th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {pendingRows.map((row) => (
                     <tr key={row.id} className="border-b border-zinc-100">
-                      <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {fmtDate(row.created_at)}
+                      </td>
                       <td className="px-4 py-3 text-zinc-900">
                         <div className="font-medium">{row.member_name}</div>
-                        <div className="text-xs text-zinc-500">{row.member_id}</div>
+                        <div className="text-xs text-zinc-500">
+                          {row.member_id}
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">{row.product_name}</td>
-                      <td className="px-4 py-3 text-zinc-700">{row.item_type}</td>
-                      <td className="px-4 py-3 text-zinc-700">{row.quantity}</td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {row.product_name}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {row.item_type}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {row.quantity}
+                      </td>
                       <td className="px-4 py-3 text-zinc-700">
                         {Number(row.total_amount || 0).toFixed(2)}
                       </td>
@@ -664,26 +785,7 @@ export default function SalesEntry({ user }) {
                       <td className="px-4 py-3">
                         <StatusBadge status={row.status} />
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => handlePendingAction(row.id, "approve")}
-                            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => handlePendingAction(row.id, "reject")}
-                            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </td>
+                      <td className="px-4 py-3">{renderActions(row)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -703,26 +805,50 @@ export default function SalesEntry({ user }) {
             <table className="w-full min-w-[1200px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Item</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Unit Price</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Encoded By</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Date
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Member
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Item
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Type
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Qty
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Unit Price
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Amount
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Encoded By
+                  </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {historyRows.map((row) => (
                   <tr key={row.id} className="border-b border-zinc-100">
-                    <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {fmtDate(row.created_at)}
+                    </td>
                     <td className="px-4 py-3 text-zinc-900">
                       <div className="font-medium">{row.member_name}</div>
-                      <div className="text-xs text-zinc-500">{row.member_id}</div>
+                      <div className="text-xs text-zinc-500">
+                        {row.member_id}
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">{row.product_name}</td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {row.product_name}
+                    </td>
                     <td className="px-4 py-3 text-zinc-700">{row.item_type}</td>
                     <td className="px-4 py-3 text-zinc-700">{row.quantity}</td>
                     <td className="px-4 py-3 text-zinc-700">
@@ -753,9 +879,15 @@ export default function SalesEntry({ user }) {
                 <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Item</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">SRP</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Distributor</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Stockiest</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Member
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Distributor
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Stockiest
+                </th>
               </tr>
             </thead>
             <tbody>

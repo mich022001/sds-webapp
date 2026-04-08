@@ -95,20 +95,21 @@ function getUnitPrice(itemRow, membershipType) {
   return num(itemRow.srp_price);
 }
 
-function getSaleStatus({ itemType, sessionUser }) {
+function getInitialSaleStatus({ itemType, sessionUser }) {
   const cleanItemType = normalizeText(itemType).toLowerCase();
 
-  // Registration packages should be automatically approved
+  if (isAdminUser(sessionUser)) {
+    return "released";
+  }
+
   if (cleanItemType === "package") {
     return "approved";
   }
 
-  // Regular products by RM / normal need approval
   if (cleanItemType === "product" && isRestrictedUser(sessionUser)) {
     return "pending";
   }
 
-  // Admin / super admin sales are auto-approved
   return "approved";
 }
 
@@ -272,7 +273,7 @@ export default async function handler(req, res) {
       const pricingBasis = getPricingBasis(membershipType);
       const unitPrice = getUnitPrice(itemRow, membershipType);
       const totalAmount = unitPrice * qty;
-      const status = getSaleStatus({
+      const status = getInitialSaleStatus({
         itemType,
         sessionUser,
       });
@@ -282,8 +283,10 @@ export default async function handler(req, res) {
         normalizeText(sessionUser.full_name) ||
         "system";
 
+      const now = new Date().toISOString();
+
       const payload = {
-        created_at: new Date().toISOString(),
+        created_at: now,
         member_name: normalizeText(member.name),
         member_id: normalizeText(member.member_id),
         membership_type: membershipType,
@@ -298,7 +301,29 @@ export default async function handler(req, res) {
         encoded_by: actor,
         requested_by_username: isRestrictedUser(sessionUser) ? actor : null,
         status,
+        approved_at: null,
+        approved_by: null,
+        paid_at: null,
+        paid_by: null,
+        released_at: null,
+        released_by: null,
+        rejected_at: null,
+        rejected_by: null,
       };
+
+      if (status === "approved") {
+        payload.approved_at = now;
+        payload.approved_by = actor;
+      }
+
+      if (status === "released") {
+        payload.approved_at = now;
+        payload.approved_by = actor;
+        payload.paid_at = now;
+        payload.paid_by = actor;
+        payload.released_at = now;
+        payload.released_by = actor;
+      }
 
       const { data, error } = await sb
         .from("sales_ledger")
@@ -324,7 +349,7 @@ export default async function handler(req, res) {
       if (!isAdminUser(sessionUser)) {
         return res
           .status(403)
-          .json({ error: "Only admin or super admin can approve sales" });
+          .json({ error: "Only admin or super admin can update sales" });
       }
 
       const id = Number(req.body?.id);
@@ -334,8 +359,10 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Valid sale id is required" });
       }
 
-      if (!["approve", "reject"].includes(action)) {
-        return res.status(400).json({ error: "action must be approve or reject" });
+      if (!["approve", "reject", "paid", "release"].includes(action)) {
+        return res.status(400).json({
+          error: "action must be approve, reject, paid, or release",
+        });
       }
 
       const { data: existing, error: existingError } = await sb
@@ -353,16 +380,71 @@ export default async function handler(req, res) {
       }
 
       const currentStatus = normalizeText(existing.status).toLowerCase();
+      const actor =
+        normalizeText(sessionUser.username) ||
+        normalizeText(sessionUser.full_name) ||
+        "admin";
+      const now = new Date().toISOString();
 
-      if (currentStatus !== "pending") {
-        return res
-          .status(400)
-          .json({ error: "Only pending sales can be updated" });
+      const patch = {};
+
+      if (action === "approve") {
+        if (currentStatus !== "pending") {
+          return res
+            .status(400)
+            .json({ error: "Only pending sales can be approved" });
+        }
+
+        patch.status = "approved";
+        patch.approved_at = now;
+        patch.approved_by = actor;
       }
 
-      const patch = {
-        status: action === "approve" ? "approved" : "rejected",
-      };
+      if (action === "reject") {
+        if (!["pending", "approved", "paid"].includes(currentStatus)) {
+          return res.status(400).json({
+            error: "Only pending, approved, or paid sales can be rejected",
+          });
+        }
+
+        patch.status = "rejected";
+        patch.rejected_at = now;
+        patch.rejected_by = actor;
+      }
+
+      if (action === "paid") {
+        if (currentStatus !== "approved") {
+          return res
+            .status(400)
+            .json({ error: "Only approved sales can be marked as paid" });
+        }
+
+        patch.status = "paid";
+        patch.paid_at = now;
+        patch.paid_by = actor;
+      }
+
+      if (action === "release") {
+        if (!["approved", "paid"].includes(currentStatus)) {
+          return res.status(400).json({
+            error: "Only approved or paid sales can be released",
+          });
+        }
+
+        patch.status = "released";
+        patch.released_at = now;
+        patch.released_by = actor;
+
+        if (!existing.approved_at) {
+          patch.approved_at = now;
+          patch.approved_by = actor;
+        }
+
+        if (!existing.paid_at) {
+          patch.paid_at = now;
+          patch.paid_by = actor;
+        }
+      }
 
       const { data, error } = await sb
         .from("sales_ledger")
@@ -380,7 +462,11 @@ export default async function handler(req, res) {
         message:
           action === "approve"
             ? "Sale approved successfully."
-            : "Sale rejected successfully.",
+            : action === "reject"
+              ? "Sale rejected successfully."
+              : action === "paid"
+                ? "Sale marked as paid successfully."
+                : "Sale released successfully.",
         data,
       });
     }

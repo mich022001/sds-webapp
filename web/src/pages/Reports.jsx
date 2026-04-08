@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 
-function cls(...a) {
-  return a.filter(Boolean).join(" ");
-}
-
 function Card({ title, children, right, className = "" }) {
   return (
     <div
@@ -66,8 +62,8 @@ export default function Reports() {
       if (currentFilters.buyer) qs.set("buyer", currentFilters.buyer);
       if (currentFilters.product) qs.set("product", currentFilters.product);
 
-      // IMPORTANT: reports should only include approved sales
-      qs.set("status", "approved");
+      // reports should only show completed sales
+      qs.set("status", "released");
 
       const res = await fetch(`/api/sales?${qs.toString()}`);
       const json = await res.json().catch(() => ({}));
@@ -87,7 +83,6 @@ export default function Reports() {
 
   useEffect(() => {
     loadSales(filters);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const packageRows = useMemo(() => {
@@ -199,7 +194,9 @@ export default function Reports() {
           </label>
 
           <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">Buyer / Member</span>
+            <span className="text-xs font-medium text-zinc-600">
+              Buyer / Member
+            </span>
             <input
               type="text"
               placeholder="Search buyer or member"
@@ -210,7 +207,9 @@ export default function Reports() {
           </label>
 
           <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">Package Type</span>
+            <span className="text-xs font-medium text-zinc-600">
+              Package Type
+            </span>
             <input
               type="text"
               placeholder="e.g. Package 1"
@@ -275,7 +274,7 @@ export default function Reports() {
         <Stat
           label="Total Sales Amount"
           value={formatMoney(totalSalesAmount)}
-          hint="Approved regular + package sales only"
+          hint="Released regular + package sales only"
         />
         <Stat label="Total Packages Sold" value={String(totalPackagesSold)} />
         <Stat label="Total Products Sold" value={String(totalProductsSold)} />
@@ -288,26 +287,50 @@ export default function Reports() {
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Member Name</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Package</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Encoded By</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Regional Manager</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Member Name
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Package
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Amount
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Encoded By
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Regional Manager
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredPackageRows.map((row) => (
                 <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
-                  <td className="px-4 py-3 text-zinc-800">{row.member_name || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.product_name || "-"}</td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {fmtDate(row.created_at)}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-800">
+                    {row.member_name || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.product_name || "-"}
+                  </td>
                   <td className="px-4 py-3 text-zinc-700">
                     {formatMoney(row.total_amount)}
                   </td>
-                  <td className="px-4 py-3 text-zinc-700">{row.encoded_by || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.regional_manager || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.status || "-"}</td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.encoded_by || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.regional_manager || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.status || "-"}
+                  </td>
                 </tr>
               ))}
 
@@ -329,26 +352,48 @@ export default function Reports() {
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Buyer / Member</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Product</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Buyer / Member
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Product
+                </th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Encoded By</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Amount
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Encoded By
+                </th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody>
               {regularSalesRows.map((row) => (
                 <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
-                  <td className="px-4 py-3 text-zinc-800">{row.member_name || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.product_name || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.quantity ?? 0}</td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {fmtDate(row.created_at)}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-800">
+                    {row.member_name || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.product_name || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.quantity ?? 0}
+                  </td>
                   <td className="px-4 py-3 text-zinc-700">
                     {formatMoney(row.total_amount)}
                   </td>
-                  <td className="px-4 py-3 text-zinc-700">{row.encoded_by || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.status || "-"}</td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.encoded_by || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-700">
+                    {row.status || "-"}
+                  </td>
                 </tr>
               ))}
 
@@ -368,7 +413,7 @@ export default function Reports() {
         <Card title="Top Products" className="min-w-0">
           {topProducts.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
-              No approved product sales yet.
+              No released product sales yet.
             </div>
           ) : (
             <div className="grid gap-2">
@@ -378,7 +423,9 @@ export default function Reports() {
                   className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm"
                 >
                   <span className="text-zinc-800">{item.name}</span>
-                  <span className="font-semibold text-zinc-900">{item.qty}</span>
+                  <span className="font-semibold text-zinc-900">
+                    {item.qty}
+                  </span>
                 </div>
               ))}
             </div>
@@ -388,7 +435,7 @@ export default function Reports() {
         <Card title="Top Packages" className="min-w-0">
           {topPackages.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
-              No approved package sales yet.
+              No released package sales yet.
             </div>
           ) : (
             <div className="grid gap-2">
@@ -398,7 +445,9 @@ export default function Reports() {
                   className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm"
                 >
                   <span className="text-zinc-800">{item.name}</span>
-                  <span className="font-semibold text-zinc-900">{item.qty}</span>
+                  <span className="font-semibold text-zinc-900">
+                    {item.qty}
+                  </span>
                 </div>
               ))}
             </div>
