@@ -14,8 +14,6 @@ import Registration from "./pages/Registration";
 import Profile from "./pages/Profile";
 import MyBonuses from "./pages/MyBonuses";
 import Redemptions from "./pages/Redemptions";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
 
 const navByRole = {
   super_admin: [
@@ -120,13 +118,9 @@ function hasAccess(role, key) {
 }
 
 export default function App() {
-  const pathname =
-    typeof window !== "undefined" ? window.location.pathname : "/";
   const [active, setActive] = useState("dashboard");
   const [user, setUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(
-    pathname !== "/forgot-password" && pathname !== "/reset-password"
-  );
+  const [authLoading, setAuthLoading] = useState(true);
 
   const currentNav = useMemo(() => getAllowedNav(user?.role), [user?.role]);
 
@@ -136,10 +130,6 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (pathname === "/forgot-password" || pathname === "/reset-password") {
-      return;
-    }
-
     let cancelled = false;
 
     async function checkAuth() {
@@ -166,7 +156,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [pathname]);
+  }, []);
 
   useEffect(() => {
     if (!user?.role) return;
@@ -175,14 +165,6 @@ export default function App() {
       setActive(getDefaultPage(user.role));
     }
   }, [active, user?.role]);
-
-  if (pathname === "/forgot-password") {
-    return <ForgotPassword />;
-  }
-
-  if (pathname === "/reset-password") {
-    return <ResetPassword />;
-  }
 
   if (authLoading) {
     return (
@@ -269,7 +251,7 @@ export default function App() {
 
           {active === "members" &&
             (user.role === "super_admin" || user.role === "admin") && (
-              <Members />
+              <Members user={user} />
             )}
 
           {active === "ledger" &&
