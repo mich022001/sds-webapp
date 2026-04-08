@@ -69,6 +69,10 @@ function isPrivileged(user) {
   return user?.role === "admin" || user?.role === "super_admin";
 }
 
+function isSuperAdmin(user) {
+  return user?.role === "super_admin";
+}
+
 async function resolveSponsorForRequest(sb, req, requestedSponsor) {
   const sessionUser = parseSessionUser(req);
 
@@ -265,7 +269,9 @@ export default async function handler(req, res) {
 
       if (mode === "password_reset_requests") {
         if (!sessionUser || !isPrivileged(sessionUser)) {
-          return res.status(403).json({ error: "Only admin or super admin can view password reset requests" });
+          return res.status(403).json({
+            error: "Only admin or super admin can view password reset requests",
+          });
         }
 
         const status = normalizeText(req.query?.status).toLowerCase();
@@ -442,9 +448,96 @@ export default async function handler(req, res) {
       const sessionUser = parseSessionUser(req);
 
       if (!sessionUser || !isPrivileged(sessionUser)) {
-        return res
-          .status(403)
-          .json({ error: "Only admin or super admin can manage password reset requests" });
+        return res.status(403).json({
+          error: "Only admin or super admin can manage members or password reset requests",
+        });
+      }
+
+      const mode = normalizeText(req.body?.mode).toLowerCase();
+
+      if (mode === "update_member") {
+        if (!isSuperAdmin(sessionUser)) {
+          return res
+            .status(403)
+            .json({ error: "Only super admin can edit member details" });
+        }
+
+        const memberId = normalizeText(req.body?.member_id);
+        const name = normalizeText(req.body?.name);
+        const contact = normalizeText(req.body?.contact);
+        const email = normalizeText(req.body?.email);
+        const address = normalizeText(req.body?.address);
+        const areaRegion = normalizeText(req.body?.area_region);
+        const membershipType = normalizeText(req.body?.membership_type);
+
+        if (!memberId) {
+          return res.status(400).json({ error: "member_id is required" });
+        }
+
+        if (!name) {
+          return res.status(400).json({ error: "Name is required" });
+        }
+
+        if (!membershipType) {
+          return res.status(400).json({ error: "Membership type is required" });
+        }
+
+        const allowedTypes = [
+          "Member",
+          "Distributor",
+          "Stockiest",
+          "Area Manager",
+          "Regional Manager",
+        ];
+
+        if (!allowedTypes.includes(membershipType)) {
+          return res.status(400).json({
+            error:
+              "membership_type must be Member, Distributor, Stockiest, Area Manager, or Regional Manager",
+          });
+        }
+
+        const { data: existingMember, error: existingError } = await sb
+          .from("members")
+          .select("*")
+          .eq("member_id", memberId)
+          .maybeSingle();
+
+        if (existingError) {
+          return res.status(400).json({ error: existingError.message });
+        }
+
+        if (!existingMember?.member_id) {
+          return res.status(404).json({ error: "Member not found" });
+        }
+
+        const patch = {
+          name,
+          contact: contact || null,
+          email: email || null,
+          address: address || null,
+          area_region: areaRegion || null,
+          membership_type: membershipType,
+        };
+
+        const { data, error } = await sb
+          .from("members")
+          .update(patch)
+          .eq("member_id", memberId)
+          .select(
+            "member_id, name, membership_type, sponsor_name, regional_manager, created_at, package_name, level, contact, email, address, area_region"
+          )
+          .single();
+
+        if (error) {
+          return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json({
+          ok: true,
+          message: "Member updated successfully. Changes apply to future operations.",
+          data,
+        });
       }
 
       const action = normalizeText(req.body?.action).toLowerCase();
@@ -455,7 +548,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Valid request_id is required" });
       }
 
-      if (!["complete_password_reset", "reject_password_reset"].includes(action)) {
+      if (
+        !["complete_password_reset", "reject_password_reset"].includes(action)
+      ) {
         return res.status(400).json({
           error: "action must be complete_password_reset or reject_password_reset",
         });
@@ -476,9 +571,9 @@ export default async function handler(req, res) {
       }
 
       if (normalizeText(resetRequest.status).toLowerCase() !== "pending") {
-        return res
-          .status(400)
-          .json({ error: "Only pending requests can be processed" });
+        return res.status(400).json({
+          error: "Only pending requests can be processed",
+        });
       }
 
       const actor =
