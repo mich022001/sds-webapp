@@ -24,6 +24,32 @@ export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
 
+    // =========================================
+    // ✅ SESSION CHECK (FIX FOR REFRESH)
+    // =========================================
+    if (req.method === "GET") {
+      try {
+        const cookies = cookie.parse(req.headers.cookie || "");
+        const token = cookies.sds_session;
+
+        if (!token) {
+          return res.status(200).json({ user: null });
+        }
+
+        const payload = jwt.verify(token, getSecret());
+
+        return res.status(200).json({
+          user: {
+            username: payload.username,
+            role: payload.role,
+            member_id: payload.member_id,
+          },
+        });
+      } catch {
+        return res.status(200).json({ user: null });
+      }
+    }
+
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
     }
@@ -40,7 +66,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: "Username is required" });
       }
 
-      // find account
       const { data: account, error: accErr } = await sb
         .from("app_accounts")
         .select("id, username, member_id")
@@ -61,7 +86,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // check existing pending
       const { data: existing } = await sb
         .from("password_reset_requests")
         .select("id")
@@ -76,7 +100,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // get member
       const { data: member } = await sb
         .from("members")
         .select("member_id, name")
@@ -106,7 +129,7 @@ export default async function handler(req, res) {
     }
 
     // =========================================
-    // 🔐 LOGIN (EXISTING)
+    // 🔐 LOGIN
     // =========================================
     const { username, password } = req.body;
 
@@ -145,13 +168,17 @@ export default async function handler(req, res) {
       { expiresIn: "7d" }
     );
 
+    // ✅ FIXED COOKIE
+    const isProd = process.env.NODE_ENV === "production";
+
     res.setHeader(
       "Set-Cookie",
       cookie.serialize("sds_session", token, {
         httpOnly: true,
         path: "/",
         sameSite: "lax",
-        secure: true,
+        secure: isProd,
+        maxAge: 60 * 60 * 24 * 7, // 7 days
       })
     );
 
