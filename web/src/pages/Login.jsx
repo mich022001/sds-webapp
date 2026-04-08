@@ -11,6 +11,7 @@ export default function Login({ onLogin }) {
   });
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -57,9 +58,11 @@ export default function Login({ onLogin }) {
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
         <div className="mb-6">
-          <div className="text-2xl font-extrabold text-zinc-900">SDS Admin</div>
+          <div className="text-2xl font-extrabold text-zinc-900">
+            SDS Web System
+          </div>
           <div className="mt-1 text-sm text-zinc-500">
-            Sign in to access the Direct Sales Web System
+            Sign in to access your account
           </div>
         </div>
 
@@ -79,9 +82,21 @@ export default function Login({ onLogin }) {
           </label>
 
           <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">Password</span>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-600">
+                Password
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-900"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               value={form.password}
               onChange={(e) =>
@@ -91,6 +106,18 @@ export default function Login({ onLogin }) {
               placeholder="Enter password"
             />
           </label>
+
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = "/forgot-password";
+              }}
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
 
           {err && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
