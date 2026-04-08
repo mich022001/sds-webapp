@@ -30,6 +30,18 @@ function Stat({ label, value, hint }) {
   );
 }
 
+function fmtDate(v) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleString();
+}
+
+function formatMoney(v) {
+  const n = Number(v || 0);
+  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+}
+
 export default function Reports() {
   const [filters, setFilters] = useState({
     from: "",
@@ -54,6 +66,9 @@ export default function Reports() {
       if (currentFilters.buyer) qs.set("buyer", currentFilters.buyer);
       if (currentFilters.product) qs.set("product", currentFilters.product);
 
+      // IMPORTANT: reports should only include approved sales
+      qs.set("status", "approved");
+
       const res = await fetch(`/api/sales?${qs.toString()}`);
       const json = await res.json().catch(() => ({}));
 
@@ -77,15 +92,15 @@ export default function Reports() {
 
   const packageRows = useMemo(() => {
     return salesRows.filter((row) => {
-      const productName = String(row.product_name || "").trim();
-      return productName.toLowerCase().includes("package");
+      const itemType = String(row.item_type || "").trim().toLowerCase();
+      return itemType === "package";
     });
   }, [salesRows]);
 
   const regularSalesRows = useMemo(() => {
     return salesRows.filter((row) => {
-      const productName = String(row.product_name || "").trim();
-      return !productName.toLowerCase().includes("package");
+      const itemType = String(row.item_type || "").trim().toLowerCase();
+      return itemType === "product";
     });
   }, [salesRows]);
 
@@ -158,11 +173,6 @@ export default function Reports() {
       .sort((a, b) => b.qty - a.qty)
       .slice(0, 5);
   }, [packageRows]);
-
-  function formatMoney(v) {
-    const n = Number(v || 0);
-    return Number.isFinite(n) ? n.toFixed(2) : "0.00";
-  }
 
   return (
     <div className="grid max-w-full gap-4 overflow-x-hidden">
@@ -265,7 +275,7 @@ export default function Reports() {
         <Stat
           label="Total Sales Amount"
           value={formatMoney(totalSalesAmount)}
-          hint="Regular + package sales"
+          hint="Approved regular + package sales only"
         />
         <Stat label="Total Packages Sold" value={String(totalPackagesSold)} />
         <Stat label="Total Products Sold" value={String(totalProductsSold)} />
@@ -274,7 +284,7 @@ export default function Reports() {
 
       <Card title="Membership Package Purchases" className="min-w-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+          <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
@@ -283,12 +293,13 @@ export default function Reports() {
                 <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Encoded By</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Regional Manager</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
               </tr>
             </thead>
             <tbody>
               {filteredPackageRows.map((row) => (
                 <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-700">{row.created_at || "-"}</td>
+                  <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
                   <td className="px-4 py-3 text-zinc-800">{row.member_name || "-"}</td>
                   <td className="px-4 py-3 text-zinc-700">{row.product_name || "-"}</td>
                   <td className="px-4 py-3 text-zinc-700">
@@ -296,12 +307,13 @@ export default function Reports() {
                   </td>
                   <td className="px-4 py-3 text-zinc-700">{row.encoded_by || "-"}</td>
                   <td className="px-4 py-3 text-zinc-700">{row.regional_manager || "-"}</td>
+                  <td className="px-4 py-3 text-zinc-700">{row.status || "-"}</td>
                 </tr>
               ))}
 
               {filteredPackageRows.length === 0 && (
                 <tr className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-500" colSpan={6}>
+                  <td className="px-4 py-3 text-zinc-500" colSpan={7}>
                     No package purchase data yet.
                   </td>
                 </tr>
@@ -313,7 +325,7 @@ export default function Reports() {
 
       <Card title="Regular Sales Transactions" className="min-w-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+          <table className="w-full min-w-[980px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                 <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
@@ -322,12 +334,13 @@ export default function Reports() {
                 <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
                 <th className="px-4 py-2 font-semibold text-zinc-700">Encoded By</th>
+                <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
               </tr>
             </thead>
             <tbody>
               {regularSalesRows.map((row) => (
                 <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-700">{row.created_at || "-"}</td>
+                  <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
                   <td className="px-4 py-3 text-zinc-800">{row.member_name || "-"}</td>
                   <td className="px-4 py-3 text-zinc-700">{row.product_name || "-"}</td>
                   <td className="px-4 py-3 text-zinc-700">{row.quantity ?? 0}</td>
@@ -335,12 +348,13 @@ export default function Reports() {
                     {formatMoney(row.total_amount)}
                   </td>
                   <td className="px-4 py-3 text-zinc-700">{row.encoded_by || "-"}</td>
+                  <td className="px-4 py-3 text-zinc-700">{row.status || "-"}</td>
                 </tr>
               ))}
 
               {regularSalesRows.length === 0 && (
                 <tr className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-500" colSpan={6}>
+                  <td className="px-4 py-3 text-zinc-500" colSpan={7}>
                     No sales transaction data yet.
                   </td>
                 </tr>
@@ -354,7 +368,7 @@ export default function Reports() {
         <Card title="Top Products" className="min-w-0">
           {topProducts.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
-              No product sales yet.
+              No approved product sales yet.
             </div>
           ) : (
             <div className="grid gap-2">
@@ -374,7 +388,7 @@ export default function Reports() {
         <Card title="Top Packages" className="min-w-0">
           {topPackages.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
-              No package sales yet.
+              No approved package sales yet.
             </div>
           ) : (
             <div className="grid gap-2">

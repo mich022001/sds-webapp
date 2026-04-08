@@ -58,6 +58,10 @@ function isRestrictedUser(user) {
   return user?.role === "rm" || user?.role === "normal";
 }
 
+function isAdminUser(user) {
+  return user?.role === "admin" || user?.role === "super_admin";
+}
+
 function getPricingBasis(membershipType) {
   const mt = normalizeText(membershipType).toLowerCase();
 
@@ -89,6 +93,23 @@ function getUnitPrice(itemRow, membershipType) {
   if (mt === "member") return num(itemRow.member_price);
 
   return num(itemRow.srp_price);
+}
+
+function getSaleStatus({ itemType, sessionUser }) {
+  const cleanItemType = normalizeText(itemType).toLowerCase();
+
+  // Registration packages should be automatically approved
+  if (cleanItemType === "package") {
+    return "approved";
+  }
+
+  // Regular products by RM / normal need approval
+  if (cleanItemType === "product" && isRestrictedUser(sessionUser)) {
+    return "pending";
+  }
+
+  // Admin / super admin sales are auto-approved
+  return "approved";
 }
 
 async function resolveMemberContext(sb, sessionUser, body) {
@@ -193,15 +214,19 @@ async function resolveMemberContext(sb, sessionUser, body) {
 export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
+    const sessionUser = parseSessionUser(req);
+
+    if (!sessionUser) {
+      return res.status(401).json({ error: "Not authenticated" });
+    }
 
     if (req.method === "POST") {
-      const sessionUser = parseSessionUser(req);
+      const memberResult = await resolveMemberContext(
+        sb,
+        sessionUser,
+        req.body ?? {}
+      );
 
-      if (!sessionUser) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      const memberResult = await resolveMemberContext(sb, sessionUser, req.body ?? {});
       if (!memberResult.ok) {
         return res
           .status(memberResult.status || 400)
@@ -240,12 +265,22 @@ export default async function handler(req, res) {
       }
 
       const membershipType = normalizeText(member.membership_type) || "Member";
+      const itemType = normalizeText(itemRow.item_type).toLowerCase();
       const unitType =
         normalizeText(itemRow.unit_type) ||
-        (normalizeText(itemRow.item_type) === "package" ? "Package" : "Per Piece");
+        (itemType === "package" ? "Package" : "Per Piece");
       const pricingBasis = getPricingBasis(membershipType);
       const unitPrice = getUnitPrice(itemRow, membershipType);
       const totalAmount = unitPrice * qty;
+      const status = getSaleStatus({
+        itemType,
+        sessionUser,
+      });
+
+      const actor =
+        normalizeText(sessionUser.username) ||
+        normalizeText(sessionUser.full_name) ||
+        "system";
 
       const payload = {
         created_at: new Date().toISOString(),
@@ -253,17 +288,16 @@ export default async function handler(req, res) {
         member_id: normalizeText(member.member_id),
         membership_type: membershipType,
         regional_manager: normalizeText(member.regional_manager) || null,
-        item_type: normalizeText(itemRow.item_type),
+        item_type: itemType,
         product_name: normalizeText(itemRow.item_name),
         unit_type: unitType,
         quantity: qty,
         unit_price: unitPrice,
         total_amount: totalAmount,
         pricing_basis: pricingBasis,
-        encoded_by:
-          normalizeText(sessionUser.username) ||
-          normalizeText(sessionUser.full_name) ||
-          "system",
+        encoded_by: actor,
+        requested_by_username: isRestrictedUser(sessionUser) ? actor : null,
+        status,
       };
 
       const { data, error } = await sb
@@ -276,32 +310,98 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
-      return res.status(200).json({ ok: true, data });
+      return res.status(200).json({
+        ok: true,
+        message:
+          status === "pending"
+            ? "Sale request submitted successfully."
+            : "Sale saved successfully.",
+        data,
+      });
+    }
+
+    if (req.method === "PUT") {
+      if (!isAdminUser(sessionUser)) {
+        return res
+          .status(403)
+          .json({ error: "Only admin or super admin can approve sales" });
+      }
+
+      const id = Number(req.body?.id);
+      const action = normalizeText(req.body?.action).toLowerCase();
+
+      if (!Number.isFinite(id) || id <= 0) {
+        return res.status(400).json({ error: "Valid sale id is required" });
+      }
+
+      if (!["approve", "reject"].includes(action)) {
+        return res.status(400).json({ error: "action must be approve or reject" });
+      }
+
+      const { data: existing, error: existingError } = await sb
+        .from("sales_ledger")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (existingError) {
+        return res.status(400).json({ error: existingError.message });
+      }
+
+      if (!existing?.id) {
+        return res.status(404).json({ error: "Sale record not found" });
+      }
+
+      const currentStatus = normalizeText(existing.status).toLowerCase();
+
+      if (currentStatus !== "pending") {
+        return res
+          .status(400)
+          .json({ error: "Only pending sales can be updated" });
+      }
+
+      const patch = {
+        status: action === "approve" ? "approved" : "rejected",
+      };
+
+      const { data, error } = await sb
+        .from("sales_ledger")
+        .update(patch)
+        .eq("id", id)
+        .select("*")
+        .single();
+
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message:
+          action === "approve"
+            ? "Sale approved successfully."
+            : "Sale rejected successfully.",
+        data,
+      });
     }
 
     if (req.method === "GET") {
-      const sessionUser = parseSessionUser(req);
-
-      if (!sessionUser) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
       const from = normalizeText(req.query?.from);
       const to = normalizeText(req.query?.to);
       const buyer = normalizeText(req.query?.buyer);
       const product = normalizeText(req.query?.product);
       const itemType = normalizeText(req.query?.item_type);
+      const status = normalizeText(req.query?.status);
 
-      let query = sb
-        .from("sales_ledger")
-        .select("*")
-        .order("id", { ascending: false });
+      let query = sb.from("sales_ledger").select("*").order("id", {
+        ascending: false,
+      });
 
       if (isRestrictedUser(sessionUser)) {
         if (!sessionUser.member_id) {
-          return res
-            .status(403)
-            .json({ error: "Your account is not linked to a member. Contact admin." });
+          return res.status(403).json({
+            error: "Your account is not linked to a member. Contact admin.",
+          });
         }
 
         query = query.eq("member_id", sessionUser.member_id);
@@ -313,6 +413,7 @@ export default async function handler(req, res) {
       if (to) query = query.lte("created_at", to);
       if (product) query = query.ilike("product_name", `%${product}%`);
       if (itemType) query = query.eq("item_type", itemType);
+      if (status) query = query.eq("status", status);
 
       const { data, error } = await query;
 

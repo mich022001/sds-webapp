@@ -56,6 +56,25 @@ function Stat({ label, value, hint }) {
   );
 }
 
+function StatusBadge({ status }) {
+  const s = String(status || "").toLowerCase();
+
+  const className =
+    s === "pending"
+      ? "bg-amber-100 text-amber-800"
+      : s === "approved"
+        ? "bg-emerald-100 text-emerald-800"
+        : s === "rejected"
+          ? "bg-red-100 text-red-800"
+          : "bg-zinc-100 text-zinc-700";
+
+  return (
+    <span className={cls("rounded-full px-2.5 py-1 text-xs font-semibold", className)}>
+      {status || "-"}
+    </span>
+  );
+}
+
 function normalizeMembershipType(v) {
   return String(v || "").trim().toLowerCase();
 }
@@ -93,16 +112,28 @@ function getUnitPrice(item, membershipType) {
   return Number(item.srp_price ?? 0);
 }
 
+function fmtDate(v) {
+  if (!v) return "-";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleString();
+}
+
 export default function SalesEntry({ user }) {
   const [members, setMembers] = useState([]);
   const [items, setItems] = useState([]);
   const [linkedMember, setLinkedMember] = useState(null);
+  const [historyRows, setHistoryRows] = useState([]);
+  const [pendingRows, setPendingRows] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
   const isRestricted = user?.role === "rm" || user?.role === "normal";
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
 
   const [form, setForm] = useState({
     memberName: "",
@@ -166,6 +197,11 @@ export default function SalesEntry({ user }) {
         setLoadingMembers(true);
         const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json.error || "Failed to load members");
+        }
+
         const data = Array.isArray(json?.data) ? json.data : [];
 
         if (!cancelled) {
@@ -222,6 +258,52 @@ export default function SalesEntry({ user }) {
       cancelled = true;
     };
   }, []);
+
+  async function loadHistory() {
+    try {
+      setLoadingHistory(true);
+      const res = await fetch("/api/sales");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to load sales history");
+      }
+
+      setHistoryRows(Array.isArray(json?.data) ? json.data : []);
+    } catch (e) {
+      setErr(e?.message || "Failed to load sales history");
+    } finally {
+      setLoadingHistory(false);
+    }
+  }
+
+  async function loadPendingSales() {
+    if (!isAdmin) {
+      setPendingRows([]);
+      return;
+    }
+
+    try {
+      setLoadingPending(true);
+      const res = await fetch("/api/sales?status=pending");
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to load pending sales");
+      }
+
+      setPendingRows(Array.isArray(json?.data) ? json.data : []);
+    } catch (e) {
+      setErr(e?.message || "Failed to load pending sales");
+    } finally {
+      setLoadingPending(false);
+    }
+  }
+
+  useEffect(() => {
+    loadHistory();
+    loadPendingSales();
+  }, [isAdmin]);
 
   const selectedMember = useMemo(() => {
     if (isRestricted) return linkedMember;
@@ -320,14 +402,44 @@ export default function SalesEntry({ user }) {
         throw new Error(json.error || "Failed to save sale");
       }
 
-      alert(
-        isRestricted
-          ? "Sale request submitted successfully."
-          : "Sale saved successfully."
-      );
+      alert(json.message || "Sale saved successfully.");
       clearForm();
+      await loadHistory();
+      await loadPendingSales();
     } catch (e) {
       setErr(e?.message || "Failed to save sale");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handlePendingAction(id, action) {
+    try {
+      setSaving(true);
+      setErr("");
+
+      const res = await fetch("/api/sales", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          action,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to update sale");
+      }
+
+      alert(json.message || "Sale updated successfully.");
+      await loadHistory();
+      await loadPendingSales();
+    } catch (e) {
+      setErr(e?.message || "Failed to update sale");
     } finally {
       setSaving(false);
     }
@@ -355,7 +467,7 @@ export default function SalesEntry({ user }) {
         right={
           isRestricted ? (
             <div className="text-xs text-zinc-500">
-              Products and packages are both available here.
+              Packages are auto-approved. Regular product sales require admin approval.
             </div>
           ) : null
         }
@@ -508,6 +620,129 @@ export default function SalesEntry({ user }) {
             </button>
           </div>
         </form>
+      </Card>
+
+      {isAdmin && (
+        <Card title="Pending Sales Approvals" className="min-w-0">
+          {loadingPending ? (
+            <div className="text-sm text-zinc-500">Loading...</div>
+          ) : pendingRows.length === 0 ? (
+            <div className="text-sm text-zinc-500">No pending sales found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1200px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Item</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Requested By</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRows.map((row) => (
+                    <tr key={row.id} className="border-b border-zinc-100">
+                      <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
+                      <td className="px-4 py-3 text-zinc-900">
+                        <div className="font-medium">{row.member_name}</div>
+                        <div className="text-xs text-zinc-500">{row.member_id}</div>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">{row.product_name}</td>
+                      <td className="px-4 py-3 text-zinc-700">{row.item_type}</td>
+                      <td className="px-4 py-3 text-zinc-700">{row.quantity}</td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {Number(row.total_amount || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {row.requested_by_username || row.encoded_by || "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => handlePendingAction(row.id, "approve")}
+                            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => handlePendingAction(row.id, "reject")}
+                            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
+
+      <Card title="Sales History" className="min-w-0">
+        {loadingHistory ? (
+          <div className="text-sm text-zinc-500">Loading...</div>
+        ) : historyRows.length === 0 ? (
+          <div className="text-sm text-zinc-500">No sales found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1200px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Item</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Unit Price</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Encoded By</th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.map((row) => (
+                  <tr key={row.id} className="border-b border-zinc-100">
+                    <td className="px-4 py-3 text-zinc-700">{fmtDate(row.created_at)}</td>
+                    <td className="px-4 py-3 text-zinc-900">
+                      <div className="font-medium">{row.member_name}</div>
+                      <div className="text-xs text-zinc-500">{row.member_id}</div>
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">{row.product_name}</td>
+                    <td className="px-4 py-3 text-zinc-700">{row.item_type}</td>
+                    <td className="px-4 py-3 text-zinc-700">{row.quantity}</td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(row.unit_price || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {Number(row.total_amount || 0).toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-700">
+                      {row.encoded_by || "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={row.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       <Card title="Item Price Reference" className="min-w-0">
