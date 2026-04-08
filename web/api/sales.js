@@ -124,6 +124,98 @@ function getInitialSaleStatus({ itemType, sessionUser }) {
   return "approved";
 }
 
+function getRmRebatePerUnit(productName, unitType) {
+  const cleanProduct = normalizeText(productName).toLowerCase();
+  const cleanUnitType = normalizeText(unitType).toLowerCase();
+
+  if (cleanUnitType === "package") return 0;
+
+  if (cleanProduct === "balatinaw coffee") return 2;
+  if (cleanProduct === "promix juice") return 5;
+  if (cleanProduct === "compact c") return 5;
+  if (cleanProduct === "vigomaxx") return 5;
+  if (cleanProduct === "zepamacs") return 5;
+
+  return 0;
+}
+
+function computeRmRebateQty({ productName, unitType, qty }) {
+  const perUnit = getRmRebatePerUnit(productName, unitType);
+  return perUnit * num(qty);
+}
+
+async function createRmRebateIfEligible(sb, saleRow) {
+  const memberName = normalizeText(saleRow?.member_name);
+  const regionalManager = normalizeText(saleRow?.regional_manager);
+  const productName = normalizeText(saleRow?.product_name);
+  const unitType = normalizeText(saleRow?.unit_type) || "Per Piece";
+  const qty = num(saleRow?.quantity);
+  const membershipType = normalizeText(saleRow?.membership_type).toLowerCase();
+  const createdAt =
+    normalizeText(saleRow?.released_at) ||
+    normalizeText(saleRow?.created_at) ||
+    new Date().toISOString();
+
+  // No RM to receive it
+  if (!regionalManager) return;
+
+  // Buyer is the RM themself -> no RM rebate
+  if (memberName && regionalManager && memberName.toLowerCase() === regionalManager.toLowerCase()) {
+    return;
+  }
+
+  // RM purchasing for RM account should not get RM rebate
+  if (membershipType === "regional manager") {
+    return;
+  }
+
+  const rebateQty = computeRmRebateQty({
+    productName,
+    unitType,
+    qty,
+  });
+
+  if (rebateQty <= 0) {
+    return;
+  }
+
+  // Best-effort duplicate protection using current schema
+  const { data: existingRows, error: existingError } = await sb
+    .from("rm_rebates_ledger")
+    .select("id")
+    .eq("receiver_name", regionalManager)
+    .eq("buyer_name", memberName)
+    .eq("product", productName)
+    .eq("qty", qty)
+    .eq("unit_type", unitType)
+    .eq("rebate", rebateQty)
+    .limit(1);
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (Array.isArray(existingRows) && existingRows.length > 0) {
+    return;
+  }
+
+  const { error: insertError } = await sb.from("rm_rebates_ledger").insert([
+    {
+      created_at: createdAt,
+      receiver_name: regionalManager,
+      buyer_name: memberName,
+      product: productName,
+      qty,
+      unit_type: unitType,
+      rebate: rebateQty,
+    },
+  ]);
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+}
+
 async function resolveMemberContext(sb, sessionUser, body) {
   if (!sessionUser) {
     return {
@@ -233,7 +325,12 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const memberResult = await resolveMemberContext(sb, sessionUser, req.body ?? {});
+      const memberResult = await resolveMemberContext(
+        sb,
+        sessionUser,
+        req.body ?? {}
+      );
+
       if (!memberResult.ok) {
         return res
           .status(memberResult.status || 400)
@@ -340,6 +437,11 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
+      // Directly completed sale should immediately create RM rebate if eligible
+      if (String(data?.status || "").toLowerCase() === "released") {
+        await createRmRebateIfEligible(sb, data);
+      }
+
       return res.status(200).json({
         ok: true,
         message:
@@ -379,7 +481,6 @@ export default async function handler(req, res) {
       const actor = getActor(sessionUser);
       const now = new Date().toISOString();
 
-      // USER CANCEL
       if (action === "cancel") {
         if (!isRestrictedUser(sessionUser)) {
           return res.status(403).json({
@@ -387,7 +488,10 @@ export default async function handler(req, res) {
           });
         }
 
-        if (normalizeText(existing.member_id) !== normalizeText(sessionUser.member_id)) {
+        if (
+          normalizeText(existing.member_id) !==
+          normalizeText(sessionUser.member_id)
+        ) {
           return res.status(403).json({
             error: "You can only cancel your own sale requests",
           });
@@ -430,7 +534,6 @@ export default async function handler(req, res) {
         });
       }
 
-      // ADMIN ACTIONS
       if (!isAdminUser(sessionUser)) {
         return res
           .status(403)
@@ -512,6 +615,11 @@ export default async function handler(req, res) {
 
       if (error) {
         return res.status(400).json({ error: error.message });
+      }
+
+      // Create RM rebate only when sale becomes released
+      if (action === "release") {
+        await createRmRebateIfEligible(sb, data);
       }
 
       return res.status(200).json({
