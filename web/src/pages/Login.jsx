@@ -1,28 +1,17 @@
 import { useState } from "react";
 
-function cls(...a) {
-  return a.filter(Boolean).join(" ");
-}
-
 export default function Login({ onLogin }) {
-  const [form, setForm] = useState({
-    username: "",
-    password: "",
-  });
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ username: "", password: "" });
   const [err, setErr] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e) {
+  const [forgotMode, setForgotMode] = useState(false);
+  const [resetUsername, setResetUsername] = useState("");
+  const [resetMsg, setResetMsg] = useState("");
+  const [resetErr, setResetErr] = useState("");
+
+  async function handleLogin(e) {
     e.preventDefault();
-
-    const username = String(form.username || "").trim();
-    const password = String(form.password || "");
-
-    if (!username || !password) {
-      setErr("Username and password are required.");
-      return;
-    }
 
     try {
       setLoading(true);
@@ -30,113 +19,138 @@ export default function Login({ onLogin }) {
 
       const res = await fetch("/api/auth", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "login",
-          username,
-          password,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(form),
       });
 
-      const json = await res.json().catch(() => ({}));
+      const json = await res.json();
 
       if (!res.ok) {
         throw new Error(json.error || "Login failed");
       }
 
-      if (typeof onLogin === "function") {
-        onLogin(json.user ?? null);
-      }
+      onLogin(json.user);
     } catch (e) {
-      setErr(e?.message || "Login failed");
+      setErr(e.message);
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="mb-6">
-          <div className="text-2xl font-extrabold text-zinc-900">
-            SDS Web System
-          </div>
-          <div className="mt-1 text-sm text-zinc-500">
-            Sign in to access your account
-          </div>
-        </div>
+  async function handleForgotPassword(e) {
+    e.preventDefault();
 
-        <form className="grid gap-4" onSubmit={handleSubmit}>
-          <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">Username</span>
+    try {
+      setResetErr("");
+      setResetMsg("");
+
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "request_password_reset",
+          username: resetUsername,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed");
+      }
+
+      setResetMsg(json.message);
+      setResetUsername("");
+    } catch (e) {
+      setResetErr(e.message);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+      <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow">
+        <h1 className="mb-4 text-xl font-bold">SDS Admin Login</h1>
+
+        {!forgotMode ? (
+          <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="text"
-              autoComplete="username"
+              placeholder="Username"
               value={form.username}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, username: e.target.value }))
+                setForm({ ...form, username: e.target.value })
               }
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-              placeholder="Enter username"
+              className="w-full rounded border px-3 py-2"
             />
-          </label>
-
-          <label className="grid gap-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-600">
-                Password
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="text-xs font-medium text-zinc-500 hover:text-zinc-900"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
 
             <input
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
+              type="password"
+              placeholder="Password"
               value={form.password}
               onChange={(e) =>
-                setForm((prev) => ({ ...prev, password: e.target.value }))
+                setForm({ ...form, password: e.target.value })
               }
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-              placeholder="Enter password"
+              className="w-full rounded border px-3 py-2"
             />
-          </label>
 
-          <div className="text-right">
+            {err && <div className="text-sm text-red-500">{err}</div>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded bg-black py-2 text-white"
+            >
+              {loading ? "Logging in..." : "Login"}
+            </button>
+
             <button
               type="button"
-              onClick={() => {
-                window.location.href = "/forgot-password";
-              }}
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 hover:underline"
+              onClick={() => setForgotMode(true)}
+              className="text-sm text-blue-600 underline"
             >
               Forgot password?
             </button>
-          </div>
+          </form>
+        ) : (
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <input
+              type="text"
+              placeholder="Enter your username"
+              value={resetUsername}
+              onChange={(e) => setResetUsername(e.target.value)}
+              className="w-full rounded border px-3 py-2"
+            />
 
-          {err && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {err}
+            <div className="text-xs text-zinc-500">
+              Your request will be reviewed by admin. Once approved, your
+              password will be reset to your Member ID.
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={cls(
-              "h-10 rounded-xl px-4 text-sm font-semibold transition",
-              "bg-zinc-900 text-white hover:bg-zinc-800",
-              loading && "cursor-not-allowed opacity-60"
+            {resetErr && <div className="text-sm text-red-500">{resetErr}</div>}
+            {resetMsg && (
+              <div className="text-sm text-green-600">{resetMsg}</div>
             )}
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+
+            <button
+              type="submit"
+              className="w-full rounded bg-black py-2 text-white"
+            >
+              Submit Request
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setForgotMode(false)}
+              className="text-sm underline"
+            >
+              Back to login
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

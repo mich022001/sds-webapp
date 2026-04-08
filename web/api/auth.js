@@ -4,161 +4,166 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 
 function supabaseAdmin() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !key) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-  }
-
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+    }
+  );
 }
 
-function getAuthSecret() {
-  const secret = process.env.SDS_AUTH_SECRET;
-  if (!secret) {
+function getSecret() {
+  if (!process.env.SDS_AUTH_SECRET) {
     throw new Error("Missing SDS_AUTH_SECRET");
   }
-  return secret;
-}
-
-function buildSessionCookie(token) {
-  return cookie.serialize("sds_session", token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-}
-
-function buildLogoutCookie() {
-  return cookie.serialize("sds_session", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    expires: new Date(0),
-  });
+  return process.env.SDS_AUTH_SECRET;
 }
 
 export default async function handler(req, res) {
   try {
-    if (req.method === "GET") {
-      const secret = getAuthSecret();
-      const cookies = cookie.parse(req.headers.cookie || "");
-      const token = cookies.sds_session;
+    const sb = supabaseAdmin();
 
-      if (!token) {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
-
-      try {
-        const payload = jwt.verify(token, secret);
-
-        return res.status(200).json({
-          user: {
-            id: payload.sub,
-            username: payload.username,
-            full_name: payload.full_name,
-            role: payload.role,
-            member_id: payload.member_id ?? null,
-          },
-        });
-      } catch {
-        return res.status(401).json({ error: "Not authenticated" });
-      }
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
     }
 
-    if (req.method === "POST") {
-      const action = String(req.body?.action ?? "").trim().toLowerCase();
+    const action = String(req.body?.action || "").trim();
 
-      if (action === "logout") {
-        res.setHeader("Set-Cookie", buildLogoutCookie());
-        return res.status(200).json({ ok: true });
+    // =========================================
+    // 🔥 FORGOT PASSWORD (USERNAME ONLY)
+    // =========================================
+    if (action === "request_password_reset") {
+      const username = String(req.body?.username || "").trim();
+
+      if (!username) {
+        return res.status(400).json({ error: "Username is required" });
       }
 
-      if (action === "login") {
-        const { username, password } = req.body ?? {};
+      // find account
+      const { data: account, error: accErr } = await sb
+        .from("app_accounts")
+        .select("id, username, member_id")
+        .eq("username", username)
+        .maybeSingle();
 
-        const cleanUsername = String(username ?? "").trim();
-        const cleanPassword = String(password ?? "");
+      if (accErr) {
+        return res.status(500).json({ error: accErr.message });
+      }
 
-        if (!cleanUsername || !cleanPassword) {
-          return res
-            .status(400)
-            .json({ error: "Username and password are required" });
-        }
+      if (!account) {
+        return res.status(404).json({ error: "Username not found" });
+      }
 
-        const sb = supabaseAdmin();
-
-        const { data: account, error } = await sb
-          .from("app_accounts")
-          .select(
-            "id, username, password_hash, full_name, role, member_id, is_active"
-          )
-          .eq("username", cleanUsername)
-          .maybeSingle();
-
-        if (error) {
-          return res.status(500).json({ error: error.message });
-        }
-
-        if (!account) {
-          return res
-            .status(401)
-            .json({ error: "Invalid username or password" });
-        }
-
-        if (!account.is_active) {
-          return res.status(403).json({ error: "Account is inactive" });
-        }
-
-        const ok = await bcrypt.compare(cleanPassword, account.password_hash);
-        if (!ok) {
-          return res
-            .status(401)
-            .json({ error: "Invalid username or password" });
-        }
-
-        const secret = getAuthSecret();
-
-        const token = jwt.sign(
-          {
-            sub: String(account.id),
-            username: account.username,
-            role: account.role,
-            full_name: account.full_name ?? "",
-            member_id: account.member_id ?? null,
-          },
-          secret,
-          { expiresIn: "7d" }
-        );
-
-        res.setHeader("Set-Cookie", buildSessionCookie(token));
-
-        return res.status(200).json({
-          ok: true,
-          user: {
-            id: account.id,
-            username: account.username,
-            full_name: account.full_name,
-            role: account.role,
-            member_id: account.member_id ?? null,
-          },
+      if (!account.member_id) {
+        return res.status(400).json({
+          error: "Account is not linked to a member. Contact admin.",
         });
       }
 
-      return res.status(400).json({ error: "Invalid auth action" });
+      // check existing pending
+      const { data: existing } = await sb
+        .from("password_reset_requests")
+        .select("id")
+        .eq("account_id", account.id)
+        .eq("status", "pending")
+        .maybeSingle();
+
+      if (existing?.id) {
+        return res.status(400).json({
+          error:
+            "You already have a pending password reset request. Please contact admin.",
+        });
+      }
+
+      // get member
+      const { data: member } = await sb
+        .from("members")
+        .select("member_id, name")
+        .eq("member_id", account.member_id)
+        .maybeSingle();
+
+      const { error } = await sb.from("password_reset_requests").insert([
+        {
+          account_id: account.id,
+          username: account.username,
+          member_id: member?.member_id || account.member_id,
+          member_name: member?.name || "",
+          requested_by: account.username,
+          status: "pending",
+        },
+      ]);
+
+      if (error) {
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message:
+          "Request submitted. Please contact admin and wait for your password to be reset to your Member ID.",
+      });
     }
 
-    return res.status(405).json({ error: "Method not allowed" });
-  } catch (e) {
-    return res.status(500).json({
-      error: String(e?.message ?? e),
-      name: e?.name || null,
+    // =========================================
+    // 🔐 LOGIN (EXISTING)
+    // =========================================
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: "Missing credentials" });
+    }
+
+    const { data: account, error } = await sb
+      .from("app_accounts")
+      .select("*")
+      .eq("username", username)
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    if (!account) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const match = await bcrypt.compare(password, account.password_hash);
+
+    if (!match) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      {
+        sub: account.id,
+        username: account.username,
+        role: account.role,
+        member_id: account.member_id,
+      },
+      getSecret(),
+      { expiresIn: "7d" }
+    );
+
+    res.setHeader(
+      "Set-Cookie",
+      cookie.serialize("sds_session", token, {
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        secure: true,
+      })
+    );
+
+    return res.status(200).json({
+      ok: true,
+      user: {
+        username: account.username,
+        role: account.role,
+        member_id: account.member_id,
+      },
     });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
   }
 }
