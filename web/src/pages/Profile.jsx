@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-function Card({ title, children, className = "" }) {
+function Card({ title, children, className = "", right }) {
   return (
     <div
       className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
     >
-      <div className="mb-4 text-sm font-semibold text-zinc-900">{title}</div>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="text-sm font-semibold text-zinc-900">{title}</div>
+        {right}
+      </div>
       {children}
     </div>
   );
@@ -32,18 +35,39 @@ function Input({ label, ...props }) {
   );
 }
 
+function Textarea({ label, ...props }) {
+  return (
+    <label className="grid gap-1">
+      <span className="text-xs font-medium text-zinc-600">{label}</span>
+      <textarea
+        {...props}
+        className="min-h-[96px] w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900"
+      />
+    </label>
+  );
+}
+
 export default function Profile({ user }) {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [requestMsg, setRequestMsg] = useState("");
+  const [requestErr, setRequestErr] = useState("");
+  const [requestSaving, setRequestSaving] = useState(false);
+
+  const isRestrictedUser = user?.role === "rm" || user?.role === "normal";
 
   const [form, setForm] = useState({
     username: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
+  });
+
+  const [resetRequestForm, setResetRequestForm] = useState({
+    notes: "",
   });
 
   useEffect(() => {
@@ -55,7 +79,13 @@ export default function Profile({ user }) {
         setErr("");
 
         if (!user?.member_id) {
-          if (!cancelled) setMember(null);
+          if (!cancelled) {
+            setMember(null);
+            setForm((prev) => ({
+              ...prev,
+              username: user?.username || "",
+            }));
+          }
           return;
         }
 
@@ -91,11 +121,19 @@ export default function Profile({ user }) {
     };
   }, [user?.member_id, user?.username]);
 
+  const usernameChanged = useMemo(() => {
+    return form.username.trim() !== String(user?.username || "").trim();
+  }, [form.username, user?.username]);
+
+  const passwordChanged = useMemo(() => {
+    return !!form.newPassword.trim();
+  }, [form.newPassword]);
+
   async function handleSave(e) {
     e.preventDefault();
 
-    if (!form.username.trim() && !form.newPassword.trim()) {
-      setErr("Enter a new username and/or new password.");
+    if (!usernameChanged && !passwordChanged) {
+      setErr("No changes to save.");
       setMsg("");
       return;
     }
@@ -155,6 +193,41 @@ export default function Profile({ user }) {
       setMsg("");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRequestPasswordReset(e) {
+    e.preventDefault();
+
+    try {
+      setRequestSaving(true);
+      setRequestErr("");
+      setRequestMsg("");
+
+      const res = await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "request_password_reset",
+          notes: resetRequestForm.notes,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to submit password reset request");
+      }
+
+      setRequestMsg(
+        json.message || "Password reset request submitted successfully."
+      );
+      setResetRequestForm({ notes: "" });
+    } catch (e) {
+      setRequestErr(e?.message || "Failed to submit password reset request");
+      setRequestMsg("");
+    } finally {
+      setRequestSaving(false);
     }
   }
 
@@ -263,6 +336,55 @@ export default function Profile({ user }) {
           </div>
         </form>
       </Card>
+
+      {isRestrictedUser && (
+        <Card title="Request Password Reset">
+          <form className="grid gap-4" onSubmit={handleRequestPasswordReset}>
+            <div className="text-sm text-zinc-600">
+              Submit a request for admin approval. Once completed by admin, your
+              password will be reset to your Member ID.
+            </div>
+
+            <Input
+              label="Member ID"
+              value={user?.member_id || ""}
+              readOnly
+              disabled
+            />
+
+            <Textarea
+              label="Notes"
+              value={resetRequestForm.notes}
+              onChange={(e) =>
+                setResetRequestForm({ notes: e.target.value })
+              }
+              placeholder="Optional reason for password reset request"
+            />
+
+            {requestErr && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {requestErr}
+              </div>
+            )}
+
+            {requestMsg && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {requestMsg}
+              </div>
+            )}
+
+            <div>
+              <button
+                type="submit"
+                disabled={requestSaving}
+                className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
+              >
+                {requestSaving ? "Submitting..." : "Request Password Reset"}
+              </button>
+            </div>
+          </form>
+        </Card>
+      )}
     </div>
   );
 }

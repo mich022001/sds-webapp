@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
+import bcrypt from "bcryptjs";
 
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL;
@@ -258,7 +259,41 @@ export default async function handler(req, res) {
     const sb = supabaseAdmin();
 
     if (req.method === "GET") {
+      const sessionUser = parseSessionUser(req);
+      const mode = normalizeText(req.query?.mode).toLowerCase();
       const memberId = normalizeText(req.query?.member_id);
+
+      if (mode === "password_reset_requests") {
+        if (!sessionUser || !isPrivileged(sessionUser)) {
+          return res.status(403).json({ error: "Only admin or super admin can view password reset requests" });
+        }
+
+        const status = normalizeText(req.query?.status).toLowerCase();
+        const search = normalizeText(req.query?.search);
+
+        let query = sb
+          .from("password_reset_requests")
+          .select("*")
+          .order("id", { ascending: false });
+
+        if (status) {
+          query = query.eq("status", status);
+        }
+
+        if (search) {
+          query = query.or(
+            `member_name.ilike.%${search}%,username.ilike.%${search}%,member_id.ilike.%${search}%`
+          );
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json({ data: data ?? [] });
+      }
 
       if (memberId) {
         const { data, error } = await sb
@@ -400,6 +435,120 @@ export default async function handler(req, res) {
           (cleanMembershipType === "Regional Manager"
             ? result.name ?? cleanName
             : finalRegionalManager ?? null),
+      });
+    }
+
+    if (req.method === "PUT") {
+      const sessionUser = parseSessionUser(req);
+
+      if (!sessionUser || !isPrivileged(sessionUser)) {
+        return res
+          .status(403)
+          .json({ error: "Only admin or super admin can manage password reset requests" });
+      }
+
+      const action = normalizeText(req.body?.action).toLowerCase();
+      const requestId = Number(req.body?.request_id);
+      const adminNotes = normalizeText(req.body?.admin_notes);
+
+      if (!Number.isFinite(requestId) || requestId <= 0) {
+        return res.status(400).json({ error: "Valid request_id is required" });
+      }
+
+      if (!["complete_password_reset", "reject_password_reset"].includes(action)) {
+        return res.status(400).json({
+          error: "action must be complete_password_reset or reject_password_reset",
+        });
+      }
+
+      const { data: resetRequest, error: requestError } = await sb
+        .from("password_reset_requests")
+        .select("*")
+        .eq("id", requestId)
+        .maybeSingle();
+
+      if (requestError) {
+        return res.status(400).json({ error: requestError.message });
+      }
+
+      if (!resetRequest?.id) {
+        return res.status(404).json({ error: "Password reset request not found" });
+      }
+
+      if (normalizeText(resetRequest.status).toLowerCase() !== "pending") {
+        return res
+          .status(400)
+          .json({ error: "Only pending requests can be processed" });
+      }
+
+      const actor =
+        normalizeText(sessionUser.username) ||
+        normalizeText(sessionUser.full_name) ||
+        "admin";
+      const now = new Date().toISOString();
+
+      if (action === "reject_password_reset") {
+        const { data, error } = await sb
+          .from("password_reset_requests")
+          .update({
+            status: "rejected",
+            admin_notes: adminNotes || null,
+            rejected_by: actor,
+            rejected_at: now,
+          })
+          .eq("id", requestId)
+          .select("*")
+          .single();
+
+        if (error) {
+          return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json({
+          ok: true,
+          message: "Password reset request rejected",
+          data,
+        });
+      }
+
+      const resetPasswordValue = normalizeText(resetRequest.member_id);
+      if (!resetPasswordValue) {
+        return res
+          .status(400)
+          .json({ error: "Request has no member_id for reset target" });
+      }
+
+      const passwordHash = await bcrypt.hash(resetPasswordValue, 10);
+
+      const { error: accountUpdateError } = await sb
+        .from("app_accounts")
+        .update({ password_hash: passwordHash })
+        .eq("id", resetRequest.account_id);
+
+      if (accountUpdateError) {
+        return res.status(400).json({ error: accountUpdateError.message });
+      }
+
+      const { data, error } = await sb
+        .from("password_reset_requests")
+        .update({
+          status: "completed",
+          admin_notes: adminNotes || null,
+          completed_by: actor,
+          completed_at: now,
+        })
+        .eq("id", requestId)
+        .select("*")
+        .single();
+
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      return res.status(200).json({
+        ok: true,
+        message: "Password reset completed. Password is now the member ID.",
+        data,
       });
     }
 
