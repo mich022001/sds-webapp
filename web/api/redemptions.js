@@ -64,7 +64,11 @@ function isAdminUser(user) {
 
 async function getLinkedMember(sb, sessionUser) {
   if (!sessionUser?.member_id) {
-    return { ok: false, status: 403, error: "Your account is not linked to a member. Contact admin." };
+    return {
+      ok: false,
+      status: 403,
+      error: "Your account is not linked to a member. Contact admin.",
+    };
   }
 
   const { data, error } = await sb
@@ -78,7 +82,11 @@ async function getLinkedMember(sb, sessionUser) {
   }
 
   if (!data?.member_id) {
-    return { ok: false, status: 403, error: "Linked member record was not found. Contact admin." };
+    return {
+      ok: false,
+      status: 403,
+      error: "Linked member record was not found. Contact admin.",
+    };
   }
 
   return { ok: true, member: data };
@@ -98,10 +106,7 @@ export default async function handler(req, res) {
       const redeemType = normalizeText(req.query?.redeem_type);
       const memberName = normalizeText(req.query?.member_name);
 
-      let query = sb
-        .from("redemptions")
-        .select("*")
-        .order("id", { ascending: false });
+      let query = sb.from("redemptions").select("*").order("id", { ascending: false });
 
       if (isRestrictedUser(sessionUser)) {
         const linked = await getLinkedMember(sb, sessionUser);
@@ -130,7 +135,9 @@ export default async function handler(req, res) {
 
     if (req.method === "POST") {
       if (!isRestrictedUser(sessionUser) && !isAdminUser(sessionUser)) {
-        return res.status(403).json({ error: "You are not allowed to submit redemptions" });
+        return res
+          .status(403)
+          .json({ error: "You are not allowed to submit redemptions" });
       }
 
       const linked = await getLinkedMember(sb, sessionUser);
@@ -166,7 +173,11 @@ export default async function handler(req, res) {
         qty,
         status: "pending",
         notes: notes || null,
-        requested_by: normalizeText(sessionUser.username) || normalizeText(sessionUser.full_name) || "system",
+        source: isAdminUser(sessionUser) ? "Admin Portal" : "Member Portal",
+        requested_by:
+          normalizeText(sessionUser.username) ||
+          normalizeText(sessionUser.full_name) ||
+          "system",
         requested_at: new Date().toISOString(),
       };
 
@@ -185,7 +196,9 @@ export default async function handler(req, res) {
 
     if (req.method === "PUT") {
       if (!isAdminUser(sessionUser)) {
-        return res.status(403).json({ error: "Only admin or super admin can update redemption status" });
+        return res
+          .status(403)
+          .json({ error: "Only admin or super admin can update redemption status" });
       }
 
       const id = Number(req.body?.id);
@@ -197,7 +210,9 @@ export default async function handler(req, res) {
       }
 
       if (!["approve", "release", "reject"].includes(action)) {
-        return res.status(400).json({ error: "action must be approve, release, or reject" });
+        return res
+          .status(400)
+          .json({ error: "action must be approve, release, or reject" });
       }
 
       const { data: existing, error: existingError } = await sb
@@ -221,11 +236,15 @@ export default async function handler(req, res) {
       }
 
       if (action === "release" && !["pending", "approved"].includes(currentStatus)) {
-        return res.status(400).json({ error: "Only pending or approved redemption can be released" });
+        return res
+          .status(400)
+          .json({ error: "Only pending or approved redemption can be released" });
       }
 
       if (action === "reject" && !["pending", "approved"].includes(currentStatus)) {
-        return res.status(400).json({ error: "Only pending or approved redemption can be rejected" });
+        return res
+          .status(400)
+          .json({ error: "Only pending or approved redemption can be rejected" });
       }
 
       const now = new Date().toISOString();
