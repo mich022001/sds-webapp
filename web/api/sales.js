@@ -95,17 +95,28 @@ function getUnitPrice(itemRow, membershipType) {
   return num(itemRow.srp_price);
 }
 
+function getActor(sessionUser) {
+  return (
+    normalizeText(sessionUser?.username) ||
+    normalizeText(sessionUser?.full_name) ||
+    "system"
+  );
+}
+
 function getInitialSaleStatus({ itemType, sessionUser }) {
   const cleanItemType = normalizeText(itemType).toLowerCase();
 
+  // Admin / super admin direct entries are already completed
   if (isAdminUser(sessionUser)) {
     return "released";
   }
 
+  // Registration packages are auto-approved
   if (cleanItemType === "package") {
     return "approved";
   }
 
+  // Regular product sales by RM / normal need admin approval
   if (cleanItemType === "product" && isRestrictedUser(sessionUser)) {
     return "pending";
   }
@@ -222,12 +233,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const memberResult = await resolveMemberContext(
-        sb,
-        sessionUser,
-        req.body ?? {}
-      );
-
+      const memberResult = await resolveMemberContext(sb, sessionUser, req.body ?? {});
       if (!memberResult.ok) {
         return res
           .status(memberResult.status || 400)
@@ -278,11 +284,7 @@ export default async function handler(req, res) {
         sessionUser,
       });
 
-      const actor =
-        normalizeText(sessionUser.username) ||
-        normalizeText(sessionUser.full_name) ||
-        "system";
-
+      const actor = getActor(sessionUser);
       const now = new Date().toISOString();
 
       const payload = {
@@ -309,6 +311,9 @@ export default async function handler(req, res) {
         released_by: null,
         rejected_at: null,
         rejected_by: null,
+        cancelled_at: null,
+        cancelled_by: null,
+        cancel_reason: null,
       };
 
       if (status === "approved") {
@@ -340,29 +345,20 @@ export default async function handler(req, res) {
         message:
           status === "pending"
             ? "Sale request submitted successfully."
-            : "Sale saved successfully.",
+            : status === "approved"
+              ? "Sale saved and approved successfully."
+              : "Sale saved and released successfully.",
         data,
       });
     }
 
     if (req.method === "PUT") {
-      if (!isAdminUser(sessionUser)) {
-        return res
-          .status(403)
-          .json({ error: "Only admin or super admin can update sales" });
-      }
-
       const id = Number(req.body?.id);
       const action = normalizeText(req.body?.action).toLowerCase();
+      const cancelReason = normalizeText(req.body?.cancel_reason);
 
       if (!Number.isFinite(id) || id <= 0) {
         return res.status(400).json({ error: "Valid sale id is required" });
-      }
-
-      if (!["approve", "reject", "paid", "release"].includes(action)) {
-        return res.status(400).json({
-          error: "action must be approve, reject, paid, or release",
-        });
       }
 
       const { data: existing, error: existingError } = await sb
@@ -380,11 +376,72 @@ export default async function handler(req, res) {
       }
 
       const currentStatus = normalizeText(existing.status).toLowerCase();
-      const actor =
-        normalizeText(sessionUser.username) ||
-        normalizeText(sessionUser.full_name) ||
-        "admin";
+      const actor = getActor(sessionUser);
       const now = new Date().toISOString();
+
+      // USER CANCEL
+      if (action === "cancel") {
+        if (!isRestrictedUser(sessionUser)) {
+          return res.status(403).json({
+            error: "Only RM or normal users can cancel their own pending sales",
+          });
+        }
+
+        if (normalizeText(existing.member_id) !== normalizeText(sessionUser.member_id)) {
+          return res.status(403).json({
+            error: "You can only cancel your own sale requests",
+          });
+        }
+
+        if (currentStatus !== "pending") {
+          return res.status(400).json({
+            error: "Only pending sales can be cancelled",
+          });
+        }
+
+        if (!cancelReason) {
+          return res.status(400).json({
+            error: "Cancel reason is required",
+          });
+        }
+
+        const patch = {
+          status: "cancelled",
+          cancelled_at: now,
+          cancelled_by: actor,
+          cancel_reason: cancelReason,
+        };
+
+        const { data, error } = await sb
+          .from("sales_ledger")
+          .update(patch)
+          .eq("id", id)
+          .select("*")
+          .single();
+
+        if (error) {
+          return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json({
+          ok: true,
+          message: "Sale request cancelled successfully.",
+          data,
+        });
+      }
+
+      // ADMIN ACTIONS
+      if (!isAdminUser(sessionUser)) {
+        return res
+          .status(403)
+          .json({ error: "Only admin or super admin can update sales" });
+      }
+
+      if (!["approve", "reject", "paid", "release"].includes(action)) {
+        return res.status(400).json({
+          error: "action must be approve, reject, paid, release, or cancel",
+        });
+      }
 
       const patch = {};
 
@@ -477,11 +534,12 @@ export default async function handler(req, res) {
       const buyer = normalizeText(req.query?.buyer);
       const product = normalizeText(req.query?.product);
       const itemType = normalizeText(req.query?.item_type);
-      const status = normalizeText(req.query?.status);
+      const status = normalizeText(req.query?.status).toLowerCase();
 
-      let query = sb.from("sales_ledger").select("*").order("id", {
-        ascending: false,
-      });
+      let query = sb
+        .from("sales_ledger")
+        .select("*")
+        .order("id", { ascending: false });
 
       if (isRestrictedUser(sessionUser)) {
         if (!sessionUser.member_id) {
@@ -499,7 +557,16 @@ export default async function handler(req, res) {
       if (to) query = query.lte("created_at", to);
       if (product) query = query.ilike("product_name", `%${product}%`);
       if (itemType) query = query.eq("item_type", itemType);
-      if (status) query = query.eq("status", status);
+
+      if (status === "queue") {
+        if (!isAdminUser(sessionUser)) {
+          return res.status(403).json({ error: "Admin only" });
+        }
+
+        query = query.in("status", ["pending", "approved", "paid"]);
+      } else if (status) {
+        query = query.eq("status", status);
+      }
 
       const { data, error } = await query;
 

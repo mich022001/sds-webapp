@@ -62,7 +62,7 @@ export default function Reports() {
       if (currentFilters.buyer) qs.set("buyer", currentFilters.buyer);
       if (currentFilters.product) qs.set("product", currentFilters.product);
 
-      // reports should only show completed sales
+      // Reports should only include fully completed sales
       qs.set("status", "released");
 
       const res = await fetch(`/api/sales?${qs.toString()}`);

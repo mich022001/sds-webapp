@@ -44,6 +44,18 @@ function Select({ label, children, className = "", ...props }) {
   );
 }
 
+function Textarea({ label, className = "", ...props }) {
+  return (
+    <label className={cls("grid min-w-0 gap-1", className)}>
+      <span className="text-xs font-medium text-zinc-600">{label}</span>
+      <textarea
+        {...props}
+        className="min-h-[88px] w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-zinc-900"
+      />
+    </label>
+  );
+}
+
 function Stat({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -70,7 +82,9 @@ function StatusBadge({ status }) {
             ? "bg-emerald-100 text-emerald-800"
             : s === "rejected"
               ? "bg-red-100 text-red-800"
-              : "bg-zinc-100 text-zinc-700";
+              : s === "cancelled"
+                ? "bg-zinc-200 text-zinc-700"
+                : "bg-zinc-100 text-zinc-700";
 
   return (
     <span
@@ -133,11 +147,11 @@ export default function SalesEntry({ user }) {
   const [items, setItems] = useState([]);
   const [linkedMember, setLinkedMember] = useState(null);
   const [historyRows, setHistoryRows] = useState([]);
-  const [pendingRows, setPendingRows] = useState([]);
+  const [queueRows, setQueueRows] = useState([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [loadingPending, setLoadingPending] = useState(false);
+  const [loadingQueue, setLoadingQueue] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
@@ -153,6 +167,9 @@ export default function SalesEntry({ user }) {
     unitType: "Per Piece",
     quantity: 1,
   });
+
+  const [cancelRowId, setCancelRowId] = useState(null);
+  const [cancelReasonById, setCancelReasonById] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -286,32 +303,32 @@ export default function SalesEntry({ user }) {
     }
   }
 
-  async function loadPendingSales() {
+  async function loadQueue() {
     if (!isAdmin) {
-      setPendingRows([]);
+      setQueueRows([]);
       return;
     }
 
     try {
-      setLoadingPending(true);
-      const res = await fetch("/api/sales?status=pending");
+      setLoadingQueue(true);
+      const res = await fetch("/api/sales?status=queue");
       const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        throw new Error(json.error || "Failed to load pending sales");
+        throw new Error(json.error || "Failed to load sales queue");
       }
 
-      setPendingRows(Array.isArray(json?.data) ? json.data : []);
+      setQueueRows(Array.isArray(json?.data) ? json.data : []);
     } catch (e) {
-      setErr(e?.message || "Failed to load pending sales");
+      setErr(e?.message || "Failed to load sales queue");
     } finally {
-      setLoadingPending(false);
+      setLoadingQueue(false);
     }
   }
 
   useEffect(() => {
     loadHistory();
-    loadPendingSales();
+    loadQueue();
   }, [isAdmin]);
 
   const selectedMember = useMemo(() => {
@@ -420,7 +437,7 @@ export default function SalesEntry({ user }) {
       alert(json.message || "Sale saved successfully.");
       clearForm();
       await loadHistory();
-      await loadPendingSales();
+      await loadQueue();
     } catch (e) {
       setErr(e?.message || "Failed to save sale");
     } finally {
@@ -428,7 +445,7 @@ export default function SalesEntry({ user }) {
     }
   }
 
-  async function handlePendingAction(id, action) {
+  async function handleQueueAction(id, action) {
     try {
       setSaving(true);
       setErr("");
@@ -452,9 +469,51 @@ export default function SalesEntry({ user }) {
 
       alert(json.message || "Sale updated successfully.");
       await loadHistory();
-      await loadPendingSales();
+      await loadQueue();
     } catch (e) {
       setErr(e?.message || "Failed to update sale");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCancelSale(id) {
+    const reason = String(cancelReasonById[id] || "").trim();
+
+    if (!reason) {
+      alert("Please provide a cancel reason.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setErr("");
+
+      const res = await fetch("/api/sales", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+          action: "cancel",
+          cancel_reason: reason,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to cancel sale");
+      }
+
+      alert(json.message || "Sale request cancelled successfully.");
+      setCancelRowId(null);
+      setCancelReasonById((prev) => ({ ...prev, [id]: "" }));
+      await loadHistory();
+      await loadQueue();
+    } catch (e) {
+      setErr(e?.message || "Failed to cancel sale");
     } finally {
       setSaving(false);
     }
@@ -475,7 +534,7 @@ export default function SalesEntry({ user }) {
     }));
   }
 
-  function renderActions(row) {
+  function renderAdminActions(row) {
     const status = String(row.status || "").toLowerCase();
 
     if (status === "pending") {
@@ -484,7 +543,7 @@ export default function SalesEntry({ user }) {
           <button
             type="button"
             disabled={saving}
-            onClick={() => handlePendingAction(row.id, "approve")}
+            onClick={() => handleQueueAction(row.id, "approve")}
             className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
           >
             Approve
@@ -492,7 +551,7 @@ export default function SalesEntry({ user }) {
           <button
             type="button"
             disabled={saving}
-            onClick={() => handlePendingAction(row.id, "reject")}
+            onClick={() => handleQueueAction(row.id, "reject")}
             className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             Reject
@@ -507,7 +566,7 @@ export default function SalesEntry({ user }) {
           <button
             type="button"
             disabled={saving}
-            onClick={() => handlePendingAction(row.id, "paid")}
+            onClick={() => handleQueueAction(row.id, "paid")}
             className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
           >
             Mark Paid
@@ -515,7 +574,7 @@ export default function SalesEntry({ user }) {
           <button
             type="button"
             disabled={saving}
-            onClick={() => handlePendingAction(row.id, "reject")}
+            onClick={() => handleQueueAction(row.id, "reject")}
             className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             Reject
@@ -530,7 +589,7 @@ export default function SalesEntry({ user }) {
           <button
             type="button"
             disabled={saving}
-            onClick={() => handlePendingAction(row.id, "release")}
+            onClick={() => handleQueueAction(row.id, "release")}
             className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
           >
             Release
@@ -538,7 +597,7 @@ export default function SalesEntry({ user }) {
           <button
             type="button"
             disabled={saving}
-            onClick={() => handlePendingAction(row.id, "reject")}
+            onClick={() => handleQueueAction(row.id, "reject")}
             className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             Reject
@@ -715,11 +774,11 @@ export default function SalesEntry({ user }) {
 
       {isAdmin && (
         <Card title="Sales Approval Queue" className="min-w-0">
-          {loadingPending ? (
+          {loadingQueue ? (
             <div className="text-sm text-zinc-500">Loading...</div>
-          ) : pendingRows.length === 0 ? (
+          ) : queueRows.length === 0 ? (
             <div className="text-sm text-zinc-500">
-              No pending sales found.
+              No sales waiting for action.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -756,7 +815,7 @@ export default function SalesEntry({ user }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingRows.map((row) => (
+                  {queueRows.map((row) => (
                     <tr key={row.id} className="border-b border-zinc-100">
                       <td className="px-4 py-3 text-zinc-700">
                         {fmtDate(row.created_at)}
@@ -785,7 +844,7 @@ export default function SalesEntry({ user }) {
                       <td className="px-4 py-3">
                         <StatusBadge status={row.status} />
                       </td>
-                      <td className="px-4 py-3">{renderActions(row)}</td>
+                      <td className="px-4 py-3">{renderAdminActions(row)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -802,7 +861,7 @@ export default function SalesEntry({ user }) {
           <div className="text-sm text-zinc-500">No sales found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] border-collapse text-sm">
+            <table className="w-full min-w-[1400px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                   <th className="px-4 py-2 font-semibold text-zinc-700">
@@ -832,39 +891,114 @@ export default function SalesEntry({ user }) {
                   <th className="px-4 py-2 font-semibold text-zinc-700">
                     Status
                   </th>
+                  <th className="px-4 py-2 font-semibold text-zinc-700">
+                    Cancel Reason
+                  </th>
+                  {isRestricted && (
+                    <th className="px-4 py-2 font-semibold text-zinc-700">
+                      User Action
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {historyRows.map((row) => (
-                  <tr key={row.id} className="border-b border-zinc-100">
-                    <td className="px-4 py-3 text-zinc-700">
-                      {fmtDate(row.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-900">
-                      <div className="font-medium">{row.member_name}</div>
-                      <div className="text-xs text-zinc-500">
-                        {row.member_id}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {row.product_name}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">{row.item_type}</td>
-                    <td className="px-4 py-3 text-zinc-700">{row.quantity}</td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {Number(row.unit_price || 0).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {Number(row.total_amount || 0).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {row.encoded_by || "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={row.status} />
-                    </td>
-                  </tr>
-                ))}
+                {historyRows.map((row) => {
+                  const isPending = String(row.status || "").toLowerCase() === "pending";
+                  const canCancel = isRestricted && isPending;
+
+                  return (
+                    <tr key={row.id} className="border-b border-zinc-100 align-top">
+                      <td className="px-4 py-3 text-zinc-700">
+                        {fmtDate(row.created_at)}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-900">
+                        <div className="font-medium">{row.member_name}</div>
+                        <div className="text-xs text-zinc-500">
+                          {row.member_id}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {row.product_name}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">{row.item_type}</td>
+                      <td className="px-4 py-3 text-zinc-700">{row.quantity}</td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {Number(row.unit_price || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {Number(row.total_amount || 0).toFixed(2)}
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {row.encoded_by || "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td className="px-4 py-3 text-zinc-700">
+                        {row.cancel_reason || "-"}
+                      </td>
+
+                      {isRestricted && (
+                        <td className="px-4 py-3">
+                          {canCancel ? (
+                            <div className="grid gap-2">
+                              {cancelRowId === row.id ? (
+                                <>
+                                  <Textarea
+                                    label="Reason"
+                                    value={cancelReasonById[row.id] || ""}
+                                    onChange={(e) =>
+                                      setCancelReasonById((prev) => ({
+                                        ...prev,
+                                        [row.id]: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Why are you cancelling this request?"
+                                  />
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      disabled={saving}
+                                      onClick={() => handleCancelSale(row.id)}
+                                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                    >
+                                      Confirm Cancel
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={saving}
+                                      onClick={() => {
+                                        setCancelRowId(null);
+                                        setCancelReasonById((prev) => ({
+                                          ...prev,
+                                          [row.id]: "",
+                                        }));
+                                      }}
+                                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+                                    >
+                                      Close
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={saving}
+                                  onClick={() => setCancelRowId(row.id)}
+                                  className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  Cancel Request
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-zinc-500">No action</div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
