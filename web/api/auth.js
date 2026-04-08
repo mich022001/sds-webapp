@@ -24,9 +24,6 @@ export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
 
-    // =========================================
-    // ✅ SESSION CHECK (FIX FOR REFRESH)
-    // =========================================
     if (req.method === "GET") {
       try {
         const cookies = cookie.parse(req.headers.cookie || "");
@@ -55,6 +52,25 @@ export default async function handler(req, res) {
     }
 
     const action = String(req.body?.action || "").trim();
+    const isProd = process.env.NODE_ENV === "production";
+
+    // =========================================
+    // 🚪 LOGOUT
+    // =========================================
+    if (action === "logout") {
+      res.setHeader(
+        "Set-Cookie",
+        cookie.serialize("sds_session", "", {
+          httpOnly: true,
+          path: "/",
+          sameSite: "lax",
+          secure: isProd,
+          expires: new Date(0),
+        })
+      );
+
+      return res.status(200).json({ ok: true });
+    }
 
     // =========================================
     // 🔥 FORGOT PASSWORD (USERNAME ONLY)
@@ -168,9 +184,6 @@ export default async function handler(req, res) {
       { expiresIn: "7d" }
     );
 
-    // ✅ FIXED COOKIE
-    const isProd = process.env.NODE_ENV === "production";
-
     res.setHeader(
       "Set-Cookie",
       cookie.serialize("sds_session", token, {
@@ -178,7 +191,7 @@ export default async function handler(req, res) {
         path: "/",
         sameSite: "lax",
         secure: isProd,
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60 * 60 * 24 * 7,
       })
     );
 
