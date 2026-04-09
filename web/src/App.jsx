@@ -214,8 +214,10 @@ export default function App() {
                 {pageTitle}
               </div>
               <div className="text-sm text-zinc-500">
-                Logged in as {user?.full_name || user?.username || "user"} (
-                {user?.role || "unknown"})
+                Logged in as{" "}
+                <span className="font-medium text-zinc-900">
+                  {user?.full_name || user?.username || "user"}
+                </span>
               </div>
             </div>
 
