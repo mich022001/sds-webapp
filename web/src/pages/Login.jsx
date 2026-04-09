@@ -1,17 +1,25 @@
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
-export default function Login({ onLogin }) {
-  const [form, setForm] = useState({ username: "", password: "" });
+export default function Login({ onLogin, onGoForgotPassword }) {
+  const [form, setForm] = useState({
+    username: "",
+    password: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const [forgotMode, setForgotMode] = useState(false);
-  const [resetUsername, setResetUsername] = useState("");
-  const [resetMsg, setResetMsg] = useState("");
-  const [resetErr, setResetErr] = useState("");
-
-  async function handleLogin(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+
+    const username = String(form.username || "").trim();
+    const password = String(form.password || "");
+
+    if (!username || !password) {
+      setErr("Please enter your username and password.");
+      return;
+    }
 
     try {
       setLoading(true);
@@ -22,135 +30,107 @@ export default function Login({ onLogin }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          username,
+          password,
+        }),
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         throw new Error(json.error || "Login failed");
       }
 
-      onLogin(json.user);
+      if (typeof onLogin === "function") {
+        onLogin(json.user || null);
+      }
     } catch (e) {
-      setErr(e.message);
+      setErr(e?.message || "Login failed");
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleForgotPassword(e) {
-    e.preventDefault();
-
-    try {
-      setResetErr("");
-      setResetMsg("");
-
-      const res = await fetch("/api/auth", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "request_password_reset",
-          username: resetUsername,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.error || "Failed");
-      }
-
-      setResetMsg(json.message);
-      setResetUsername("");
-    } catch (e) {
-      setResetErr(e.message);
-    }
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-      <div className="w-full max-w-md rounded-2xl border bg-white p-6 shadow">
-        <h1 className="mb-4 text-xl font-bold">SDS Admin Login</h1>
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
+      <div className="w-full max-w-xl rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-zinc-900">
+            Surefit Direct Sales
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Sign in to your account
+          </p>
+        </div>
 
-        {!forgotMode ? (
-          <form onSubmit={handleLogin} className="space-y-4">
+        <form className="grid gap-5" onSubmit={handleSubmit}>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-zinc-700">
+              Username
+            </label>
             <input
               type="text"
-              placeholder="Username"
               value={form.username}
               onChange={(e) =>
-                setForm({ ...form, username: e.target.value })
+                setForm((prev) => ({ ...prev, username: e.target.value }))
               }
-              className="w-full rounded border px-3 py-2"
+              placeholder="Enter username"
+              autoComplete="username"
+              className="h-14 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 text-lg text-zinc-900 outline-none transition focus:border-zinc-900 focus:bg-white"
             />
+          </div>
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={(e) =>
-                setForm({ ...form, password: e.target.value })
-              }
-              className="w-full rounded border px-3 py-2"
-            />
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-zinc-700">
+              Password
+            </label>
 
-            {err && <div className="text-sm text-red-500">{err}</div>}
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={form.password}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, password: e.target.value }))
+                }
+                placeholder="Enter password"
+                autoComplete="current-password"
+                className="h-14 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 pr-14 text-lg text-zinc-900 outline-none transition focus:border-zinc-900 focus:bg-white"
+              />
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded bg-black py-2 text-white"
-            >
-              {loading ? "Logging in..." : "Login"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setForgotMode(true)}
-              className="text-sm text-blue-600 underline"
-            >
-              Forgot password?
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleForgotPassword} className="space-y-4">
-            <input
-              type="text"
-              placeholder="Enter your username"
-              value={resetUsername}
-              onChange={(e) => setResetUsername(e.target.value)}
-              className="w-full rounded border px-3 py-2"
-            />
-
-            <div className="text-xs text-zinc-500">
-              Your request will be reviewed by admin. Once approved, your
-              password will be reset to your Member ID.
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 transition hover:text-zinc-900"
+              >
+                {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+              </button>
             </div>
+          </div>
 
-            {resetErr && <div className="text-sm text-red-500">{resetErr}</div>}
-            {resetMsg && (
-              <div className="text-sm text-green-600">{resetMsg}</div>
-            )}
+          {err && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {err}
+            </div>
+          )}
 
-            <button
-              type="submit"
-              className="w-full rounded bg-black py-2 text-white"
-            >
-              Submit Request
-            </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="h-14 rounded-xl bg-black text-xl font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Logging in..." : "Login"}
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setForgotMode(false)}
-              className="text-sm underline"
-            >
-              Back to login
-            </button>
-          </form>
-        )}
+          <button
+            type="button"
+            onClick={onGoForgotPassword}
+            className="w-fit text-base text-blue-700 underline underline-offset-2 transition hover:text-blue-900"
+          >
+            Forgot password?
+          </button>
+        </form>
       </div>
     </div>
   );
