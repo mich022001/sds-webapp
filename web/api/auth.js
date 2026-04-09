@@ -20,10 +20,18 @@ function getSecret() {
   return process.env.SDS_AUTH_SECRET;
 }
 
+function normalizeText(v) {
+  return String(v || "").trim();
+}
+
 export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
+    const isProd = process.env.NODE_ENV === "production";
 
+    // =========================================
+    // ✅ SESSION CHECK
+    // =========================================
     if (req.method === "GET") {
       try {
         const cookies = cookie.parse(req.headers.cookie || "");
@@ -51,8 +59,7 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    const action = String(req.body?.action || "").trim();
-    const isProd = process.env.NODE_ENV === "production";
+    const action = normalizeText(req.body?.action);
 
     // =========================================
     // 🚪 LOGOUT
@@ -76,7 +83,7 @@ export default async function handler(req, res) {
     // 🔥 FORGOT PASSWORD (USERNAME ONLY)
     // =========================================
     if (action === "request_password_reset") {
-      const username = String(req.body?.username || "").trim();
+      const username = normalizeText(req.body?.username);
 
       if (!username) {
         return res.status(400).json({ error: "Username is required" });
@@ -102,27 +109,35 @@ export default async function handler(req, res) {
         });
       }
 
-      const { data: existing } = await sb
+      const { data: existingPending, error: pendingErr } = await sb
         .from("password_reset_requests")
         .select("id")
         .eq("account_id", account.id)
         .eq("status", "pending")
         .maybeSingle();
 
-      if (existing?.id) {
+      if (pendingErr) {
+        return res.status(500).json({ error: pendingErr.message });
+      }
+
+      if (existingPending?.id) {
         return res.status(400).json({
           error:
             "You already have a pending password reset request. Please contact admin.",
         });
       }
 
-      const { data: member } = await sb
+      const { data: member, error: memberErr } = await sb
         .from("members")
         .select("member_id, name")
         .eq("member_id", account.member_id)
         .maybeSingle();
 
-      const { error } = await sb.from("password_reset_requests").insert([
+      if (memberErr) {
+        return res.status(500).json({ error: memberErr.message });
+      }
+
+      const { error: insertErr } = await sb.from("password_reset_requests").insert([
         {
           account_id: account.id,
           username: account.username,
@@ -133,8 +148,17 @@ export default async function handler(req, res) {
         },
       ]);
 
-      if (error) {
-        return res.status(500).json({ error: error.message });
+      if (insertErr) {
+        const msg = String(insertErr.message || "").toLowerCase();
+
+        if (msg.includes("duplicate") || msg.includes("unique")) {
+          return res.status(400).json({
+            error:
+              "You already have a pending password reset request. Please contact admin.",
+          });
+        }
+
+        return res.status(500).json({ error: insertErr.message });
       }
 
       return res.status(200).json({
@@ -147,7 +171,8 @@ export default async function handler(req, res) {
     // =========================================
     // 🔐 LOGIN
     // =========================================
-    const { username, password } = req.body;
+    const username = normalizeText(req.body?.username);
+    const password = String(req.body?.password || "");
 
     if (!username || !password) {
       return res.status(400).json({ error: "Missing credentials" });
