@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Menu } from "lucide-react";
+import Sidebar from "./components/Sidebar";
 import Members from "./pages/Members";
 import BonusLedger from "./pages/BonusLedger";
 import Dashboard from "./pages/Dashboard";
@@ -80,7 +82,7 @@ function Card({ title, children, right, className = "" }) {
   );
 }
 
-function Button({ children, variant = "primary", ...props }) {
+function Button({ children, variant = "primary", className = "", ...props }) {
   return (
     <button
       {...props}
@@ -88,7 +90,8 @@ function Button({ children, variant = "primary", ...props }) {
         "h-10 rounded-xl px-4 text-sm font-semibold transition",
         variant === "primary" && "bg-zinc-900 text-white hover:bg-zinc-800",
         variant === "ghost" &&
-          "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50"
+          "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
+        className
       )}
     >
       {children}
@@ -105,14 +108,6 @@ function getDefaultPage(role) {
   return allowed[0]?.key ?? "dashboard";
 }
 
-function getShellTitle(role) {
-  if (role === "super_admin") return "SDS Super Admin";
-  if (role === "admin") return "SDS Admin";
-  if (role === "rm") return "SDS RM Portal";
-  if (role === "normal") return "SDS Member Portal";
-  return "SDS Web System";
-}
-
 function hasAccess(role, key) {
   return getAllowedNav(role).some((n) => n.key === key);
 }
@@ -121,6 +116,7 @@ export default function App() {
   const [active, setActive] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const currentNav = useMemo(() => getAllowedNav(user?.role), [user?.role]);
 
@@ -128,6 +124,11 @@ export default function App() {
     () => currentNav.find((n) => n.key === active)?.label ?? "Dashboard",
     [active, currentNav]
   );
+
+  function handleNavigate(key) {
+    setActive(key);
+    setSidebarOpen(false);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +167,17 @@ export default function App() {
     }
   }, [active, user?.role]);
 
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(false);
+      }
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50">
@@ -180,50 +192,70 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-50">
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6">
-        <aside className="hidden w-64 shrink-0 md:block">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-            <div className="text-lg font-extrabold text-zinc-900">
-              {getShellTitle(user.role)}
-            </div>
-            <div className="text-xs text-zinc-500">Direct Sales Web System</div>
+      {sidebarOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close sidebar overlay"
+        />
+      )}
 
-            <div className="mt-4 grid gap-1">
-              {currentNav.map((n) => (
-                <button
-                  key={n.key}
-                  onClick={() => setActive(n.key)}
-                  className={cls(
-                    "flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm",
-                    active === n.key
-                      ? "bg-zinc-900 text-white"
-                      : "text-zinc-700 hover:bg-zinc-100"
-                  )}
-                >
-                  <span className="font-semibold">{n.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-4 md:py-6">
+        <aside className="hidden w-64 shrink-0 md:block">
+          <Sidebar
+            user={user}
+            currentNav={currentNav}
+            active={active}
+            onNavigate={handleNavigate}
+          />
+        </aside>
+
+        <aside
+          className={cls(
+            "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transform bg-zinc-50 p-4 transition-transform duration-300 md:hidden",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <Sidebar
+            user={user}
+            currentNav={currentNav}
+            active={active}
+            onNavigate={handleNavigate}
+            onClose={() => setSidebarOpen(false)}
+            mobile
+          />
         </aside>
 
         <main className="min-w-0 flex-1 overflow-x-hidden pb-8">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <div className="text-xl font-extrabold text-zinc-900">
-                {pageTitle}
-              </div>
-              <div className="text-sm text-zinc-500">
-                Logged in as{" "}
-                <span className="font-medium text-zinc-900">
-                  {user?.full_name || user?.username || "user"}
-                </span>
+          <div className="mb-5 flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-900 shadow-sm hover:bg-zinc-50 md:hidden"
+                aria-label="Open menu"
+              >
+                <Menu size={20} />
+              </button>
+
+              <div className="min-w-0">
+                <div className="truncate text-xl font-extrabold text-zinc-900">
+                  {pageTitle}
+                </div>
+                <div className="text-sm text-zinc-500">
+                  Logged in as{" "}
+                  <span className="font-medium text-zinc-900">
+                    {user?.full_name || user?.username || "user"}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex shrink-0 gap-2">
               <Button
                 variant="ghost"
+                className="px-3 md:px-4"
                 onClick={async () => {
                   try {
                     await fetch("/api/auth", {
@@ -245,7 +277,6 @@ export default function App() {
           </div>
 
           {active === "dashboard" && <Dashboard user={user} />}
-
           {active === "registration" && <Registration user={user} />}
 
           {active === "registration_codes" &&
