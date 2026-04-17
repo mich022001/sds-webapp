@@ -258,6 +258,69 @@ async function resolveRegionalManagerForRequest(
   };
 }
 
+/* =========================
+   PROMOTION LOGIC (SAFE)
+========================= */
+const REQUIRED_DIRECTS = 3;
+const REQUIRED_DEPTH = 3;
+
+async function handlePromotions(sb, sponsorName) {
+  const sponsor = normalizeText(sponsorName);
+  if (!sponsor || sponsor.toUpperCase() === "SDS") return;
+
+  await sb
+    .from("members")
+    .update({ membership_type: "Distributor" })
+    .eq("name", sponsor)
+    .eq("membership_type", "Member");
+
+  const qualifies = await checkAreaManagerQualification(sb, sponsor);
+
+  if (qualifies) {
+    await sb
+      .from("members")
+      .update({ membership_type: "Area Manager" })
+      .eq("name", sponsor)
+      .not("membership_type", "in", '("Area Manager","Regional Manager")');
+  }
+}
+
+async function checkAreaManagerQualification(sb, sponsorName) {
+  const { data: directs } = await sb
+    .from("members")
+    .select("name")
+    .eq("sponsor_name", sponsorName);
+
+  if (!directs || directs.length < REQUIRED_DIRECTS) return false;
+
+  for (const d of directs) {
+    const depth = await getDepth(sb, d.name, 1);
+    if (depth < REQUIRED_DEPTH) return false;
+  }
+
+  return true;
+}
+
+async function getDepth(sb, name, level) {
+  if (level >= REQUIRED_DEPTH) return level;
+
+  const { data } = await sb
+    .from("members")
+    .select("name")
+    .eq("sponsor_name", name);
+
+  if (!data || data.length === 0) return level;
+
+  let max = level;
+
+  for (const child of data) {
+    const d = await getDepth(sb, child.name, level + 1);
+    if (d > max) max = d;
+  }
+
+  return max;
+}
+
 export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
@@ -426,6 +489,7 @@ export default async function handler(req, res) {
       }
 
       const result = extractMemberRow(data) || {};
+      await handlePromotions(sb, finalSponsor);
 
       return res.status(200).json({
         ok: true,
