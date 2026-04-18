@@ -188,10 +188,6 @@ export default function MyMembers({ user }) {
                         </div>
                       </div>
 
-                      <div className="border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-zinc-700">
-                        Names
-                      </div>
-
                       <div className="max-h-[420px] overflow-y-auto">
                         {!lvl.members || lvl.members.length === 0 ? (
                           <div className="px-5 py-4 text-sm text-zinc-500">
