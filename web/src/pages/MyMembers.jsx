@@ -91,7 +91,6 @@ export default function MyMembers({ user }) {
     };
   }, [user?.member_id]);
 
-  const members = Array.isArray(report?.members) ? report.members : [];
   const levels = Array.isArray(report?.levels) ? report.levels : [];
   const byType = report?.byType || {};
   const totals = report?.totals || {};
@@ -106,8 +105,7 @@ export default function MyMembers({ user }) {
           ? lvl.members.filter((m) => {
               return (
                 norm(m.name).includes(q) ||
-                norm(m.membership_type).includes(q) ||
-                norm(m.sponsor_name).includes(q)
+                norm(m.membership_type).includes(q)
               );
             })
           : [];
@@ -135,7 +133,7 @@ export default function MyMembers({ user }) {
         <>
           <div className="grid gap-4 md:grid-cols-4">
             <Stat label="Regional Manager" value={rmMember?.name || "-"} />
-            <Stat label="Total Members" value={totals.totalMembers ?? members.length ?? 0} />
+            <Stat label="Total Members" value={totals.totalMembers ?? 0} />
             <Stat label="Members" value={byType["Member"] || 0} />
             <Stat label="Distributors" value={byType["Distributor"] || 0} />
           </div>
@@ -148,14 +146,12 @@ export default function MyMembers({ user }) {
 
           <Card title="My Members Genealogy">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <div className="text-sm text-zinc-600">
-                  Genealogy view of members under{" "}
-                  <span className="font-semibold text-zinc-900">
-                    {rmMember?.name || "RM"}
-                  </span>
-                  .
-                </div>
+              <div className="text-sm text-zinc-600">
+                Genealogy view of members under{" "}
+                <span className="font-semibold text-zinc-900">
+                  {rmMember?.name || "RM"}
+                </span>
+                .
               </div>
 
               <div className="w-full md:w-[320px]">
@@ -165,8 +161,8 @@ export default function MyMembers({ user }) {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search member, type, sponsor"
-                  className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-400"
+                  placeholder="Search member or type"
+                  className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-400"
                 />
               </div>
             </div>
@@ -205,15 +201,10 @@ export default function MyMembers({ user }) {
                           lvl.members.map((m, idx) => (
                             <div
                               key={`${lvl.level}-${m.name || "member"}-${idx}`}
-                              className="border-b border-zinc-100 px-5 py-4"
+                              className="border-b border-zinc-100 px-5 py-4 text-zinc-700"
                             >
-                              <div className="font-medium text-zinc-900">
-                                {m.name || "-"}
-                              </div>
-                              <div className="mt-1 text-xs text-zinc-500">
-                                {m.membership_type || "-"}
-                                {m.sponsor_name ? ` • Sponsor: ${m.sponsor_name}` : ""}
-                              </div>
+                              {m.name || "-"}
+                              {m.membership_type ? ` (${m.membership_type})` : ""}
                             </div>
                           ))
                         )}
