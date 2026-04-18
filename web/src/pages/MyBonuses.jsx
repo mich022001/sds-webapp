@@ -113,7 +113,7 @@ export default function MyBonuses({ user }) {
             />
             <Stat label="Cash Balance" value={fmtAmount(totals.balance_cash)} />
             <Stat
-              label="Total Product"
+              label="Product Bonus"
               value={fmtAmount(totals.total_product)}
             />
             <Stat
