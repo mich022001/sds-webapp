@@ -16,6 +16,8 @@ import Registration from "./pages/Registration";
 import Profile from "./pages/Profile";
 import MyBonuses from "./pages/MyBonuses";
 import Redemptions from "./pages/Redemptions";
+import MyMembers from "./pages/MyMembers";
+import MyRebates from "./pages/MyRebates";
 
 const navByRole = {
   super_admin: [
@@ -319,11 +321,8 @@ export default function App() {
 
           {active === "redemptions" && <Redemptions user={user} />}
 
-          {active === "my_members" && user.role === "rm" && (
-            <Placeholder
-              title="My Members"
-              desc="RM-scoped member list and downline view."
-            />
+	  {active === "my_members" && user.role === "rm" && (
+            <MyMembers user={user} />
           )}
 
           {active === "my_bonuses" &&
@@ -332,10 +331,7 @@ export default function App() {
             )}
 
           {active === "my_rebates" && user.role === "rm" && (
-            <Placeholder
-              title="My Rebates"
-              desc="RM-only rebate summary and history."
-            />
+            <MyRebates user={user} />
           )}
 
           {active === "profile" &&
