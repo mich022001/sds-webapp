@@ -46,6 +46,10 @@ function isRedeemableBonus(row) {
   return row?.is_redeemable === true;
 }
 
+function isOutrightCashBonus(row) {
+  return norm(bonusType(row)) === "cash" && norm(bonusLabel(row)) === "d.c. bonus";
+}
+
 async function trySelectByColumn(sb, table, candidates, value) {
   for (const col of candidates) {
     const { data, error } = await sb.from(table).select("*").eq(col, value);
@@ -195,6 +199,7 @@ async function handleMemberReport(sb, req, res) {
     return String(a.created_at || "").localeCompare(String(b.created_at || ""));
   });
 
+  let outright_cash = 0;
   let total_cash = 0;
   let redeemable_cash = 0;
   let total_product = 0;
@@ -204,8 +209,11 @@ async function handleMemberReport(sb, req, res) {
     const amt = bonusAmount(b);
 
     if (type === "cash") {
-      total_cash += amt;
+      if (isOutrightCashBonus(b)) {
+        outright_cash += amt;
+      }
       if (isRedeemableBonus(b)) {
+        total_cash += amt;
         redeemable_cash += amt;
       }
     } else if (type === "product") {
@@ -292,6 +300,7 @@ async function handleMemberReport(sb, req, res) {
   return res.status(200).json({
     member,
     totals: {
+      outright_cash,
       total_cash,
       redeemable_cash,
       redeemed_cash,
@@ -439,19 +448,26 @@ async function handleRegionalReport(sb, req, res) {
     return sum + toNumber(row.rebate);
   }, 0);
 
-  const totalCashBonus = bonuses
-    .filter((b) => norm(bonusType(b)) === "cash")
-    .reduce((sum, b) => sum + bonusAmount(b), 0);
+  let outrightCashBonus = 0;
+  let redeemableCashBonus = 0;
 
-  const redeemableCashBonus = bonuses
-    .filter((b) => norm(bonusType(b)) === "cash" && isRedeemableBonus(b))
-    .reduce((sum, b) => sum + bonusAmount(b), 0);
+  for (const b of bonuses) {
+    if (norm(bonusType(b)) === "cash") {
+      if (isOutrightCashBonus(b)) {
+        outrightCashBonus += bonusAmount(b);
+      }
+      if (isRedeemableBonus(b)) {
+        redeemableCashBonus += bonusAmount(b);
+      }
+    }
+  }
 
   const totalProductBonus = bonuses
     .filter((b) => norm(bonusType(b)) === "product")
     .reduce((sum, b) => sum + bonusAmount(b), 0);
 
-  const totalCashEarned = totalCashBonus + totalRebates;
+  const totalCashBonus = redeemableCashBonus;
+  const totalCashEarned = redeemableCashBonus + totalRebates;
   const runningBalanceCash = redeemableCashBonus + totalRebates - redeemedCash;
   const remainingProductBalance = totalProductBonus - redeemedProduct;
 
@@ -523,6 +539,7 @@ async function handleRegionalReport(sb, req, res) {
       area_region: rmRow.area_region,
     },
     totals: {
+      outrightCashBonus,
       totalMembers: downlines.length,
       totalRebates,
       totalCashBonus,

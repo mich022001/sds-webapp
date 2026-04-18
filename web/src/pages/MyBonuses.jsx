@@ -105,6 +105,7 @@ export default function MyBonuses({ user }) {
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-3">
+            <Stat label="Outright Bonus" value={fmtAmount(totals.outright_cash)} />
             <Stat label="Total Cash" value={fmtAmount(totals.total_cash)} />
             <Stat
               label="Redeemable Cash"
