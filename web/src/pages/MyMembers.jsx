@@ -14,7 +14,9 @@ function Card({ title, children, className = "" }) {
 function Stat({ label, value }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
+      <div className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        {label}
+      </div>
       <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
         {value}
       </div>
@@ -30,7 +32,6 @@ export default function MyMembers({ user }) {
   const [rmMember, setRmMember] = useState(null);
   const [report, setReport] = useState(null);
   const [search, setSearch] = useState("");
-  const [levelFilter, setLevelFilter] = useState("all");
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -91,30 +92,34 @@ export default function MyMembers({ user }) {
   }, [user?.member_id]);
 
   const members = Array.isArray(report?.members) ? report.members : [];
+  const levels = Array.isArray(report?.levels) ? report.levels : [];
   const byType = report?.byType || {};
+  const totals = report?.totals || {};
 
-  const availableLevels = useMemo(() => {
-    const levels = [...new Set(members.map((m) => Number(m.relative_level || 0)).filter((v) => v > 0))];
-    return levels.sort((a, b) => a - b);
-  }, [members]);
-
-  const filteredMembers = useMemo(() => {
+  const filteredLevels = useMemo(() => {
     const q = norm(search);
+    if (!q) return levels;
 
-    return members.filter((row) => {
-      const matchesSearch =
-        !q ||
-        norm(row.name).includes(q) ||
-        norm(row.member_id).includes(q) ||
-        norm(row.membership_type).includes(q) ||
-        norm(row.sponsor_name).includes(q);
+    return levels
+      .map((lvl) => {
+        const filteredMembers = Array.isArray(lvl.members)
+          ? lvl.members.filter((m) => {
+              return (
+                norm(m.name).includes(q) ||
+                norm(m.membership_type).includes(q) ||
+                norm(m.sponsor_name).includes(q)
+              );
+            })
+          : [];
 
-      const matchesLevel =
-        levelFilter === "all" || Number(row.relative_level || 0) === Number(levelFilter);
-
-      return matchesSearch && matchesLevel;
-    });
-  }, [members, search, levelFilter]);
+        return {
+          ...lvl,
+          members: filteredMembers,
+          member_count: filteredMembers.length,
+        };
+      })
+      .filter((lvl) => lvl.member_count > 0);
+  }, [levels, search]);
 
   return (
     <div className="grid gap-4">
@@ -130,123 +135,93 @@ export default function MyMembers({ user }) {
         <>
           <div className="grid gap-4 md:grid-cols-4">
             <Stat label="Regional Manager" value={rmMember?.name || "-"} />
-            <Stat label="Total Members" value={report?.totals?.totalMembers ?? 0} />
+            <Stat label="Total Members" value={totals.totalMembers ?? members.length ?? 0} />
+            <Stat label="Members" value={byType["Member"] || 0} />
             <Stat label="Distributors" value={byType["Distributor"] || 0} />
-            <Stat label="Area Managers" value={byType["Area Manager"] || 0} />
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <Stat label="Members" value={byType["Member"] || 0} />
+            <Stat label="Area Managers" value={byType["Area Manager"] || 0} />
             <Stat label="Stockiests" value={byType["Stockiest"] || 0} />
-            <Stat label="Regional Managers" value={byType["Regional Manager"] || 0} />
+            <Stat label="Levels Present" value={levels.length || 0} />
           </div>
 
-          <Card title="My Members">
-            <div className="mb-4 grid gap-3 md:grid-cols-[1fr_180px]">
+          <Card title="My Members Genealogy">
+            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
+                <div className="text-sm text-zinc-600">
+                  Genealogy view of members under{" "}
+                  <span className="font-semibold text-zinc-900">
+                    {rmMember?.name || "RM"}
+                  </span>
+                  .
+                </div>
+              </div>
+
+              <div className="w-full md:w-[320px]">
                 <label className="mb-1 block text-xs font-medium text-zinc-500">
-                  Search
+                  Search genealogy
                 </label>
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, member ID, type, sponsor"
+                  placeholder="Search member, type, sponsor"
                   className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-400"
                 />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-zinc-500">
-                  Relative Level
-                </label>
-                <select
-                  value={levelFilter}
-                  onChange={(e) => setLevelFilter(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-400"
-                >
-                  <option value="all">All Levels</option>
-                  {availableLevels.map((lvl) => (
-                    <option key={lvl} value={lvl}>
-                      Level {lvl}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Name</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Member ID</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Relative Level</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Sponsor</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Area / Region</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Created</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMembers.length === 0 ? (
-                    <tr>
-                      <td className="px-4 py-3 text-zinc-500" colSpan={7}>
-                        No RM-scoped members found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredMembers.map((row, idx) => (
-                      <tr
-                        key={`${row.member_id || row.name || "row"}-${idx}`}
-                        className="border-b border-zinc-100"
-                      >
-                        <td className="px-4 py-3 text-zinc-700">{row.name || "-"}</td>
-                        <td className="px-4 py-3 text-zinc-700">{row.member_id || "-"}</td>
-                        <td className="px-4 py-3 text-zinc-700">{row.membership_type || "-"}</td>
-                        <td className="px-4 py-3 text-zinc-700">
-                          {row.relative_level ?? "-"}
-                        </td>
-                        <td className="px-4 py-3 text-zinc-700">{row.sponsor_name || "-"}</td>
-                        <td className="px-4 py-3 text-zinc-700">{row.area_region || "-"}</td>
-                        <td className="px-4 py-3 text-zinc-700">{row.created_at || "-"}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          <Card title="Members by Level">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {(Array.isArray(report?.levels) ? report.levels : []).map((lvl) => (
-                <div
-                  key={lvl.level}
-                  className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4"
-                >
-                  <div className="text-sm font-semibold text-zinc-900">
-                    {lvl.level_title}
+              <div className="flex min-w-max gap-5 pb-2">
+                {filteredLevels.length === 0 ? (
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+                    No genealogy members found.
                   </div>
-                  <div className="mt-1 text-xs text-zinc-500">
-                    Count: {lvl.member_count || 0}
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {(lvl.members || []).length === 0 ? (
-                      <div className="text-sm text-zinc-500">No members.</div>
-                    ) : (
-                      lvl.members.map((m, i) => (
-                        <div
-                          key={`${lvl.level}-${m.name || "member"}-${i}`}
-                          className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700"
-                        >
-                          {m.name || "-"}
+                ) : (
+                  filteredLevels.map((lvl) => (
+                    <div
+                      key={lvl.level}
+                      className="w-[340px] shrink-0 rounded-2xl border border-zinc-200 bg-white"
+                    >
+                      <div className="border-b border-zinc-200 px-5 py-4">
+                        <div className="text-xl font-bold text-zinc-900">
+                          {String(lvl.level_title || `Level ${lvl.level}`).toUpperCase()}
                         </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              ))}
+                        <div className="mt-2 text-sm text-zinc-500">
+                          Count: {lvl.member_count || 0}
+                        </div>
+                      </div>
+
+                      <div className="border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-zinc-700">
+                        Names
+                      </div>
+
+                      <div className="max-h-[420px] overflow-y-auto">
+                        {!lvl.members || lvl.members.length === 0 ? (
+                          <div className="px-5 py-4 text-sm text-zinc-500">
+                            No members.
+                          </div>
+                        ) : (
+                          lvl.members.map((m, idx) => (
+                            <div
+                              key={`${lvl.level}-${m.name || "member"}-${idx}`}
+                              className="border-b border-zinc-100 px-5 py-4"
+                            >
+                              <div className="font-medium text-zinc-900">
+                                {m.name || "-"}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                {m.membership_type || "-"}
+                                {m.sponsor_name ? ` • Sponsor: ${m.sponsor_name}` : ""}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </Card>
         </>
