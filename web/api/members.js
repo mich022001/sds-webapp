@@ -261,8 +261,8 @@ async function resolveRegionalManagerForRequest(
 /* =========================
    PROMOTION LOGIC (SAFE)
 ========================= */
-const REQUIRED_DIRECTS = 3;
-const REQUIRED_DEPTH = 3;
+const REQUIRED_DIRECTS = 7;
+const REQUIRED_DEPTH = 7;
 
 async function handlePromotions(sb, sponsorName) {
   const sponsor = normalizeText(sponsorName);
