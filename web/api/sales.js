@@ -103,21 +103,21 @@ function getActor(sessionUser) {
   );
 }
 
-function getInitialSaleStatus({ itemType, sessionUser }) {
-  const cleanItemType = normalizeText(itemType).toLowerCase();
+function getInitialSaleStatus({ sessionUser, saleContext }) {
+  const cleanContext = normalizeText(saleContext).toLowerCase();
 
-  // Admin / super admin direct entries are already completed
+  // Anything created by registration flow is fully completed immediately
+  if (cleanContext === "registration") {
+    return "released";
+  }
+
+  // Admin / super admin manual entries are already completed
   if (isAdminUser(sessionUser)) {
     return "released";
   }
 
-  // Registration packages are auto-approved
-  if (cleanItemType === "package") {
-    return "approved";
-  }
-
-  // Regular product sales by RM / normal need admin approval
-  if (cleanItemType === "product" && isRestrictedUser(sessionUser)) {
+  // Regular manual sales by RM / normal need admin approval
+  if (isRestrictedUser(sessionUser)) {
     return "pending";
   }
 
@@ -156,15 +156,16 @@ async function createRmRebateIfEligible(sb, saleRow) {
     normalizeText(saleRow?.created_at) ||
     new Date().toISOString();
 
-  // No RM to receive it
   if (!regionalManager) return;
 
-  // Buyer is the RM themself -> no RM rebate
-  if (memberName && regionalManager && memberName.toLowerCase() === regionalManager.toLowerCase()) {
+  if (
+    memberName &&
+    regionalManager &&
+    memberName.toLowerCase() === regionalManager.toLowerCase()
+  ) {
     return;
   }
 
-  // RM purchasing for RM account should not get RM rebate
   if (membershipType === "regional manager") {
     return;
   }
@@ -179,7 +180,6 @@ async function createRmRebateIfEligible(sb, saleRow) {
     return;
   }
 
-  // Best-effort duplicate protection using current schema
   const { data: existingRows, error: existingError } = await sb
     .from("rm_rebates_ledger")
     .select("id")
@@ -342,6 +342,7 @@ export default async function handler(req, res) {
 
       const itemId = Number(item_id);
       const qty = Math.max(1, Math.floor(num(quantity)));
+      const saleContext = normalizeText(req.body?.sale_context) || "manual_sale";
 
       if (!Number.isFinite(itemId) || itemId <= 0) {
         return res.status(400).json({ error: "item_id is required" });
@@ -377,8 +378,8 @@ export default async function handler(req, res) {
       const unitPrice = getUnitPrice(itemRow, membershipType);
       const totalAmount = unitPrice * qty;
       const status = getInitialSaleStatus({
-        itemType,
         sessionUser,
+        saleContext,
       });
 
       const actor = getActor(sessionUser);
@@ -399,6 +400,7 @@ export default async function handler(req, res) {
         pricing_basis: pricingBasis,
         encoded_by: actor,
         requested_by_username: isRestrictedUser(sessionUser) ? actor : null,
+        sale_context: saleContext,
         status,
         approved_at: null,
         approved_by: null,
@@ -437,7 +439,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
-      // Directly completed sale should immediately create RM rebate if eligible
       if (String(data?.status || "").toLowerCase() === "released") {
         await createRmRebateIfEligible(sb, data);
       }
@@ -617,7 +618,6 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
-      // Create RM rebate only when sale becomes released
       if (action === "release") {
         await createRmRebateIfEligible(sb, data);
       }
