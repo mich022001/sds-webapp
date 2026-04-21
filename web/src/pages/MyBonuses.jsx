@@ -124,11 +124,23 @@ export default function MyBonuses({ user }) {
               label="Product Balance"
               value={fmtAmount(totals.balance_product)}
             />
+            <Stat
+              label="RM Rebates"
+              value={fmtAmount(totals.total_rm_rebates)}
+            />
+            <Stat
+              label="AM Rebates"
+              value={fmtAmount(totals.total_am_rebates)}
+            />
+            <Stat
+              label="Group Sales Bonus"
+              value={fmtAmount(totals.total_group_sales_bonus)}
+            />
           </div>
 
           <Card title={`Bonus Ledger — ${member?.name || ""}`}>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] border-collapse text-sm">
+              <table className="w-full min-w-[1180px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                     <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
@@ -138,12 +150,15 @@ export default function MyBonuses({ user }) {
                     <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
                     <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
                     <th className="px-4 py-2 font-semibold text-zinc-700">Redeemable</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Product</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Unit Type</th>
                   </tr>
                 </thead>
                 <tbody>
                   {bonuses.length === 0 ? (
                     <tr>
-                      <td className="px-4 py-3 text-zinc-500" colSpan={7}>
+                      <td className="px-4 py-3 text-zinc-500" colSpan={10}>
                         No bonus entries yet.
                       </td>
                     </tr>
@@ -177,6 +192,15 @@ export default function MyBonuses({ user }) {
                             : row.is_redeemable === false
                               ? "No"
                               : "-"}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-700">
+                          {row.product || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-700">
+                          {row.qty ?? "-"}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-700">
+                          {row.unit_type || "-"}
                         </td>
                       </tr>
                     ))

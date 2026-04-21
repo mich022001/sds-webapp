@@ -94,22 +94,45 @@ export default function MyRebates({ user }) {
     };
   }, [user?.member_id]);
 
-  const rebateRows = Array.isArray(report?.rm_rebates) ? report.rm_rebates : [];
+  const rmRebateRows = Array.isArray(report?.rm_rebates) ? report.rm_rebates : [];
+  const groupSalesRows = Array.isArray(report?.group_sales_bonus)
+    ? report.group_sales_bonus
+    : [];
   const totals = report?.totals || {};
+
+  const combinedRows = useMemo(() => {
+    const rows = [
+      ...rmRebateRows.map((row) => ({
+        ...row,
+        entry_type: "RM Rebate",
+        amount: Number(row.rebate || 0),
+      })),
+      ...groupSalesRows.map((row) => ({
+        ...row,
+        entry_type: "Group Sales Bonus",
+        amount: Number(row.bonus || 0),
+      })),
+    ];
+
+    return rows.sort((a, b) =>
+      String(b.created_at || "").localeCompare(String(a.created_at || ""))
+    );
+  }, [rmRebateRows, groupSalesRows]);
 
   const filteredRows = useMemo(() => {
     const q = norm(search);
 
-    return rebateRows.filter((row) => {
+    return combinedRows.filter((row) => {
       if (!q) return true;
 
       return (
+        norm(row.entry_type).includes(q) ||
         norm(row.buyer_name).includes(q) ||
         norm(row.product).includes(q) ||
         norm(row.unit_type).includes(q)
       );
     });
-  }, [rebateRows, search]);
+  }, [combinedRows, search]);
 
   return (
     <div className="grid gap-4">
@@ -125,6 +148,18 @@ export default function MyRebates({ user }) {
         <>
           <div className="grid gap-4 md:grid-cols-4">
             <Stat label="Regional Manager" value={rmMember?.name || "-"} />
+            <Stat label="RM Rebates" value={fmtAmount(totals.totalRmRebates)} />
+            <Stat
+              label="Group Sales Bonus"
+              value={fmtAmount(totals.totalGroupSalesBonus)}
+            />
+            <Stat
+              label="Total Cash Earned"
+              value={fmtAmount(totals.totalCashEarned)}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
             <Stat label="Total Rebates" value={fmtAmount(totals.totalRebates)} />
             <Stat
               label="Redeemed Cash"
@@ -136,7 +171,7 @@ export default function MyRebates({ user }) {
             />
           </div>
 
-          <Card title="My Rebates">
+          <Card title="My Rebates and Group Sales Bonus">
             <div className="mb-4">
               <label className="mb-1 block text-xs font-medium text-zinc-500">
                 Search
@@ -144,38 +179,42 @@ export default function MyRebates({ user }) {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by buyer, product, unit type"
+                placeholder="Search by type, buyer, product, unit type"
                 className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-zinc-400"
               />
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] border-collapse text-sm">
+              <table className="w-full min-w-[1100px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
                     <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
                     <th className="px-4 py-2 font-semibold text-zinc-700">Buyer</th>
                     <th className="px-4 py-2 font-semibold text-zinc-700">Product</th>
                     <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
                     <th className="px-4 py-2 font-semibold text-zinc-700">Unit Type</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Rebate</th>
+                    <th className="px-4 py-2 font-semibold text-zinc-700">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td className="px-4 py-3 text-zinc-500" colSpan={6}>
-                        No rebate entries yet.
+                      <td className="px-4 py-3 text-zinc-500" colSpan={7}>
+                        No rebate or group sales bonus entries yet.
                       </td>
                     </tr>
                   ) : (
                     filteredRows.map((row, idx) => (
                       <tr
-                        key={`${row.created_at || "row"}-${idx}`}
+                        key={`${row.entry_type}-${row.created_at || "row"}-${idx}`}
                         className="border-b border-zinc-100"
                       >
                         <td className="px-4 py-3 text-zinc-700">
                           {row.created_at || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-700">
+                          {row.entry_type || "-"}
                         </td>
                         <td className="px-4 py-3 text-zinc-700">
                           {row.buyer_name || "-"}
@@ -190,7 +229,7 @@ export default function MyRebates({ user }) {
                           {row.unit_type || "-"}
                         </td>
                         <td className="px-4 py-3 text-zinc-700">
-                          {fmtAmount(row.rebate)}
+                          {fmtAmount(row.amount)}
                         </td>
                       </tr>
                     ))

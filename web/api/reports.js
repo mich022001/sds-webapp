@@ -47,7 +47,53 @@ function isRedeemableBonus(row) {
 }
 
 function isOutrightCashBonus(row) {
-  return norm(bonusType(row)) === "cash" && norm(bonusLabel(row)) === "d.c. bonus";
+  return (
+    norm(bonusType(row)) === "cash" &&
+    norm(bonusLabel(row)) === "d.c. bonus"
+  );
+}
+
+function mapRebateRows(rows, kind) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    created_at: row.created_at,
+    earner_name: row.receiver_name,
+    source_member_name: row.buyer_name,
+    relative_level: null,
+    bonus_type: "Cash",
+    amount: toNumber(row.rebate),
+    rule_applied: kind,
+    reason: kind,
+    bonus_label:
+      kind === "rm_rebate"
+        ? "RM REBATE"
+        : kind === "am_rebate"
+          ? "AM REBATE"
+          : "REBATE",
+    is_redeemable: true,
+    ledger_source: kind,
+    product: row.product ?? null,
+    qty: row.qty ?? null,
+    unit_type: row.unit_type ?? null,
+  }));
+}
+
+function mapGroupSalesRows(rows) {
+  return (Array.isArray(rows) ? rows : []).map((row) => ({
+    created_at: row.created_at,
+    earner_name: row.receiver_name,
+    source_member_name: row.buyer_name,
+    relative_level: null,
+    bonus_type: "Cash",
+    amount: toNumber(row.bonus),
+    rule_applied: "group_sales_bonus",
+    reason: "group_sales_bonus",
+    bonus_label: "GROUP SALES BONUS",
+    is_redeemable: true,
+    ledger_source: "group_sales_bonus",
+    product: row.product ?? null,
+    qty: row.qty ?? null,
+    unit_type: row.unit_type ?? null,
+  }));
 }
 
 async function trySelectByColumn(sb, table, candidates, value) {
@@ -58,6 +104,36 @@ async function trySelectByColumn(sb, table, candidates, value) {
     }
   }
   return { data: [], column: null };
+}
+
+async function fetchRowsByReceiver(sb, table, selectCols, receiverName) {
+  let { data, error } = await sb
+    .from(table)
+    .select(selectCols)
+    .ilike("receiver_name", receiverName)
+    .order("created_at", { ascending: false })
+    .limit(1000);
+
+  if (error) {
+    return { data: null, error };
+  }
+
+  let rows = Array.isArray(data) ? data : [];
+
+  if (rows.length === 0) {
+    const r2 = await sb
+      .from(table)
+      .select(selectCols)
+      .ilike("receiver_name", `%${receiverName}%`)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+
+    if (!r2.error && Array.isArray(r2.data)) {
+      rows = r2.data;
+    }
+  }
+
+  return { data: rows, error: null };
 }
 
 async function handleMemberReport(sb, req, res) {
@@ -76,6 +152,9 @@ async function handleMemberReport(sb, req, res) {
   if (!member) return res.status(404).json({ error: "Member not found." });
 
   const memberName = String(member.name ?? "").trim();
+  const memberType = norm(member.membership_type);
+  const isAreaManager = memberType === "area manager";
+  const isRegionalManager = memberType === "regional manager";
 
   let { data: bonuses, error: bonusErr } = await sb
     .from("bonus_ledger")
@@ -123,24 +202,47 @@ async function handleMemberReport(sb, req, res) {
     if (!r2.error && Array.isArray(r2.data)) redemptions = r2.data;
   }
 
-  let { data: rmRebates, error: rmRebatesErr } = await sb
-    .from("rm_rebates_ledger")
-    .select("created_at, receiver_name, buyer_name, product, qty, unit_type, rebate")
-    .ilike("receiver_name", memberName)
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  let rmRebates = [];
+  let amRebates = [];
+  let groupSalesBonuses = [];
 
-  if (rmRebatesErr) return res.status(400).json({ error: rmRebatesErr.message });
+  if (isRegionalManager) {
+    const result = await fetchRowsByReceiver(
+      sb,
+      "rm_rebates_ledger",
+      "created_at, receiver_name, buyer_name, product, qty, unit_type, rebate",
+      memberName
+    );
+    if (result.error) {
+      return res.status(400).json({ error: result.error.message });
+    }
+    rmRebates = result.data || [];
+  }
 
-  if ((rmRebates ?? []).length === 0) {
-    const r2 = await sb
-      .from("rm_rebates_ledger")
-      .select("created_at, receiver_name, buyer_name, product, qty, unit_type, rebate")
-      .ilike("receiver_name", `%${memberName}%`)
-      .order("created_at", { ascending: false })
-      .limit(1000);
+  if (isAreaManager) {
+    const result = await fetchRowsByReceiver(
+      sb,
+      "am_rebates_ledger",
+      "created_at, receiver_name, buyer_name, product, qty, unit_type, rebate",
+      memberName
+    );
+    if (result.error) {
+      return res.status(400).json({ error: result.error.message });
+    }
+    amRebates = result.data || [];
+  }
 
-    if (!r2.error && Array.isArray(r2.data)) rmRebates = r2.data;
+  {
+    const result = await fetchRowsByReceiver(
+      sb,
+      "group_sales_bonus_ledger",
+      "created_at, receiver_name, buyer_name, product, qty, unit_type, bonus",
+      memberName
+    );
+    if (result.error) {
+      return res.status(400).json({ error: result.error.message });
+    }
+    groupSalesBonuses = result.data || [];
   }
 
   const { data: allMembers, error: allMembersErr } = await sb
@@ -226,8 +328,19 @@ async function handleMemberReport(sb, req, res) {
     0
   );
 
-  total_cash += total_rm_rebates;
-  redeemable_cash += total_rm_rebates;
+  const total_am_rebates = (amRebates ?? []).reduce(
+    (sum, row) => sum + toNumber(row.rebate),
+    0
+  );
+
+  const total_group_sales_bonus = (groupSalesBonuses ?? []).reduce(
+    (sum, row) => sum + toNumber(row.bonus),
+    0
+  );
+
+  total_cash += total_rm_rebates + total_am_rebates + total_group_sales_bonus;
+  redeemable_cash +=
+    total_rm_rebates + total_am_rebates + total_group_sales_bonus;
 
   let redeemed_cash = 0;
   let redeemed_product = 0;
@@ -266,7 +379,10 @@ async function handleMemberReport(sb, req, res) {
 
     const label = levelBonusRows[0] ? bonusLabel(levelBonusRows[0]) : "";
     const type = levelBonusRows[0] ? bonusType(levelBonusRows[0]) : "";
-    const bonusTotal = levelBonusRows.reduce((sum, b) => sum + bonusAmount(b), 0);
+    const bonusTotal = levelBonusRows.reduce(
+      (sum, b) => sum + bonusAmount(b),
+      0
+    );
 
     const memberRows = levelMembers.map((m) => {
       const matchingBonus = levelBonusRows.find(
@@ -297,6 +413,16 @@ async function handleMemberReport(sb, req, res) {
     };
   });
 
+  const extraCompRows = [
+    ...mapRebateRows(rmRebates, "rm_rebate"),
+    ...mapRebateRows(amRebates, "am_rebate"),
+    ...mapGroupSalesRows(groupSalesBonuses),
+  ];
+
+  const combinedBonuses = [...(bonuses ?? []), ...extraCompRows].sort((a, b) =>
+    String(a.created_at || "").localeCompare(String(b.created_at || ""))
+  );
+
   return res.status(200).json({
     member,
     totals: {
@@ -309,10 +435,17 @@ async function handleMemberReport(sb, req, res) {
       redeemed_product,
       balance_product,
       total_rm_rebates,
+      total_am_rebates,
+      total_group_sales_bonus,
+      total_extra_compensation:
+        total_rm_rebates + total_am_rebates + total_group_sales_bonus,
     },
-    bonuses: bonuses ?? [],
+    bonuses: combinedBonuses,
+    base_bonus_ledger: bonuses ?? [],
     redemptions: redemptions ?? [],
     rm_rebates: rmRebates ?? [],
+    am_rebates: amRebates ?? [],
+    group_sales_bonus: groupSalesBonuses ?? [],
     levels,
     downlines,
   });
@@ -436,17 +569,31 @@ async function handleRegionalReport(sb, req, res) {
     .filter((r) => norm(r.redeem_type) === "product")
     .reduce((sum, r) => sum + toNumber(r.qty), 0);
 
-  const rebateLookup = await trySelectByColumn(
+  const rmRebateLookup = await trySelectByColumn(
     sb,
     "rm_rebates_ledger",
     ["receiver_name"],
     rm
   );
+  const rmRebateRows = rmRebateLookup.data || [];
 
-  const rebateRows = rebateLookup.data || [];
-  const totalRebates = rebateRows.reduce((sum, row) => {
-    return sum + toNumber(row.rebate);
-  }, 0);
+  const groupSalesLookup = await trySelectByColumn(
+    sb,
+    "group_sales_bonus_ledger",
+    ["receiver_name"],
+    rm
+  );
+  const groupSalesRows = groupSalesLookup.data || [];
+
+  const totalRmRebates = rmRebateRows.reduce(
+    (sum, row) => sum + toNumber(row.rebate),
+    0
+  );
+
+  const totalGroupSalesBonus = groupSalesRows.reduce(
+    (sum, row) => sum + toNumber(row.bonus),
+    0
+  );
 
   let outrightCashBonus = 0;
   let redeemableCashBonus = 0;
@@ -466,9 +613,11 @@ async function handleRegionalReport(sb, req, res) {
     .filter((b) => norm(bonusType(b)) === "product")
     .reduce((sum, b) => sum + bonusAmount(b), 0);
 
-  const totalCashBonus = redeemableCashBonus;
-  const totalCashEarned = redeemableCashBonus + totalRebates;
-  const runningBalanceCash = redeemableCashBonus + totalRebates - redeemedCash;
+  const totalRebates = totalRmRebates;
+  const totalCashBonus = redeemableCashBonus + totalGroupSalesBonus;
+  const totalCashEarned =
+    redeemableCashBonus + totalRmRebates + totalGroupSalesBonus;
+  const runningBalanceCash = totalCashEarned - redeemedCash;
   const remainingProductBalance = totalProductBonus - redeemedProduct;
 
   const maxDownlineLevel = downlines.reduce(
@@ -495,7 +644,10 @@ async function handleRegionalReport(sb, req, res) {
 
     const label = levelBonusRows[0] ? bonusLabel(levelBonusRows[0]) : "";
     const type = levelBonusRows[0] ? bonusType(levelBonusRows[0]) : "";
-    const bonusTotal = levelBonusRows.reduce((sum, b) => sum + bonusAmount(b), 0);
+    const bonusTotal = levelBonusRows.reduce(
+      (sum, b) => sum + bonusAmount(b),
+      0
+    );
 
     const memberRows = levelMembers.map((m) => {
       const matchingBonus = levelBonusRows.find(
@@ -542,6 +694,8 @@ async function handleRegionalReport(sb, req, res) {
       outrightCashBonus,
       totalMembers: downlines.length,
       totalRebates,
+      totalRmRebates,
+      totalGroupSalesBonus,
       totalCashBonus,
       redeemableCashBonus,
       totalCashEarned,
@@ -554,7 +708,8 @@ async function handleRegionalReport(sb, req, res) {
     byType,
     levels,
     members: downlines,
-    rm_rebates: rebateRows,
+    rm_rebates: rmRebateRows,
+    group_sales_bonus: groupSalesRows,
   });
 }
 
