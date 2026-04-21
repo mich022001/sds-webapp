@@ -27,6 +27,10 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
+function norm(v) {
+  return normalizeText(v).toLowerCase();
+}
+
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -63,7 +67,7 @@ function isAdminUser(user) {
 }
 
 function getPricingBasis(membershipType) {
-  const mt = normalizeText(membershipType).toLowerCase();
+  const mt = norm(membershipType);
 
   if (mt === "stockiest") return "Stockiest";
   if (
@@ -80,7 +84,7 @@ function getPricingBasis(membershipType) {
 function getUnitPrice(itemRow, membershipType) {
   if (!itemRow) return 0;
 
-  const mt = normalizeText(membershipType).toLowerCase();
+  const mt = norm(membershipType);
 
   if (mt === "stockiest") return num(itemRow.stockiest_price);
   if (
@@ -104,9 +108,9 @@ function getActor(sessionUser) {
 }
 
 function getInitialSaleStatus({ sessionUser, saleContext }) {
-  const cleanContext = normalizeText(saleContext).toLowerCase();
+  const cleanContext = norm(saleContext);
 
-  // Anything created by registration flow is fully completed immediately
+  // Registration flow is automatically completed
   if (cleanContext === "registration") {
     return "released";
   }
@@ -116,7 +120,7 @@ function getInitialSaleStatus({ sessionUser, saleContext }) {
     return "released";
   }
 
-  // Regular manual sales by RM / normal need admin approval
+  // RM / normal manual sales need approval
   if (isRestrictedUser(sessionUser)) {
     return "pending";
   }
@@ -124,71 +128,120 @@ function getInitialSaleStatus({ sessionUser, saleContext }) {
   return "approved";
 }
 
-function getRmRebatePerUnit(productName, unitType) {
-  const cleanProduct = normalizeText(productName).toLowerCase();
-  const cleanUnitType = normalizeText(unitType).toLowerCase();
+/* =========================
+   COMPENSATION RULES
+========================= */
 
-  if (cleanUnitType === "package") return 0;
+const SALE_COMP_RULES = {
+  "vigomaxx": { rm: 20, am: 10, group1: 4 },
+  "compact c": { rm: 15, am: 10, group1: 4 },
+  "prommix plus": { rm: 10, am: 5, group1: 4 },
+  "balatinaw coffee": { rm: 5, am: 3, group1: 2 },
+  "zepamax": { rm: 10, am: 6, group1: 4 },
+};
 
-  if (cleanProduct === "balatinaw coffee") return 2;
-  if (cleanProduct === "promix juice") return 5;
-  if (cleanProduct === "compact c") return 5;
-  if (cleanProduct === "vigomaxx") return 5;
-  if (cleanProduct === "zepamacs") return 5;
+function getCompensationRule(productName, unitType, saleContext) {
+  const cleanContext = norm(saleContext);
+  const cleanUnitType = norm(unitType);
+  const cleanProduct = norm(productName);
 
-  return 0;
+  // No compensation for registration sales
+  if (cleanContext === "registration") return null;
+
+  // No compensation for package sales
+  if (cleanUnitType === "package" || cleanUnitType === "per set") return null;
+
+  return SALE_COMP_RULES[cleanProduct] || null;
 }
 
-function computeRmRebateQty({ productName, unitType, qty }) {
-  const perUnit = getRmRebatePerUnit(productName, unitType);
-  return perUnit * num(qty);
+/* =========================
+   HIERARCHY HELPERS
+========================= */
+
+async function getMemberByName(sb, name) {
+  const cleanName = normalizeText(name);
+  if (!cleanName) return null;
+
+  const { data, error } = await sb
+    .from("members")
+    .select(
+      "member_id, name, membership_type, regional_manager, sponsor_name"
+    )
+    .eq("name", cleanName)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data || null;
 }
 
-async function createRmRebateIfEligible(sb, saleRow) {
-  const memberName = normalizeText(saleRow?.member_name);
-  const regionalManager = normalizeText(saleRow?.regional_manager);
-  const productName = normalizeText(saleRow?.product_name);
-  const unitType = normalizeText(saleRow?.unit_type) || "Per Piece";
-  const qty = num(saleRow?.quantity);
-  const membershipType = normalizeText(saleRow?.membership_type).toLowerCase();
-  const createdAt =
-    normalizeText(saleRow?.released_at) ||
-    normalizeText(saleRow?.created_at) ||
-    new Date().toISOString();
+async function getMemberById(sb, memberId) {
+  const cleanId = normalizeText(memberId);
+  if (!cleanId) return null;
 
-  if (!regionalManager) return;
+  const { data, error } = await sb
+    .from("members")
+    .select(
+      "member_id, name, membership_type, regional_manager, sponsor_name"
+    )
+    .eq("member_id", cleanId)
+    .maybeSingle();
 
-  if (
-    memberName &&
-    regionalManager &&
-    memberName.toLowerCase() === regionalManager.toLowerCase()
-  ) {
-    return;
+  if (error) {
+    throw new Error(error.message);
   }
 
-  if (membershipType === "regional manager") {
-    return;
+  return data || null;
+}
+
+async function findFirstAreaManagerInSponsorChain(sb, sponsorName) {
+  let currentSponsor = normalizeText(sponsorName);
+  const visited = new Set();
+
+  while (currentSponsor && norm(currentSponsor) !== "sds") {
+    const key = norm(currentSponsor);
+    if (visited.has(key)) break;
+    visited.add(key);
+
+    const row = await getMemberByName(sb, currentSponsor);
+    if (!row?.name) return null;
+
+    if (norm(row.membership_type) === "area manager") {
+      return row;
+    }
+
+    currentSponsor = normalizeText(row.sponsor_name);
   }
 
-  const rebateQty = computeRmRebateQty({
-    productName,
-    unitType,
-    qty,
-  });
+  return null;
+}
 
-  if (rebateQty <= 0) {
-    return;
-  }
+/* =========================
+   COMPENSATION INSERTS
+========================= */
+
+async function insertRmRebateIfMissing(sb, {
+  createdAt,
+  receiverName,
+  buyerName,
+  productName,
+  qty,
+  unitType,
+  rebate,
+}) {
+  if (!receiverName || rebate <= 0) return;
 
   const { data: existingRows, error: existingError } = await sb
     .from("rm_rebates_ledger")
     .select("id")
-    .eq("receiver_name", regionalManager)
-    .eq("buyer_name", memberName)
+    .eq("receiver_name", receiverName)
+    .eq("buyer_name", buyerName)
     .eq("product", productName)
     .eq("qty", qty)
     .eq("unit_type", unitType)
-    .eq("rebate", rebateQty)
+    .eq("rebate", rebate)
     .limit(1);
 
   if (existingError) {
@@ -202,12 +255,12 @@ async function createRmRebateIfEligible(sb, saleRow) {
   const { error: insertError } = await sb.from("rm_rebates_ledger").insert([
     {
       created_at: createdAt,
-      receiver_name: regionalManager,
-      buyer_name: memberName,
+      receiver_name: receiverName,
+      buyer_name: buyerName,
       product: productName,
       qty,
       unit_type: unitType,
-      rebate: rebateQty,
+      rebate,
     },
   ]);
 
@@ -215,6 +268,193 @@ async function createRmRebateIfEligible(sb, saleRow) {
     throw new Error(insertError.message);
   }
 }
+
+async function insertAmRebateIfMissing(sb, {
+  createdAt,
+  receiverName,
+  buyerName,
+  productName,
+  qty,
+  unitType,
+  rebate,
+}) {
+  if (!receiverName || rebate <= 0) return;
+
+  const { data: existingRows, error: existingError } = await sb
+    .from("am_rebates_ledger")
+    .select("id")
+    .eq("receiver_name", receiverName)
+    .eq("buyer_name", buyerName)
+    .eq("product", productName)
+    .eq("qty", qty)
+    .eq("unit_type", unitType)
+    .eq("rebate", rebate)
+    .limit(1);
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (Array.isArray(existingRows) && existingRows.length > 0) {
+    return;
+  }
+
+  const { error: insertError } = await sb.from("am_rebates_ledger").insert([
+    {
+      created_at: createdAt,
+      receiver_name: receiverName,
+      buyer_name: buyerName,
+      product: productName,
+      qty,
+      unit_type: unitType,
+      rebate,
+    },
+  ]);
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+}
+
+async function insertGroupSalesBonusIfMissing(sb, {
+  createdAt,
+  receiverName,
+  buyerName,
+  productName,
+  qty,
+  unitType,
+  bonus,
+}) {
+  if (!receiverName || bonus <= 0) return;
+
+  const { data: existingRows, error: existingError } = await sb
+    .from("group_sales_bonus_ledger")
+    .select("id")
+    .eq("receiver_name", receiverName)
+    .eq("buyer_name", buyerName)
+    .eq("product", productName)
+    .eq("qty", qty)
+    .eq("unit_type", unitType)
+    .eq("bonus", bonus)
+    .limit(1);
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (Array.isArray(existingRows) && existingRows.length > 0) {
+    return;
+  }
+
+  const { error: insertError } = await sb
+    .from("group_sales_bonus_ledger")
+    .insert([
+      {
+        created_at: createdAt,
+        receiver_name: receiverName,
+        buyer_name: buyerName,
+        product: productName,
+        qty,
+        unit_type: unitType,
+        bonus,
+      },
+    ]);
+
+  if (insertError) {
+    throw new Error(insertError.message);
+  }
+}
+
+/* =========================
+   MAIN COMPENSATION PROCESSOR
+========================= */
+
+async function createSaleCompensationsIfEligible(sb, saleRow) {
+  const saleContext = normalizeText(saleRow?.sale_context) || "manual_sale";
+  const buyerName = normalizeText(saleRow?.member_name);
+  const buyerMemberId = normalizeText(saleRow?.member_id);
+  const productName = normalizeText(saleRow?.product_name);
+  const unitType = normalizeText(saleRow?.unit_type) || "Per Piece";
+  const qty = num(saleRow?.quantity);
+  const createdAt =
+    normalizeText(saleRow?.released_at) ||
+    normalizeText(saleRow?.created_at) ||
+    new Date().toISOString();
+
+  const rule = getCompensationRule(productName, unitType, saleContext);
+  if (!rule) return;
+
+  const buyer =
+    (buyerMemberId && (await getMemberById(sb, buyerMemberId))) ||
+    (buyerName && (await getMemberByName(sb, buyerName)));
+
+  if (!buyer?.name) return;
+
+  const buyerMembershipType = norm(buyer.membership_type);
+  const buyerRegionalManager = normalizeText(buyer.regional_manager);
+  const directSponsorName = normalizeText(buyer.sponsor_name);
+
+  // 1. RM rebate
+  if (
+    buyerRegionalManager &&
+    norm(buyerRegionalManager) !== norm(buyer.name) &&
+    buyerMembershipType !== "regional manager"
+  ) {
+    await insertRmRebateIfMissing(sb, {
+      createdAt,
+      receiverName: buyerRegionalManager,
+      buyerName: buyer.name,
+      productName,
+      qty,
+      unitType,
+      rebate: num(rule.rm) * qty,
+    });
+  }
+
+  // 2. AM rebate (first AM in sponsor chain; skip if none)
+  if (directSponsorName && norm(directSponsorName) !== "sds") {
+    const areaManager = await findFirstAreaManagerInSponsorChain(
+      sb,
+      directSponsorName
+    );
+
+    if (
+      areaManager?.name &&
+      norm(areaManager.name) !== norm(buyer.name)
+    ) {
+      await insertAmRebateIfMissing(sb, {
+        createdAt,
+        receiverName: areaManager.name,
+        buyerName: buyer.name,
+        productName,
+        qty,
+        unitType,
+        rebate: num(rule.am) * qty,
+      });
+    }
+  }
+
+  // 3. Group sales bonus = direct sponsor only
+  if (
+    directSponsorName &&
+    norm(directSponsorName) !== "sds" &&
+    norm(directSponsorName) !== norm(buyer.name)
+  ) {
+    await insertGroupSalesBonusIfMissing(sb, {
+      createdAt,
+      receiverName: directSponsorName,
+      buyerName: buyer.name,
+      productName,
+      qty,
+      unitType,
+      bonus: num(rule.group1) * qty,
+    });
+  }
+}
+
+/* =========================
+   MEMBER CONTEXT
+========================= */
 
 async function resolveMemberContext(sb, sessionUser, body) {
   if (!sessionUser) {
@@ -244,7 +484,9 @@ async function resolveMemberContext(sb, sessionUser, body) {
 
     const { data, error } = await sb
       .from("members")
-      .select("member_id, name, membership_type, regional_manager")
+      .select(
+        "member_id, name, membership_type, regional_manager, sponsor_name"
+      )
       .eq("member_id", sessionUser.member_id)
       .maybeSingle();
 
@@ -283,7 +525,9 @@ async function resolveMemberContext(sb, sessionUser, body) {
 
   let query = sb
     .from("members")
-    .select("member_id, name, membership_type, regional_manager");
+    .select(
+      "member_id, name, membership_type, regional_manager, sponsor_name"
+    );
 
   if (requestedMemberId) {
     query = query.eq("member_id", requestedMemberId);
@@ -315,6 +559,10 @@ async function resolveMemberContext(sb, sessionUser, body) {
   };
 }
 
+/* =========================
+   API HANDLER
+========================= */
+
 export default async function handler(req, res) {
   try {
     const sb = supabaseAdmin();
@@ -342,7 +590,8 @@ export default async function handler(req, res) {
 
       const itemId = Number(item_id);
       const qty = Math.max(1, Math.floor(num(quantity)));
-      const saleContext = normalizeText(req.body?.sale_context) || "manual_sale";
+      const saleContext =
+        normalizeText(req.body?.sale_context) || "manual_sale";
 
       if (!Number.isFinite(itemId) || itemId <= 0) {
         return res.status(400).json({ error: "item_id is required" });
@@ -370,13 +619,14 @@ export default async function handler(req, res) {
       }
 
       const membershipType = normalizeText(member.membership_type) || "Member";
-      const itemType = normalizeText(itemRow.item_type).toLowerCase();
+      const itemType = norm(itemRow.item_type);
       const unitType =
         normalizeText(itemRow.unit_type) ||
         (itemType === "package" ? "Package" : "Per Piece");
       const pricingBasis = getPricingBasis(membershipType);
       const unitPrice = getUnitPrice(itemRow, membershipType);
       const totalAmount = unitPrice * qty;
+
       const status = getInitialSaleStatus({
         sessionUser,
         saleContext,
@@ -439,8 +689,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: error.message });
       }
 
-      if (String(data?.status || "").toLowerCase() === "released") {
-        await createRmRebateIfEligible(sb, data);
+      if (norm(data?.status) === "released") {
+        await createSaleCompensationsIfEligible(sb, data);
       }
 
       return res.status(200).json({
@@ -457,7 +707,7 @@ export default async function handler(req, res) {
 
     if (req.method === "PUT") {
       const id = Number(req.body?.id);
-      const action = normalizeText(req.body?.action).toLowerCase();
+      const action = norm(req.body?.action);
       const cancelReason = normalizeText(req.body?.cancel_reason);
 
       if (!Number.isFinite(id) || id <= 0) {
@@ -478,7 +728,7 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: "Sale record not found" });
       }
 
-      const currentStatus = normalizeText(existing.status).toLowerCase();
+      const currentStatus = norm(existing.status);
       const actor = getActor(sessionUser);
       const now = new Date().toISOString();
 
@@ -489,10 +739,7 @@ export default async function handler(req, res) {
           });
         }
 
-        if (
-          normalizeText(existing.member_id) !==
-          normalizeText(sessionUser.member_id)
-        ) {
+        if (normalizeText(existing.member_id) !== normalizeText(sessionUser.member_id)) {
           return res.status(403).json({
             error: "You can only cancel your own sale requests",
           });
@@ -619,7 +866,7 @@ export default async function handler(req, res) {
       }
 
       if (action === "release") {
-        await createRmRebateIfEligible(sb, data);
+        await createSaleCompensationsIfEligible(sb, data);
       }
 
       return res.status(200).json({
@@ -642,7 +889,7 @@ export default async function handler(req, res) {
       const buyer = normalizeText(req.query?.buyer);
       const product = normalizeText(req.query?.product);
       const itemType = normalizeText(req.query?.item_type);
-      const status = normalizeText(req.query?.status).toLowerCase();
+      const status = norm(req.query?.status);
 
       let query = sb
         .from("sales_ledger")
