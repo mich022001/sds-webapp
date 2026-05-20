@@ -18,6 +18,7 @@ import MyBonuses from "./pages/MyBonuses";
 import Redemptions from "./pages/Redemptions";
 import MyMembers from "./pages/MyMembers";
 import MyRebates from "./pages/MyRebates";
+import LandingPage from "./pages/LandingPage";
 
 const navByRole = {
   super_admin: [
@@ -119,6 +120,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   const currentNav = useMemo(() => getAllowedNav(user?.role), [user?.role]);
 
@@ -189,8 +191,12 @@ export default function App() {
   }
 
   if (!user) {
+  if (showLogin) {
     return <Login onLogin={setUser} />;
   }
+
+  return <LandingPage onLogin={() => setShowLogin(true)} />;
+}
 
   return (
     <div className="min-h-screen bg-zinc-50">
