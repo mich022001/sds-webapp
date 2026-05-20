@@ -1,4 +1,4 @@
-import { Facebook, Mail, MapPin, Phone, Send } from "lucide-react";
+import { Globe, Mail, MapPin, Phone, Send } from "lucide-react";
 
 export default function ContactSection() {
   return (
@@ -40,8 +40,8 @@ export default function ContactSection() {
                 value: "Philippines",
               },
               {
-                icon: <Facebook size={18} />,
-                label: "Facebook",
+                icon: <Globe size={18} />,
+                label: "Social Page",
                 value: "SDS Sure-Fit Wellness",
               },
             ].map((item) => (
