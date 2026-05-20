@@ -1,5 +1,4 @@
-export const SDS_LOGO =
-  "https://media.base44.com/images/public/user_69f81603b281db9434881226/aeed94e16_dc9eaedf-9354-4c4c-a053-b44b2a25b33b.png";
+export const SDS_LOGO = "/sds-logo-clean.png";
 
 export const PRODUCTS = [
   {
