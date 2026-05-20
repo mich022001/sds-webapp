@@ -16,7 +16,6 @@ export default function LandingPage({ onLogin }) {
       <FeaturedProducts />
       <PackagesSection />
       <OpportunitySection />
-      <TestimonialsSection />
       <AboutSection />
       <ContactSection />
       <LandingFooter />
