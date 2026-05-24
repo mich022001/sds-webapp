@@ -1,20 +1,86 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Crown,
+  Network,
+  PackageCheck,
+  TrendingUp,
+  UserRound,
+  Users,
+  Wallet,
+} from "lucide-react";
 
-function levelLabel(lvl) {
-  if (lvl === 0) return "SDS";
-  if (lvl === 1) return "1ST LEVEL";
-  if (lvl === 2) return "2ND LEVEL";
-  if (lvl === 3) return "3RD LEVEL";
-  return `${lvl}TH LEVEL`;
+function levelLabel(level) {
+  if (level === 0) return "SDS";
+  if (level === 1) return "1st Level";
+  if (level === 2) return "2nd Level";
+  if (level === 3) return "3rd Level";
+  return `${level}th Level`;
 }
 
-function CompactMetric({ label, value }) {
+function fmtAmount(value) {
+  const number = Number(value || 0);
+  return Number.isFinite(number) ? number.toFixed(2) : "0.00";
+}
+
+function cls(...classes) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function SectionHeader({ eyebrow, title, description, right }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
-        {value}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        {eyebrow && (
+          <div className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
+            {eyebrow}
+          </div>
+        )}
+
+        <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
+          {title}
+        </h2>
+
+        {description && (
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">
+            {description}
+          </p>
+        )}
       </div>
+
+      {right}
+    </div>
+  );
+}
+
+function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
+  const toneClass = {
+    blue: "bg-blue-50 text-blue-700 ring-blue-100",
+    gold: "bg-yellow-50 text-yellow-700 ring-yellow-100",
+    slate: "bg-slate-50 text-slate-700 ring-slate-100",
+    green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  }[tone];
+
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            {label}
+          </div>
+          <div className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">
+            {value}
+          </div>
+        </div>
+
+        <div className={cls("rounded-2xl p-3 ring-1", toneClass)}>
+          <Icon size={22} />
+        </div>
+      </div>
+
+      {helper && <div className="mt-3 text-xs text-slate-500">{helper}</div>}
     </div>
   );
 }
@@ -22,25 +88,37 @@ function CompactMetric({ label, value }) {
 function Card({ title, children, right, className = "" }) {
   return (
     <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm ${className}`}
+      className={cls(
+        "max-w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm",
+        className
+      )}
     >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
+      <div className="border-b border-slate-100 px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="font-bold text-slate-950">{title}</div>
+          {right}
+        </div>
       </div>
-      {children}
+
+      <div className="p-5">{children}</div>
     </div>
   );
 }
 
-function fmtAmount(v) {
-  const n = Number(v || 0);
-  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+function LoadingCard({ title = "Loading dashboard..." }) {
+  return (
+    <Card title={title}>
+      <div className="space-y-3">
+        <div className="h-4 w-2/3 animate-pulse rounded-full bg-slate-100" />
+        <div className="h-4 w-1/2 animate-pulse rounded-full bg-slate-100" />
+        <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+      </div>
+    </Card>
+  );
 }
 
 export default function Dashboard({ user }) {
-  const isAdminView =
-    user?.role === "super_admin" || user?.role === "admin";
+  const isAdminView = user?.role === "super_admin" || user?.role === "admin";
 
   if (!isAdminView) {
     return <SelfDashboard user={user} />;
@@ -80,8 +158,8 @@ function AdminDashboard() {
         const data = Array.isArray(json?.data) ? json.data : [];
 
         if (!cancelled) setRows(data);
-      } catch (e) {
-        if (!cancelled) setErr(e?.message || "Failed to load dashboard");
+      } catch (error) {
+        if (!cancelled) setErr(error?.message || "Failed to load dashboard");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -95,18 +173,18 @@ function AdminDashboard() {
   }, []);
 
   const grouped = useMemo(() => {
-    const norm = (s) => String(s ?? "").trim().toLowerCase();
+    const norm = (value) => String(value ?? "").trim().toLowerCase();
 
     const displayNameByNorm = new Map();
     const sponsorByNormName = new Map();
 
-    for (const m of rows) {
-      const n = norm(m.name);
-      const s = norm(m.sponsor_name);
-      if (!n) continue;
+    for (const member of rows) {
+      const name = norm(member.name);
+      const sponsor = norm(member.sponsor_name);
+      if (!name) continue;
 
-      displayNameByNorm.set(n, m.name);
-      sponsorByNormName.set(n, s);
+      displayNameByNorm.set(name, member.name);
+      sponsorByNormName.set(name, sponsor);
     }
 
     const memo = new Map();
@@ -129,33 +207,33 @@ function AdminDashboard() {
         return 1;
       }
 
-      const lvl = computeLevel(sponsorNorm, seen) + 1;
-      memo.set(normName, lvl);
-      return lvl;
+      const level = computeLevel(sponsorNorm, seen) + 1;
+      memo.set(normName, level);
+      return level;
     }
 
     const map = new Map();
     map.set(0, ["SDS"]);
 
     for (const normName of displayNameByNorm.keys()) {
-      const lvl = computeLevel(normName);
-      if (!map.has(lvl)) map.set(lvl, []);
-      map.get(lvl).push(displayNameByNorm.get(normName));
+      const level = computeLevel(normName);
+      if (!map.has(level)) map.set(level, []);
+      map.get(level).push(displayNameByNorm.get(normName));
     }
 
     const levels = Array.from(map.keys()).sort((a, b) => a - b);
 
-    for (const lvl of levels) {
-      map.get(lvl).sort((a, b) => String(a).localeCompare(String(b)));
+    for (const level of levels) {
+      map.get(level).sort((a, b) => String(a).localeCompare(String(b)));
     }
 
     const levelItems = levels
-      .filter((lvl) => lvl !== 0)
-      .map((lvl) => ({
-        level: lvl,
-        title: levelLabel(lvl),
-        names: map.get(lvl) || [],
-        count: map.get(lvl)?.length || 0,
+      .filter((level) => level !== 0)
+      .map((level) => ({
+        level,
+        title: levelLabel(level),
+        names: map.get(level) || [],
+        count: map.get(level)?.length || 0,
       }));
 
     return { map, levels, levelItems };
@@ -186,6 +264,7 @@ function AdminDashboard() {
   function scrollLevels(direction) {
     const el = scrollRef.current;
     if (!el) return;
+
     el.scrollBy({
       left: direction * 320,
       behavior: "smooth",
@@ -196,32 +275,73 @@ function AdminDashboard() {
   const totalLevel1 = grouped.map.get(1)?.length ?? 0;
   const totalLevel2 = grouped.map.get(2)?.length ?? 0;
   const totalLevel3 = grouped.map.get(3)?.length ?? 0;
-  const totalLevelsShown = grouped.levels.filter((lvl) => lvl !== 0).length;
+  const totalLevelsShown = grouped.levels.filter((level) => level !== 0).length;
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
-      <div>
-        <div className="text-xl font-extrabold text-zinc-900">SUREFIT DIRECT SALES</div>
-        <div className="text-sm text-zinc-500">Admin Dashboard</div>
+    <div className="max-w-full space-y-6 overflow-x-hidden">
+      <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 p-6 text-white shadow-xl shadow-blue-950/10 sm:p-7">
+        <SectionHeader
+          eyebrow="Admin Dashboard"
+          title="SDS Business Overview"
+          description="Monitor member growth, direct-sales hierarchy, level distribution, and operating structure in one executive view."
+          right={
+            <div className="hidden rounded-2xl bg-white/10 px-4 py-3 text-right backdrop-blur sm:block">
+              <div className="text-xs font-semibold uppercase tracking-wide text-blue-100">
+                Network Depth
+              </div>
+              <div className="mt-1 text-2xl font-extrabold text-yellow-400">
+                {totalLevelsShown}
+              </div>
+            </div>
+          }
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <CompactMetric label="Total Members" value={totalMembers} />
-        <CompactMetric label="Total 1st Level" value={totalLevel1} />
-        <CompactMetric label="Total 2nd Level" value={totalLevel2} />
-        <CompactMetric label="Total 3rd Level" value={totalLevel3} />
-        <CompactMetric label="Levels Present" value={totalLevelsShown} />
+        <MetricCard
+          label="Total Members"
+          value={totalMembers}
+          icon={Users}
+          tone="blue"
+          helper="All registered members"
+        />
+        <MetricCard
+          label="1st Level"
+          value={totalLevel1}
+          icon={Crown}
+          tone="gold"
+          helper="Direct SDS branch"
+        />
+        <MetricCard
+          label="2nd Level"
+          value={totalLevel2}
+          icon={Network}
+          tone="blue"
+          helper="Second layer network"
+        />
+        <MetricCard
+          label="3rd Level"
+          value={totalLevel3}
+          icon={TrendingUp}
+          tone="green"
+          helper="Third layer network"
+        />
+        <MetricCard
+          label="Levels Present"
+          value={totalLevelsShown}
+          icon={BarChart3}
+          tone="slate"
+          helper="Active genealogy depth"
+        />
       </div>
 
-      {loading && (
-        <Card title="Hierarchy Overview">
-          <div className="text-sm text-zinc-500">Loading...</div>
-        </Card>
-      )}
+      {loading && <LoadingCard title="Genealogy Overview" />}
 
       {err && (
-        <Card title="Hierarchy Overview">
-          <div className="text-sm text-red-600">Error: {err}</div>
+        <Card title="Genealogy Overview">
+          <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+            Error: {err}
+          </div>
         </Card>
       )}
 
@@ -230,37 +350,41 @@ function AdminDashboard() {
           title="Genealogy by Level"
           right={
             <div className="flex items-center gap-2">
-              <span className="hidden text-xs text-zinc-500 md:inline">
-                Swipe or use arrows to view more levels
+              <span className="hidden text-xs font-medium text-slate-400 lg:inline">
+                Swipe or use arrows
               </span>
+
               <button
                 type="button"
                 onClick={() => scrollLevels(-1)}
                 disabled={!canScrollLeft}
-                className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                ←
+                <ArrowLeft size={15} />
               </button>
+
               <button
                 type="button"
                 onClick={() => scrollLevels(1)}
                 disabled={!canScrollRight}
-                className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                →
+                <ArrowRight size={15} />
               </button>
             </div>
           }
         >
           {grouped.levelItems.length === 0 ? (
-            <div className="text-sm text-zinc-500">No hierarchy data yet.</div>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+              No hierarchy data yet.
+            </div>
           ) : (
             <div className="relative max-w-full overflow-hidden">
               {canScrollLeft && (
-                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
+                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 bg-gradient-to-r from-white to-transparent" />
               )}
               {canScrollRight && (
-                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
+                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-white to-transparent" />
               )}
 
               <div
@@ -271,42 +395,46 @@ function AdminDashboard() {
                   {grouped.levelItems.map((item) => (
                     <div
                       key={item.level}
-                      className="w-[280px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
+                      className="w-[280px] shrink-0 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50"
                     >
-                      <div className="border-b border-zinc-200 bg-white px-4 py-3">
-                        <div className="text-sm font-bold text-zinc-900">{item.title}</div>
-                        <div className="mt-1 text-xs text-zinc-500">
-                          Count: {item.count}
+                      <div className="border-b border-slate-200 bg-white px-4 py-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-extrabold text-slate-950">
+                              {item.title}
+                            </div>
+                            <div className="mt-1 text-xs text-slate-500">
+                              {item.count} member{item.count === 1 ? "" : "s"}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                            L{item.level}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="border-b border-zinc-200 bg-zinc-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                        Names
-                      </div>
-
-                      <div className="max-h-[520px] overflow-y-auto">
+                      <div className="max-h-[520px] overflow-y-auto p-3">
                         {item.names.length === 0 ? (
-                          <div className="px-4 py-3 text-sm text-zinc-400">No members</div>
+                          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
+                            No members
+                          </div>
                         ) : (
-                          <table className="w-full border-collapse text-sm">
-                            <thead className="sticky top-0 bg-white">
-                              <tr className="border-b border-zinc-200">
-                                <th className="px-4 py-2 text-left font-semibold text-zinc-700">
-                                  Name
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {item.names.map((name, idx) => (
-                                <tr
-                                  key={`${item.level}-${name}-${idx}`}
-                                  className="border-b border-zinc-100"
-                                >
-                                  <td className="px-4 py-2 text-zinc-800">{name}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          <div className="space-y-2">
+                            {item.names.map((name, index) => (
+                              <div
+                                key={`${item.level}-${name}-${index}`}
+                                className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 text-sm shadow-sm"
+                              >
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-extrabold text-blue-700">
+                                  {String(name).slice(0, 1).toUpperCase()}
+                                </div>
+                                <div className="min-w-0 truncate font-medium text-slate-800">
+                                  {name}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -314,7 +442,7 @@ function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="mt-2 text-center text-xs text-zinc-500 md:hidden">
+              <div className="mt-2 text-center text-xs text-slate-400 md:hidden">
                 Swipe horizontally to view more levels
               </div>
             </div>
@@ -381,8 +509,8 @@ function SelfDashboard({ user }) {
           setReport(reportJson);
           setSales(Array.isArray(salesJson?.data) ? salesJson.data : []);
         }
-      } catch (e) {
-        if (!cancelled) setErr(e?.message || "Failed to load dashboard");
+      } catch (error) {
+        if (!cancelled) setErr(error?.message || "Failed to load dashboard");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -398,72 +526,92 @@ function SelfDashboard({ user }) {
   const totals = report?.totals || {};
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
-      <div>
-        <div className="text-xl font-extrabold text-zinc-900">
-          Welcome, {member?.name || user?.full_name || "Member"}
-        </div>
-        <div className="text-sm text-zinc-500">Personal Dashboard</div>
+    <div className="max-w-full space-y-6 overflow-x-hidden">
+      <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 p-6 text-white shadow-xl shadow-blue-950/10 sm:p-7">
+        <SectionHeader
+          eyebrow="Personal Dashboard"
+          title={`Welcome, ${member?.name || user?.full_name || "Member"}`}
+          description="View your membership profile, balances, upline details, and recent sales requests."
+        />
       </div>
 
       {loading ? (
-        <Card title="My Summary">
-          <div className="text-sm text-zinc-500">Loading...</div>
-        </Card>
+        <LoadingCard title="My Summary" />
       ) : err ? (
         <Card title="My Summary">
-          <div className="text-sm text-red-600">{err}</div>
+          <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+            {err}
+          </div>
         </Card>
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <CompactMetric label="Member ID" value={member?.member_id || "-"} />
-            <CompactMetric
+            <MetricCard
+              label="Member ID"
+              value={member?.member_id || "-"}
+              icon={UserRound}
+              tone="blue"
+            />
+            <MetricCard
               label="Membership Type"
               value={member?.membership_type || "-"}
+              icon={PackageCheck}
+              tone="gold"
             />
-            <CompactMetric
+            <MetricCard
               label="Cash Balance"
               value={fmtAmount(totals.balance_cash)}
+              icon={Wallet}
+              tone="green"
             />
-            <CompactMetric
+            <MetricCard
               label="Product Balance"
               value={fmtAmount(totals.balance_product)}
+              icon={PackageCheck}
+              tone="slate"
             />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             <Card title="My Upline Details">
-              <div className="space-y-3 text-sm">
-                <div>
-                  <div className="text-xs font-medium text-zinc-500">Sponsor</div>
-                  <div className="text-zinc-900">{member?.sponsor_name || "-"}</div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-zinc-500">Regional Manager</div>
-                  <div className="text-zinc-900">
-                    {member?.regional_manager || "-"}
+              <div className="space-y-3">
+                {[
+                  ["Sponsor", member?.sponsor_name || "-"],
+                  ["Regional Manager", member?.regional_manager || "-"],
+                  ["Area / Region", member?.area_region || "-"],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+                  >
+                    <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                      {label}
+                    </div>
+                    <div className="mt-1 text-sm font-semibold text-slate-900">
+                      {value}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-zinc-500">Area / Region</div>
-                  <div className="text-zinc-900">{member?.area_region || "-"}</div>
-                </div>
+                ))}
               </div>
             </Card>
 
             <Card title="My Recent Sales Requests">
               {sales.length === 0 ? (
-                <div className="text-sm text-zinc-500">No sales yet.</div>
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                  No sales yet.
+                </div>
               ) : (
                 <div className="space-y-3">
-                  {sales.slice(0, 5).map((row, idx) => (
-                    <div key={`${row.id || idx}`} className="border-b border-zinc-100 pb-3 last:border-b-0">
-                      <div className="text-sm font-medium text-zinc-900">
+                  {sales.slice(0, 5).map((row, index) => (
+                    <div
+                      key={`${row.id || index}`}
+                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+                    >
+                      <div className="text-sm font-bold text-slate-950">
                         {row.product_name}
                       </div>
-                      <div className="text-xs text-zinc-500">
-                        Qty {row.quantity} • Total {fmtAmount(row.total_amount)}
+                      <div className="mt-1 text-xs text-slate-500">
+                        Qty {row.quantity} • Total ₱{fmtAmount(row.total_amount)}
                       </div>
                     </div>
                   ))}
