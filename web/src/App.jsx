@@ -67,22 +67,8 @@ const navByRole = {
   ],
 };
 
-function cls(...a) {
-  return a.filter(Boolean).join(" ");
-}
-
-function Card({ title, children, right, className = "" }) {
-  return (
-    <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
-    >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
+function cls(...classes) {
+  return classes.filter(Boolean).join(" ");
 }
 
 function Button({ children, variant = "primary", className = "", ...props }) {
@@ -91,9 +77,9 @@ function Button({ children, variant = "primary", className = "", ...props }) {
       {...props}
       className={cls(
         "h-10 rounded-xl px-4 text-sm font-semibold transition",
-        variant === "primary" && "bg-zinc-900 text-white hover:bg-zinc-800",
+        variant === "primary" && "bg-blue-700 text-white hover:bg-blue-800",
         variant === "ghost" &&
-          "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
+          "border border-zinc-200 bg-white text-zinc-900 shadow-sm hover:bg-zinc-50",
         className
       )}
     >
@@ -112,7 +98,7 @@ function getDefaultPage(role) {
 }
 
 function hasAccess(role, key) {
-  return getAllowedNav(role).some((n) => n.key === key);
+  return getAllowedNav(role).some((nav) => nav.key === key);
 }
 
 export default function App() {
@@ -125,7 +111,7 @@ export default function App() {
   const currentNav = useMemo(() => getAllowedNav(user?.role), [user?.role]);
 
   const pageTitle = useMemo(
-    () => currentNav.find((n) => n.key === active)?.label ?? "Dashboard",
+    () => currentNav.find((nav) => nav.key === active)?.label ?? "Dashboard",
     [active, currentNav]
   );
 
@@ -184,44 +170,48 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
-        <div className="text-sm text-zinc-500">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-yellow-50">
+        <div className="rounded-2xl border border-blue-100 bg-white px-6 py-4 text-sm font-semibold text-zinc-600 shadow-xl">
+          Loading SDS...
+        </div>
       </div>
     );
   }
 
   if (!user) {
-  if (showLogin) {
-    return <Login onLogin={setUser} />;
+    if (showLogin) {
+      return <Login onLogin={setUser} />;
+    }
+
+    return <LandingPage onLogin={() => setShowLogin(true)} />;
   }
 
-  return <LandingPage onLogin={() => setShowLogin(true)} />;
-}
-
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-zinc-50 to-yellow-50">
       {sidebarOpen && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-blue-950/50 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-label="Close sidebar overlay"
         />
       )}
 
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-4 md:py-6">
-        <aside className="hidden w-64 shrink-0 md:block">
-          <Sidebar
-            user={user}
-            currentNav={currentNav}
-            active={active}
-            onNavigate={handleNavigate}
-          />
+      <div className="mx-auto flex max-w-[1600px] gap-6 px-4 py-4 md:px-6 md:py-6">
+        <aside className="hidden w-72 shrink-0 md:block">
+          <div className="sticky top-6 h-[calc(100vh-3rem)]">
+            <Sidebar
+              user={user}
+              currentNav={currentNav}
+              active={active}
+              onNavigate={handleNavigate}
+            />
+          </div>
         </aside>
 
         <aside
           className={cls(
-            "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transform bg-zinc-50 p-4 transition-transform duration-300 md:hidden",
+            "fixed inset-y-0 left-0 z-50 w-80 max-w-[88vw] transform p-3 transition-transform duration-300 md:hidden",
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -236,34 +226,34 @@ export default function App() {
         </aside>
 
         <main className="min-w-0 flex-1 overflow-x-hidden pb-8">
-          <div className="mb-5 flex items-start justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-900 shadow-sm hover:bg-zinc-50 md:hidden"
-                aria-label="Open menu"
-              >
-                <Menu size={20} />
-              </button>
+          <header className="mb-6 rounded-3xl border border-zinc-200 bg-white/90 p-4 shadow-sm backdrop-blur md:p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-800 shadow-sm hover:bg-blue-100 md:hidden"
+                  aria-label="Open menu"
+                >
+                  <Menu size={20} />
+                </button>
 
-              <div className="min-w-0">
-                <div className="truncate text-xl font-extrabold text-zinc-900">
-                  {pageTitle}
-                </div>
-                <div className="text-sm text-zinc-500">
-                  Logged in as{" "}
-                  <span className="font-medium text-zinc-900">
-                    {user?.full_name || user?.username || "user"}
-                  </span>
+                <div className="min-w-0">
+                  <div className="truncate text-2xl font-extrabold tracking-tight text-zinc-950">
+                    {pageTitle}
+                  </div>
+                  <div className="mt-0.5 truncate text-sm text-zinc-500">
+                    Logged in as{" "}
+                    <span className="font-semibold text-blue-800">
+                      {user?.full_name || user?.username || "user"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex shrink-0 gap-2">
               <Button
                 variant="ghost"
-                className="px-3 md:px-4"
+                className="shrink-0 px-3 md:px-4"
                 onClick={async () => {
                   try {
                     await fetch("/api/auth", {
@@ -282,13 +272,14 @@ export default function App() {
                 Logout
               </Button>
             </div>
-          </div>
+          </header>
 
           {active === "dashboard" && <Dashboard user={user} />}
           {active === "registration" && <Registration user={user} />}
 
-          {active === "registration_codes" &&
-            user.role === "super_admin" && <RegistrationCodes />}
+          {active === "registration_codes" && user.role === "super_admin" && (
+            <RegistrationCodes />
+          )}
 
           {active === "members" &&
             (user.role === "super_admin" || user.role === "admin") && (
@@ -307,8 +298,9 @@ export default function App() {
 
           {active === "sales" && <SalesEntry user={user} />}
 
-          {active === "catalog" &&
-            user.role === "super_admin" && <ProductCatalog />}
+          {active === "catalog" && user.role === "super_admin" && (
+            <ProductCatalog />
+          )}
 
           {active === "reports" &&
             (user.role === "super_admin" || user.role === "admin") && (
@@ -327,7 +319,7 @@ export default function App() {
 
           {active === "redemptions" && <Redemptions user={user} />}
 
-	  {active === "my_members" && user.role === "rm" && (
+          {active === "my_members" && user.role === "rm" && (
             <MyMembers user={user} />
           )}
 
@@ -347,16 +339,5 @@ export default function App() {
         </main>
       </div>
     </div>
-  );
-}
-
-function Placeholder({ title, desc }) {
-  return (
-    <Card title={title}>
-      <div className="text-sm text-zinc-600">{desc}</div>
-      <div className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
-        UI placeholder — next we connect it to database + API.
-      </div>
-    </Card>
   );
 }
