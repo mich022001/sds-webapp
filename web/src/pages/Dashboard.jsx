@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   BarChart3,
@@ -7,6 +9,7 @@ import {
   Network,
   PackageCheck,
   Search,
+  ShieldCheck,
   TrendingUp,
   UserRound,
   Users,
@@ -40,6 +43,7 @@ function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
     gold: "bg-yellow-50 text-yellow-700 ring-yellow-100",
     slate: "bg-slate-50 text-slate-700 ring-slate-100",
     green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    red: "bg-red-50 text-red-700 ring-red-100",
   }[tone];
 
   return (
@@ -344,6 +348,70 @@ function AdminDashboard() {
       .filter((item) => item.members.length > 0 || !term);
   }, [grouped.levelItems, search, activeLevel]);
 
+  const analytics = useMemo(() => {
+    const sponsorCounts = new Map();
+    const membershipCounts = new Map();
+
+    for (const member of rows) {
+      const sponsor = String(member.sponsor_name || "SDS").trim() || "SDS";
+      sponsorCounts.set(sponsor, (sponsorCounts.get(sponsor) || 0) + 1);
+
+      const membership = String(member.membership_type || "Unassigned").trim();
+      membershipCounts.set(membership, (membershipCounts.get(membership) || 0) + 1);
+    }
+
+    const topSponsors = Array.from(sponsorCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const membershipMix = Array.from(membershipCounts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const level1 = grouped.map.get(1)?.length ?? 0;
+    const level3 = grouped.map.get(3)?.length ?? 0;
+
+    const alerts = [
+      {
+        type: "Network",
+        title:
+          level1 <= 3
+            ? "Direct branch is still concentrated"
+            : "Direct branch is expanding",
+        detail: `${level1} member${level1 === 1 ? "" : "s"} in 1st level.`,
+        tone: level1 <= 3 ? "gold" : "green",
+      },
+      {
+        type: "Depth",
+        title:
+          grouped.levels.length > 8
+            ? "Network depth is high"
+            : "Network depth is still manageable",
+        detail: `${grouped.levels.filter((level) => level !== 0).length} active levels detected.`,
+        tone: grouped.levels.length > 8 ? "blue" : "green",
+      },
+      {
+        type: "Distribution",
+        title:
+          level3 > level1
+            ? "Lower levels are carrying growth"
+            : "Growth is mostly near the top",
+        detail: `${level3} members currently sit in 3rd level.`,
+        tone: level3 > level1 ? "blue" : "gold",
+      },
+    ];
+
+    const recentActivity = rows.slice(-6).reverse().map((member) => ({
+      title: member.name || "New member",
+      detail: `${member.membership_type || "Member"} under ${
+        member.sponsor_name || "SDS"
+      }`,
+    }));
+
+    return { topSponsors, membershipMix, alerts, recentActivity };
+  }, [rows, grouped]);
+
   useEffect(() => {
     function updateScrollState() {
       const el = scrollRef.current;
@@ -395,7 +463,8 @@ function AdminDashboard() {
               SDS Business Overview
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-              Monitor member growth, hierarchy depth, and network distribution.
+              Monitor member growth, hierarchy depth, sponsor performance, and
+              network distribution.
             </p>
           </div>
 
@@ -457,6 +526,124 @@ function AdminDashboard() {
           tone="slate"
           helper="Active genealogy depth"
         />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+        <Card title="Network Intelligence">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {analytics.membershipMix.slice(0, 3).map((item) => (
+              <div
+                key={item.name}
+                className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+              >
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  {item.name}
+                </div>
+                <div className="mt-1 text-2xl font-black text-slate-950">
+                  {item.count}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="rounded-xl border border-slate-100 bg-white p-3">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-950">
+                <Crown size={16} className="text-yellow-600" />
+                Top Sponsors
+              </div>
+
+              <div className="space-y-2">
+                {analytics.topSponsors.map((sponsor, index) => (
+                  <div
+                    key={sponsor.name}
+                    className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-slate-900">
+                        {index + 1}. {sponsor.name}
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        Direct network count
+                      </div>
+                    </div>
+                    <div className="text-sm font-black text-blue-700">
+                      {sponsor.count}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-white p-3">
+              <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-950">
+                <Activity size={16} className="text-blue-700" />
+                Recent Activity
+              </div>
+
+              <div className="space-y-2">
+                {analytics.recentActivity.length === 0 ? (
+                  <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    No recent activity yet.
+                  </div>
+                ) : (
+                  analytics.recentActivity.map((activity, index) => (
+                    <div
+                      key={`${activity.title}-${index}`}
+                      className="rounded-lg bg-slate-50 px-3 py-2"
+                    >
+                      <div className="truncate text-sm font-semibold text-slate-900">
+                        {activity.title}
+                      </div>
+                      <div className="truncate text-xs text-slate-400">
+                        {activity.detail}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Executive Alerts">
+          <div className="space-y-3">
+            {analytics.alerts.map((alert) => (
+              <div
+                key={alert.title}
+                className={cls(
+                  "rounded-xl border px-4 py-3",
+                  alert.tone === "gold" &&
+                    "border-yellow-100 bg-yellow-50 text-yellow-900",
+                  alert.tone === "blue" &&
+                    "border-blue-100 bg-blue-50 text-blue-900",
+                  alert.tone === "green" &&
+                    "border-emerald-100 bg-emerald-50 text-emerald-900"
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  {alert.tone === "gold" ? (
+                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+                  ) : (
+                    <ShieldCheck size={18} className="mt-0.5 shrink-0" />
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-black uppercase tracking-wide opacity-70">
+                      {alert.type}
+                    </div>
+                    <div className="mt-0.5 text-sm font-extrabold">
+                      {alert.title}
+                    </div>
+                    <div className="mt-1 text-xs opacity-80">
+                      {alert.detail}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
 
       {loading && <LoadingCard title="Genealogy Explorer" />}
