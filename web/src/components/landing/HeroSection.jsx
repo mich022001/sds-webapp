@@ -6,21 +6,22 @@ export default function HeroSection() {
 
   function scrollTo(href) {
     const el = document.querySelector(href);
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
   }
 
   useEffect(() => {
     let cancelled = false;
 
-    async function loadMemberCount() {
+    async function loadMembers() {
       try {
-        const res = await fetch("/api/members", {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        });
-
+        const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
-        const rows = Array.isArray(json?.data) ? json.data : [];
+
+        const rows = Array.isArray(json?.data)
+          ? json.data
+          : [];
 
         if (!cancelled) {
           setActiveMembers(rows.length);
@@ -32,26 +33,32 @@ export default function HeroSection() {
       }
     }
 
-    loadMemberCount();
+    loadMembers();
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const memberCountLabel =
-    activeMembers === null ? "—" : `${activeMembers.toLocaleString()}+`;
+  const memberCount =
+    activeMembers === null
+      ? "—"
+      : `${activeMembers}+`;
 
   return (
     <section
       id="hero"
       className="relative flex min-h-screen items-center overflow-hidden bg-[#061b4f]"
     >
+      {/* Background */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_42%,rgba(59,130,246,0.35),transparent_34%),linear-gradient(135deg,#061b4f_0%,#0d3fa3_42%,#123f9d_70%,#071b47_100%)]" />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 pt-28 pb-12 sm:px-6 lg:px-8">
         <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+
+          {/* LEFT */}
           <div className="text-white">
+
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-yellow-400/30 bg-white/10 px-4 py-2 text-xs font-semibold text-yellow-300 backdrop-blur">
               <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-400" />
               High grade organic quality
@@ -63,11 +70,11 @@ export default function HeroSection() {
 
             <p className="mb-8 max-w-xl text-lg leading-relaxed text-blue-100">
               Join Sure-Fit Wellness and discover premium wellness products,
-              rewarding memberships, and income opportunities across the
-              Philippines.
+              rewarding memberships, and income opportunities across the Philippines.
             </p>
 
             <div className="mb-12 flex flex-col gap-4 sm:flex-row">
+
               <button
                 type="button"
                 onClick={() => scrollTo("#contact")}
@@ -79,60 +86,135 @@ export default function HeroSection() {
               <button
                 type="button"
                 onClick={() => scrollTo("#products")}
-                className="rounded-full border-2 border-white/30 px-8 py-4 font-semibold text-white hover:bg-white/10"
+                className="rounded-full border-2 border-white/30 px-8 py-4 font-semibold text-white transition hover:bg-white/10"
               >
                 View Products →
               </button>
+
             </div>
 
             <div className="grid max-w-xl grid-cols-3 gap-5">
+
               {[
-                { num: memberCountLabel, label: "Active Members" },
-                { num: "4", label: "Products" },
-                { num: "4", label: "Packages" },
+                {
+                  num: memberCount,
+                  label: "Active Members",
+                },
+                {
+                  num: "4",
+                  label: "Products",
+                },
+                {
+                  num: "4",
+                  label: "Packages",
+                },
               ].map((stat, index) => (
                 <div
                   key={stat.label}
-                  className={index ? "border-l border-white/20 pl-5" : ""}
+                  className={
+                    index
+                      ? "border-l border-white/20 pl-5"
+                      : ""
+                  }
                 >
                   <div className="text-2xl font-bold text-yellow-400">
                     {stat.num}
                   </div>
 
-                  <div className="text-sm text-blue-100">{stat.label}</div>
+                  <div className="text-sm text-blue-100">
+                    {stat.label}
+                  </div>
+
                 </div>
               ))}
+
             </div>
+
           </div>
 
-          <div className="flex justify-center">
-            <div className="relative flex h-[20rem] w-[20rem] items-center justify-center sm:h-[28rem] sm:w-[28rem] lg:h-[34rem] lg:w-[34rem]">
-              <div className="absolute h-full w-full rounded-full border border-white/10" />
 
-              <div className="relative h-[90%] w-[90%] overflow-hidden rounded-full">
+          {/* RIGHT LOGO */}
+          <div className="flex justify-center">
+
+            <div
+              className="
+                relative
+                flex
+                items-center
+                justify-center
+
+                h-[18rem]
+                w-[18rem]
+
+                sm:h-[24rem]
+                sm:w-[24rem]
+
+                lg:h-[30rem]
+                lg:w-[30rem]
+              "
+            >
+
+              {/* Thin outer ring */}
+              <div
+                className="
+                  absolute
+                  inset-0
+                  rounded-full
+                  border
+                  border-white/10
+                "
+              />
+
+              {/* 95% logo */}
+              <div
+                className="
+                  absolute
+                  inset-[2%]
+                  overflow-hidden
+                  rounded-full
+                "
+              >
+
                 <img
                   src={SDS_LOGO}
                   alt="SDS Logo"
-                  className="h-full w-full scale-[1.12] object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)]"
+                  className="
+                    h-full
+                    w-full
+                    object-contain
+                    scale-[1.05]
+                    drop-shadow-[0_20px_40px_rgba(0,0,0,0.35)]
+                  "
                 />
+
               </div>
+
             </div>
+
           </div>
+
         </div>
       </div>
 
+
+      {/* Bottom Wave */}
       <div className="absolute bottom-0 left-0 right-0">
+
         <svg
           viewBox="0 0 1440 80"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
+
           <path
             d="M0 80L1440 80L1440 40C1200 80 960 0 720 20C480 40 240 80 0 40L0 80Z"
             fill="white"
           />
+
         </svg>
+
       </div>
+
     </section>
   );
 }
