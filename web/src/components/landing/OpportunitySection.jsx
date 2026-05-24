@@ -34,8 +34,8 @@ const steps = [
   },
   {
     step: "06",
-    title: "Regional Manager",
-    desc: "Lead a region and manage a bigger SDS community.",
+    title: "Area Manager",
+    desc: "Lead an area and manage a bigger SDS community.",
     color: "bg-yellow-300",
   },
 ];

@@ -128,7 +128,7 @@ export const TESTIMONIALS = [
   {
     id: 2,
     name: "Edna Cha",
-    role: "Regional Manager",
+    role: "Area Manager",
     message:
       "The system makes it easier to track members, packages, and earnings clearly.",
     photo_url:
@@ -161,15 +161,15 @@ export const BONUS_TYPES = [
     icon: "🔗",
   },
   {
-    name: "Development Bonus",
+    name: "Developer Bonus",
     amount: "₱200",
     description: "Bonus from eligible lower-level registrations.",
     icon: "📈",
   },
   {
-    name: "RM Rebate",
+    name: "AM Rebate",
     amount: "Variable",
-    description: "Regional Manager earnings from product movement.",
+    description: "Area Manager earnings from product movement.",
     icon: "💰",
   },
 ];

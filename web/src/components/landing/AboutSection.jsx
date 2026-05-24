@@ -20,7 +20,7 @@ export default function AboutSection() {
     {
       icon: "🏆",
       title: "Growth",
-      desc: "A system built for members, distributors, and regional managers.",
+      desc: "A system built for members, distributors, and area managers.",
     },
   ];
 
@@ -43,7 +43,7 @@ export default function AboutSection() {
             </p>
 
             <p className="mb-6 leading-relaxed text-gray-500">
-              From product packages to member bonuses and regional reports, SDS
+              From product packages to member bonuses and area reports, SDS
               is designed to support both product distribution and member
               network management.
             </p>

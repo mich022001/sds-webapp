@@ -73,7 +73,7 @@ export default function ContactSection() {
                   Distributor
                 </span>
                 <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-blue-900">
-                  Regional Manager
+                  Area Manager
                 </span>
               </div>
             </div>
