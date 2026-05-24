@@ -89,22 +89,21 @@ export default function HeroSection() {
                   <div className="text-2xl font-bold text-yellow-400">
                     {stat.num}
                   </div>
-
                   <div className="text-sm text-blue-100">{stat.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="flex justify-center">
-            <div className="relative flex h-[20rem] w-[20rem] items-center justify-center sm:h-[30rem] sm:w-[30rem] lg:h-[36rem] lg:w-[36rem]">
-              <div className="absolute inset-0 rounded-full border border-white/10" />
+          <div className="flex w-full justify-center">
+            <div className="relative mx-auto flex h-[24rem] w-[24rem] items-center justify-center sm:h-[31rem] sm:w-[31rem] lg:h-[38rem] lg:w-[38rem]">
+              <div className="absolute inset-[4%] rounded-full border border-white/10" />
 
-              <div className="absolute inset-[0.5%] overflow-hidden rounded-full">
+              <div className="absolute inset-[4%] overflow-hidden rounded-full">
                 <img
                   src={SDS_LOGO}
                   alt="SDS Logo"
-                  className="h-full w-full scale-[1.22] object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.35)]"
+                  className="absolute left-1/2 top-1/2 h-[122%] w-[122%] -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-[0_30px_60px_rgba(0,0,0,0.35)]"
                 />
               </div>
             </div>
