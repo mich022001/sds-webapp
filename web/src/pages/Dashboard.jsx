@@ -29,32 +29,6 @@ function cls(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
-function SectionHeader({ eyebrow, title, description, right }) {
-  return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      <div className="min-w-0">
-        {eyebrow && (
-          <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
-            {eyebrow}
-          </div>
-        )}
-
-        <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 md:text-3xl">
-          {title}
-        </h2>
-
-        {description && (
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-            {description}
-          </p>
-        )}
-      </div>
-
-      {right}
-    </div>
-  );
-}
-
 function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
   const toneClass = {
     blue: "bg-blue-50 text-blue-700 ring-blue-100",
@@ -70,14 +44,13 @@ function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
           <div className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-400">
             {label}
           </div>
-
           <div className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">
             {value}
           </div>
         </div>
 
-        <div className={cls("rounded-2xl p-2.5 ring-1", toneClass)}>
-          <Icon size={19} />
+        <div className={cls("rounded-xl p-2.5 ring-1", toneClass)}>
+          <Icon size={18} />
         </div>
       </div>
 
@@ -90,7 +63,7 @@ function Card({ title, children, right, className = "" }) {
   return (
     <div
       className={cls(
-        "max-w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm",
+        "max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
         className
       )}
     >
@@ -120,9 +93,7 @@ function LoadingCard({ title = "Loading dashboard..." }) {
 
 export default function Dashboard({ user }) {
   const isAdminView = user?.role === "super_admin" || user?.role === "admin";
-
   if (!isAdminView) return <SelfDashboard user={user} />;
-
   return <AdminDashboard />;
 }
 
@@ -279,22 +250,40 @@ function AdminDashboard() {
 
   return (
     <div className="max-w-full space-y-4 overflow-x-hidden">
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-        <SectionHeader
-          eyebrow="Admin Dashboard"
-          title="SDS Business Overview"
-          description="Monitor member growth, direct-sales hierarchy, level distribution, and operating structure."
-          right={
-            <div className="hidden min-w-32 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-right sm:block">
-              <div className="text-[11px] font-bold uppercase tracking-wide text-blue-700">
-                Network Depth
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
+              Admin Dashboard
+            </div>
+            <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 md:text-3xl">
+              SDS Business Overview
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
+              Monitor member growth, hierarchy depth, and network distribution.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                Members
               </div>
-              <div className="mt-1 text-2xl font-extrabold text-blue-900">
+              <div className="mt-1 text-xl font-extrabold text-blue-950">
+                {totalMembers}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-yellow-100 bg-yellow-50 px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-yellow-700">
+                Depth
+              </div>
+              <div className="mt-1 text-xl font-extrabold text-yellow-800">
                 {totalLevelsShown}
               </div>
             </div>
-          }
-        />
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
@@ -339,7 +328,7 @@ function AdminDashboard() {
 
       {err && (
         <Card title="Genealogy Overview">
-          <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+          <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
             Error: {err}
           </div>
         </Card>
@@ -375,7 +364,7 @@ function AdminDashboard() {
           }
         >
           {grouped.levelItems.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
               No hierarchy data yet.
             </div>
           ) : (
@@ -395,7 +384,7 @@ function AdminDashboard() {
                   {grouped.levelItems.map((item) => (
                     <div
                       key={item.level}
-                      className="w-[280px] shrink-0 overflow-hidden rounded-3xl border border-slate-200 bg-slate-50"
+                      className="w-[280px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
                     >
                       <div className="border-b border-slate-200 bg-white px-4 py-4">
                         <div className="flex items-start justify-between gap-3">
@@ -408,7 +397,7 @@ function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div className="rounded-2xl bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                          <div className="rounded-xl bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
                             L{item.level}
                           </div>
                         </div>
@@ -416,7 +405,7 @@ function AdminDashboard() {
 
                       <div className="max-h-[520px] overflow-y-auto p-3">
                         {item.names.length === 0 ? (
-                          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
+                          <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
                             No members
                           </div>
                         ) : (
@@ -424,9 +413,9 @@ function AdminDashboard() {
                             {item.names.map((name, index) => (
                               <div
                                 key={`${item.level}-${name}-${index}`}
-                                className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5 text-sm shadow-sm"
+                                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-sm shadow-sm"
                               >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xs font-extrabold text-blue-700">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-extrabold text-blue-700">
                                   {String(name).slice(0, 1).toUpperCase()}
                                 </div>
                                 <div className="min-w-0 truncate font-medium text-slate-800">
@@ -528,19 +517,25 @@ function SelfDashboard({ user }) {
 
   return (
     <div className="max-w-full space-y-4 overflow-x-hidden">
-      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
-        <SectionHeader
-          eyebrow="Personal Dashboard"
-          title={`Welcome, ${member?.name || user?.full_name || "Member"}`}
-          description="View your membership profile, balances, upline details, and recent sales requests."
-        />
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div>
+          <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
+            Personal Dashboard
+          </div>
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 md:text-3xl">
+            Welcome, {member?.name || user?.full_name || "Member"}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
+            View your membership profile, balances, upline details, and recent sales requests.
+          </p>
+        </div>
       </div>
 
       {loading ? (
         <LoadingCard title="My Summary" />
       ) : err ? (
         <Card title="My Summary">
-          <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
+          <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
             {err}
           </div>
         </Card>
@@ -583,7 +578,7 @@ function SelfDashboard({ user }) {
                 ].map(([label, value]) => (
                   <div
                     key={label}
-                    className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+                    className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
                   >
                     <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
                       {label}
@@ -598,7 +593,7 @@ function SelfDashboard({ user }) {
 
             <Card title="My Recent Sales Requests">
               {sales.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
                   No sales yet.
                 </div>
               ) : (
@@ -606,7 +601,7 @@ function SelfDashboard({ user }) {
                   {sales.slice(0, 5).map((row, index) => (
                     <div
                       key={`${row.id || index}`}
-                      className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3"
+                      className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
                     >
                       <div className="text-sm font-bold text-slate-950">
                         {row.product_name}
