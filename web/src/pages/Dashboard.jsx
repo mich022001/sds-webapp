@@ -6,6 +6,7 @@ import {
   Crown,
   Network,
   PackageCheck,
+  Search,
   TrendingUp,
   UserRound,
   Users,
@@ -23,6 +24,10 @@ function levelLabel(level) {
 function fmtAmount(value) {
   const number = Number(value || 0);
   return Number.isFinite(number) ? number.toFixed(2) : "0.00";
+}
+
+function norm(value) {
+  return String(value ?? "").trim().toLowerCase();
 }
 
 function cls(...classes) {
@@ -44,7 +49,7 @@ function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
           <div className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-400">
             {label}
           </div>
-          <div className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">
+          <div className="mt-2 text-3xl font-black tracking-tight text-slate-950">
             {value}
           </div>
         </div>
@@ -93,19 +98,93 @@ function LoadingCard({ title = "Loading dashboard..." }) {
   );
 }
 
-function MemberPill({ name, level, index }) {
+function MemberPill({ member, index, selected, onSelect }) {
+  const name = member?.name || "-";
+
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-2 text-sm shadow-sm">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] font-extrabold text-blue-700">
+    <button
+      type="button"
+      onClick={() => onSelect(member)}
+      className={cls(
+        "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+        selected
+          ? "border-blue-200 bg-blue-50 text-blue-950"
+          : "border-slate-100 bg-white/90 text-slate-800"
+      )}
+    >
+      <div
+        className={cls(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-extrabold",
+          selected
+            ? "bg-blue-700 text-white"
+            : "bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700"
+        )}
+      >
         {String(name).slice(0, 1).toUpperCase()}
       </div>
 
-      <div className="min-w-0 flex-1 truncate font-medium text-slate-800">
-        {name}
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-semibold">{name}</div>
+        <div className="mt-0.5 truncate text-[11px] text-slate-400">
+          Sponsor: {member?.sponsor_name || "SDS"}
+        </div>
       </div>
 
       <div className="hidden shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-300 sm:block">
         #{index + 1}
+      </div>
+    </button>
+  );
+}
+
+function SelectedMemberPanel({ member }) {
+  if (!member) {
+    return (
+      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
+        Select a member to view details.
+      </div>
+    );
+  }
+
+  const details = [
+    ["Member", member.name || "-"],
+    ["Sponsor", member.sponsor_name || "SDS"],
+    ["Membership", member.membership_type || "-"],
+    ["Area / Region", member.area_region || "-"],
+    ["Regional Manager", member.regional_manager || "-"],
+  ];
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 p-4">
+      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-base font-black text-white shadow-sm">
+          {String(member.name || "?").slice(0, 1).toUpperCase()}
+        </div>
+
+        <div className="min-w-0">
+          <div className="truncate text-base font-extrabold text-slate-950">
+            {member.name || "-"}
+          </div>
+          <div className="mt-0.5 text-xs font-medium text-slate-500">
+            Member profile
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-2">
+        {details.map(([label, value]) => (
+          <div
+            key={label}
+            className="rounded-xl border border-slate-100 bg-white px-3 py-2.5"
+          >
+            <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              {label}
+            </div>
+            <div className="mt-0.5 truncate text-sm font-semibold text-slate-900">
+              {value}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -121,6 +200,9 @@ function AdminDashboard() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [search, setSearch] = useState("");
+  const [activeLevel, setActiveLevel] = useState("all");
+  const [selectedMember, setSelectedMember] = useState(null);
 
   const scrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -163,10 +245,9 @@ function AdminDashboard() {
   }, []);
 
   const grouped = useMemo(() => {
-    const norm = (value) => String(value ?? "").trim().toLowerCase();
-
     const displayNameByNorm = new Map();
     const sponsorByNormName = new Map();
+    const rowByNormName = new Map();
 
     for (const member of rows) {
       const name = norm(member.name);
@@ -175,6 +256,7 @@ function AdminDashboard() {
 
       displayNameByNorm.set(name, member.name);
       sponsorByNormName.set(name, sponsor);
+      rowByNormName.set(name, member);
     }
 
     const memo = new Map();
@@ -203,18 +285,27 @@ function AdminDashboard() {
     }
 
     const map = new Map();
-    map.set(0, ["SDS"]);
+    map.set(0, [{ name: "SDS", level: 0 }]);
 
     for (const normName of displayNameByNorm.keys()) {
       const level = computeLevel(normName);
+      const row = rowByNormName.get(normName) || {};
+      const enriched = {
+        ...row,
+        name: displayNameByNorm.get(normName),
+        level,
+      };
+
       if (!map.has(level)) map.set(level, []);
-      map.get(level).push(displayNameByNorm.get(normName));
+      map.get(level).push(enriched);
     }
 
     const levels = Array.from(map.keys()).sort((a, b) => a - b);
 
     for (const level of levels) {
-      map.get(level).sort((a, b) => String(a).localeCompare(String(b)));
+      map
+        .get(level)
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
     }
 
     const levelItems = levels
@@ -222,12 +313,36 @@ function AdminDashboard() {
       .map((level) => ({
         level,
         title: levelLabel(level),
-        names: map.get(level) || [],
+        members: map.get(level) || [],
         count: map.get(level)?.length || 0,
       }));
 
     return { map, levels, levelItems };
   }, [rows]);
+
+  const filteredLevelItems = useMemo(() => {
+    const term = norm(search);
+
+    return grouped.levelItems
+      .filter((item) => activeLevel === "all" || item.level === activeLevel)
+      .map((item) => ({
+        ...item,
+        members: item.members.filter((member) => {
+          if (!term) return true;
+
+          return [
+            member.name,
+            member.sponsor_name,
+            member.membership_type,
+            member.area_region,
+            member.regional_manager,
+          ]
+            .map(norm)
+            .some((value) => value.includes(term));
+        }),
+      }))
+      .filter((item) => item.members.length > 0 || !term);
+  }, [grouped.levelItems, search, activeLevel]);
 
   useEffect(() => {
     function updateScrollState() {
@@ -250,7 +365,7 @@ function AdminDashboard() {
       el.removeEventListener("scroll", updateScrollState);
       window.removeEventListener("resize", updateScrollState);
     };
-  }, [grouped]);
+  }, [filteredLevelItems]);
 
   function scrollLevels(direction) {
     const el = scrollRef.current;
@@ -274,7 +389,7 @@ function AdminDashboard() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
-              Admin Dashboard
+              Executive Dashboard
             </div>
             <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 md:text-3xl">
               SDS Business Overview
@@ -344,10 +459,10 @@ function AdminDashboard() {
         />
       </div>
 
-      {loading && <LoadingCard title="Genealogy Overview" />}
+      {loading && <LoadingCard title="Genealogy Explorer" />}
 
       {err && (
-        <Card title="Genealogy Overview">
+        <Card title="Genealogy Explorer">
           <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-medium text-red-700">
             Error: {err}
           </div>
@@ -356,13 +471,9 @@ function AdminDashboard() {
 
       {!loading && !err && (
         <Card
-          title="Genealogy by Level"
+          title="Genealogy Explorer"
           right={
             <div className="flex items-center gap-2">
-              <span className="hidden text-xs font-medium text-slate-400 lg:inline">
-                Swipe or use arrows
-              </span>
-
               <button
                 type="button"
                 onClick={() => scrollLevels(-1)}
@@ -383,72 +494,126 @@ function AdminDashboard() {
             </div>
           }
         >
-          {grouped.levelItems.length === 0 ? (
+          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative w-full lg:max-w-md">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search member, sponsor, area..."
+                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-200 focus:bg-white focus:ring-4 focus:ring-blue-50"
+              />
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0">
+              <button
+                type="button"
+                onClick={() => setActiveLevel("all")}
+                className={cls(
+                  "shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition",
+                  activeLevel === "all"
+                    ? "border-blue-200 bg-blue-50 text-blue-800"
+                    : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                )}
+              >
+                All Levels
+              </button>
+
+              {grouped.levelItems.map((item) => (
+                <button
+                  key={item.level}
+                  type="button"
+                  onClick={() => setActiveLevel(item.level)}
+                  className={cls(
+                    "shrink-0 rounded-xl border px-3 py-2 text-xs font-bold transition",
+                    activeLevel === item.level
+                      ? "border-blue-200 bg-blue-50 text-blue-800"
+                      : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                  )}
+                >
+                  L{item.level} · {item.count}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {filteredLevelItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-              No hierarchy data yet.
+              No members found for this search.
             </div>
           ) : (
-            <div className="relative max-w-full overflow-hidden">
-              {canScrollLeft && (
-                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
-              )}
-              {canScrollRight && (
-                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
-              )}
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="relative max-w-full overflow-hidden">
+                {canScrollLeft && (
+                  <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
+                )}
+                {canScrollRight && (
+                  <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
+                )}
 
-              <div
-                ref={scrollRef}
-                className="w-full overflow-x-auto overflow-y-hidden pb-2"
-              >
-                <div className="flex w-max gap-3 pr-2">
-                  {grouped.levelItems.map((item) => (
-                    <div
-                      key={item.level}
-                      className="w-[260px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70 sm:w-[300px]"
-                    >
-                      <div className="border-b border-slate-200 bg-white px-3 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-extrabold text-slate-950">
-                              {item.title}
+                <div
+                  ref={scrollRef}
+                  className="w-full overflow-x-auto overflow-y-hidden pb-2"
+                >
+                  <div className="flex w-max gap-3 pr-2">
+                    {filteredLevelItems.map((item) => (
+                      <div
+                        key={item.level}
+                        className="w-[270px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70 sm:w-[310px]"
+                      >
+                        <div className="border-b border-slate-200 bg-white px-3 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-extrabold text-slate-950">
+                                {item.title}
+                              </div>
+                              <div className="mt-0.5 text-xs text-slate-500">
+                                {item.members.length} shown / {item.count} total
+                              </div>
                             </div>
-                            <div className="mt-0.5 text-xs text-slate-500">
-                              {item.count} member{item.count === 1 ? "" : "s"}
-                            </div>
-                          </div>
 
-                          <div className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
-                            L{item.level}
+                            <div className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+                              L{item.level}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="max-h-[360px] overflow-y-auto p-2.5">
-                        {item.names.length === 0 ? (
-                          <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
-                            No members
-                          </div>
-                        ) : (
-                          <div className="space-y-1.5">
-                            {item.names.map((name, index) => (
-                              <MemberPill
-                                key={`${item.level}-${name}-${index}`}
-                                name={name}
-                                level={item.level}
-                                index={index}
-                              />
-                            ))}
-                          </div>
-                        )}
+                        <div className="max-h-[380px] overflow-y-auto p-2.5">
+                          {item.members.length === 0 ? (
+                            <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
+                              No matching members
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {item.members.map((member, index) => (
+                                <MemberPill
+                                  key={`${item.level}-${member.name}-${index}`}
+                                  member={member}
+                                  index={index}
+                                  selected={
+                                    norm(selectedMember?.name) ===
+                                    norm(member.name)
+                                  }
+                                  onSelect={setSelectedMember}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-2 text-center text-xs text-slate-400 md:hidden">
+                  Swipe horizontally to view more levels
                 </div>
               </div>
 
-              <div className="mt-2 text-center text-xs text-slate-400 md:hidden">
-                Swipe horizontally to view more levels
-              </div>
+              <SelectedMemberPanel member={selectedMember} />
             </div>
           )}
         </Card>
