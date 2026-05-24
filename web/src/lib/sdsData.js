@@ -10,9 +10,52 @@ export const PRODUCTS = [
     image_url:
       "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/dfd476e18_JsQNcp7u.jpg",
     landing_title: "13-in-1 Superfood Coffee",
+    short_description:
+      "A caffeine-free rice coffee blend designed to support daily wellness, balanced energy, and antioxidant intake.",
     description:
-      "A caffeine-free rice coffee blend with wellness-focused ingredients for daily support.",
-    highlights: ["Caffeine Free", "13-in-1 Formula", "Rice Coffee"],
+      "A caffeine-free rice coffee blend designed to support daily wellness, balanced energy, and antioxidant intake.",
+    full_description:
+      "Balatinao Rice Coffee is formulated as a caffeine-free wellness coffee containing nutrient-rich ingredients and antioxidant compounds. It offers a smoother alternative to traditional coffee while supporting daily vitality and overall wellness.",
+    highlights: [
+      "Caffeine Free",
+      "13-in-1 Formula",
+      "Antioxidant Support",
+      "Rice Coffee",
+      "Daily Wellness",
+    ],
+    benefits: [
+      "Caffeine-free coffee alternative",
+      "Contains antioxidant compounds",
+      "Supports balanced daily energy",
+      "Supports digestive wellness",
+      "Provides nutrient-rich ingredients",
+    ],
+    ingredients_focus: [
+      "Balatinao Rice",
+      "Antioxidant Compounds",
+      "Plant Nutrients",
+      "Minerals",
+      "Amino Acids",
+    ],
+    detailed_sections: [
+      {
+        title: "Antioxidant Support",
+        text:
+          "Contains antioxidant compounds that help protect cells from oxidative stress associated with everyday environmental factors.",
+      },
+      {
+        title: "Balanced Energy Without Caffeine",
+        text:
+          "Provides a caffeine-free option for individuals seeking a smoother wellness drink without the typical stimulation associated with traditional coffee.",
+      },
+      {
+        title: "Digestive Support",
+        text:
+          "The formulation may help support digestive comfort and overall gut wellness as part of a balanced lifestyle.",
+      },
+    ],
+    disclaimer:
+      "This product is a dietary supplement and wellness beverage and is not intended to diagnose, treat, cure, or prevent any disease. Individual results may vary.",
     featured: true,
     active: true,
     display_order: 1,
@@ -26,9 +69,51 @@ export const PRODUCTS = [
     image_url:
       "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/27a22de17_Ia1h4L6w.jpg",
     landing_title: "Antioxidant with Probiotics",
+    short_description:
+      "An antioxidant and probiotic supplement designed to support gut balance, daily wellness, and immune support.",
     description:
-      "A liquid dietary supplement designed to support wellness and daily vitality.",
-    highlights: ["Antioxidant", "With Probiotics", "Daily Wellness"],
+      "An antioxidant and probiotic supplement designed to support gut balance, daily wellness, and immune support.",
+    full_description:
+      "Prommix Plus combines probiotics and antioxidants to help support digestive wellness, oxidative balance, and overall body function. Probiotics help maintain a healthy gut microbiome, while antioxidants help protect cells from oxidative stress associated with everyday environmental factors.",
+    highlights: [
+      "Probiotics",
+      "Antioxidant Support",
+      "Digestive Wellness",
+      "Immune Support",
+      "Daily Vitality",
+    ],
+    benefits: [
+      "Supports digestive and gut wellness",
+      "Helps maintain antioxidant balance",
+      "Supports immune function",
+      "Promotes daily vitality and wellness",
+      "Supports metabolic and digestive health",
+    ],
+    ingredients_focus: [
+      "Probiotics",
+      "Antioxidant Compounds",
+      "Digestive Support Components",
+      "Immune Support Nutrients",
+    ],
+    detailed_sections: [
+      {
+        title: "Gut and Digestive Support",
+        text:
+          "Probiotics help maintain a balanced gut microbiome, supporting digestive comfort and overall gastrointestinal wellness.",
+      },
+      {
+        title: "Antioxidant Protection",
+        text:
+          "Antioxidants help neutralize oxidative stress caused by unstable molecules, supporting cellular protection and everyday wellness.",
+      },
+      {
+        title: "Immune System Support",
+        text:
+          "A balanced digestive system and antioxidant intake may contribute to healthy immune function and daily resilience.",
+      },
+    ],
+    disclaimer:
+      "This product is a dietary supplement and is not intended to diagnose, treat, cure, or prevent any disease. Results vary between individuals. Consult a healthcare professional before use.",
     featured: true,
     active: true,
     display_order: 2,
@@ -42,9 +127,51 @@ export const PRODUCTS = [
     image_url:
       "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/9b1a353a0_u_rF6CUl.jpg",
     landing_title: "Non-Acidic Vitamin C",
+    short_description:
+      "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and antioxidant support for daily immune wellness.",
     description:
-      "A non-acidic Vitamin C supplement with added immune-supporting nutrients.",
-    highlights: ["Non-Acidic", "Vitamin C", "Immune Support"],
+      "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and antioxidant support for daily immune wellness.",
+    full_description:
+      "Compact C combines Sodium Ascorbate (Vitamin C), Zinc, Ferulic Acid, and Vitamin D3 into a formulation designed to support immune function, antioxidant balance, collagen production, and everyday wellness.",
+    highlights: [
+      "Non-Acidic Vitamin C",
+      "Vitamin D3",
+      "Zinc Support",
+      "Antioxidant Protection",
+      "Immune Wellness",
+    ],
+    benefits: [
+      "Supports immune wellness",
+      "Provides antioxidant support",
+      "Supports collagen production",
+      "Supports bone and mineral function",
+      "Designed for daily nutritional support",
+    ],
+    ingredients_focus: [
+      "Sodium Ascorbate (Vitamin C)",
+      "Zinc",
+      "Ferulic Acid",
+      "Vitamin D3",
+    ],
+    detailed_sections: [
+      {
+        title: "Vitamin C Support",
+        text:
+          "Sodium Ascorbate provides a non-acidic form of Vitamin C that helps support antioxidant activity, collagen production, and daily immune wellness.",
+      },
+      {
+        title: "Zinc for Cellular Function",
+        text:
+          "Zinc contributes to normal immune function, protein synthesis, and supports various enzymatic processes throughout the body.",
+      },
+      {
+        title: "Vitamin D3 and Bone Support",
+        text:
+          "Vitamin D3 supports calcium absorption and contributes to maintaining healthy bones and normal immune function.",
+      },
+    ],
+    disclaimer:
+      "This product is a dietary supplement and is not intended to diagnose, treat, cure, or prevent any disease. Individual experiences may vary.",
     featured: true,
     active: true,
     display_order: 3,
@@ -58,9 +185,54 @@ export const PRODUCTS = [
     image_url:
       "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/40cfe2ccf_Apt8kqZq.jpg",
     landing_title: "Men's Vitality Supplement",
+    short_description:
+      "A men’s wellness supplement formulated to support vitality, stamina, focus, and daily performance.",
     description:
-      "A men’s dietary supplement formulated for vitality, strength, and wellness support.",
-    highlights: ["Vitality", "Men's Wellness", "Daily Support"],
+      "A men’s wellness supplement formulated to support vitality, stamina, focus, and daily performance.",
+    full_description:
+      "Vigomaxx is formulated with botanical ingredients such as saw palmetto, maca root, horny goat weed, Korean red ginseng, guava, ginkgo biloba, and cinnamon extract. This blend is designed to support male vitality, stamina, cognitive focus, metabolic wellness, and overall daily performance.",
+    highlights: [
+      "Vitality",
+      "Men's Wellness",
+      "Daily Support",
+      "Stamina",
+      "Performance",
+    ],
+    benefits: [
+      "Supports male vitality and stamina",
+      "Helps promote healthy blood flow",
+      "Supports prostate and male wellness",
+      "Helps improve daily energy and focus",
+      "Supports metabolic and antioxidant wellness",
+    ],
+    ingredients_focus: [
+      "Saw Palmetto",
+      "Maca Root",
+      "Horny Goat Weed",
+      "Korean Red Ginseng",
+      "Guava Extract",
+      "Ginkgo Biloba",
+      "Cinnamon Extract",
+    ],
+    detailed_sections: [
+      {
+        title: "Male Vitality and Performance",
+        text:
+          "Korean red ginseng, ginkgo biloba, maca root, and horny goat weed are traditionally used to support male performance, stamina, circulation, and sexual wellness.",
+      },
+      {
+        title: "Prostate and Male Wellness",
+        text:
+          "Saw palmetto is commonly associated with prostate support and male wellness, especially in relation to DHT-related concerns.",
+      },
+      {
+        title: "Energy, Focus, and Cognitive Support",
+        text:
+          "Ginkgo biloba and Korean red ginseng may help support blood circulation, mental clarity, concentration, and daily energy.",
+      },
+    ],
+    disclaimer:
+      "This product is a dietary supplement and is not intended to diagnose, treat, cure, or prevent any disease. Results may vary. Consult a healthcare professional before use, especially if you have a medical condition or take medication.",
     featured: true,
     active: true,
     display_order: 4,
