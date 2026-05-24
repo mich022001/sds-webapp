@@ -1,5 +1,3 @@
-import { SDS_LOGO } from "../../lib/sdsData";
-
 export default function AboutSection() {
   const values = [
     {
@@ -25,81 +23,69 @@ export default function AboutSection() {
   ];
 
   return (
-    <section id="about" className="bg-white py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-16 lg:grid-cols-2">
-          <div>
-            <div className="mb-3 text-sm font-semibold uppercase tracking-widest text-yellow-500">
-              About SDS
-            </div>
-            <h2 className="mb-6 text-3xl font-bold text-gray-900 sm:text-4xl">
-              Sure-Fit Direct Sales — Building Wellness Across the Philippines
-            </h2>
+    <section
+      id="about"
+      className="bg-white py-20"
+    >
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
 
-            <p className="mb-4 leading-relaxed text-gray-500">
-              SDS Sure-Fit Wellness is a direct sales platform focused on
-              wellness products, member growth, and transparent business
-              operations.
-            </p>
+        <div className="text-center">
 
-            <p className="mb-6 leading-relaxed text-gray-500">
-              From product packages to member bonuses and area reports, SDS
-              is designed to support both product distribution and member
-              network management.
-            </p>
-
-            <div className="grid grid-cols-2 gap-4">
-              {values.map((v) => (
-                <div key={v.title} className="rounded-xl bg-blue-50 p-4">
-                  <div className="mb-2 text-2xl">{v.icon}</div>
-                  <div className="mb-1 text-sm font-bold text-gray-900">
-                    {v.title}
-                  </div>
-                  <div className="text-xs text-gray-500">{v.desc}</div>
-                </div>
-              ))}
-            </div>
+          <div className="mb-3 text-sm font-semibold uppercase tracking-widest text-yellow-500">
+            About SDS
           </div>
 
-          <div className="flex justify-center">
-            <div
-              className="relative w-full max-w-md overflow-hidden rounded-3xl shadow-2xl"
-              style={{
-                background: "linear-gradient(135deg, #0d2a6e, #1a4eb8)",
-              }}
-            >
-              <div className="flex flex-col items-center p-12 text-center text-white">
-                <img
-                  src={SDS_LOGO}
-                  alt="SDS"
-                  className="mb-6 h-40 w-40 object-contain"
-                />
+          <h2 className="mb-6 text-3xl font-bold text-gray-900 sm:text-4xl">
+            Sure-Fit Wellness — Building Wellness Across the Philippines
+          </h2>
 
-                <h3 className="mb-2 text-2xl font-bold">
-                  SDS Sure-Fit Wellness
-                </h3>
-                <p className="mb-6 text-sm text-blue-200">
-                  Direct Sales Web System
-                </p>
+          <p className="mx-auto mb-4 max-w-3xl leading-relaxed text-gray-500">
+            SDS Sure-Fit Wellness focuses on premium wellness products,
+            membership growth, and creating opportunities through direct sales.
+          </p>
 
-                <div className="grid w-full grid-cols-3 gap-4">
-                  {[
-                    { num: "56+", label: "Members" },
-                    { num: "4", label: "Products" },
-                    { num: "4+", label: "Regions" },
-                  ].map((s) => (
-                    <div key={s.label} className="rounded-xl bg-white/10 p-3">
-                      <div className="text-xl font-bold text-yellow-400">
-                        {s.num}
-                      </div>
-                      <div className="text-xs text-blue-200">{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <p className="mx-auto mb-12 max-w-3xl leading-relaxed text-gray-500">
+            From product packages to bonuses and community support,
+            SDS helps members build wellness and additional income opportunities.
+          </p>
+
         </div>
+
+
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+
+          {values.map((value) => (
+            <div
+              key={value.title}
+              className="
+                rounded-2xl
+                border
+                border-gray-100
+                bg-gray-50
+                p-6
+                transition
+                hover:-translate-y-1
+                hover:shadow-lg
+              "
+            >
+
+              <div className="mb-3 text-3xl">
+                {value.icon}
+              </div>
+
+              <h3 className="mb-2 font-bold text-gray-900">
+                {value.title}
+              </h3>
+
+              <p className="text-sm leading-relaxed text-gray-500">
+                {value.desc}
+              </p>
+
+            </div>
+          ))}
+
+        </div>
+
       </div>
     </section>
   );
