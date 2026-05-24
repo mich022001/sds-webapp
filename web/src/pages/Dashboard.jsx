@@ -54,7 +54,9 @@ function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
         </div>
       </div>
 
-      {helper && <div className="mt-2 truncate text-xs text-slate-500">{helper}</div>}
+      {helper && (
+        <div className="mt-2 truncate text-xs text-slate-500">{helper}</div>
+      )}
     </div>
   );
 }
@@ -67,14 +69,14 @@ function Card({ title, children, right, className = "" }) {
         className
       )}
     >
-      <div className="border-b border-slate-100 px-5 py-4">
+      <div className="border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="font-bold text-slate-950">{title}</div>
           {right}
         </div>
       </div>
 
-      <div className="p-5">{children}</div>
+      <div className="p-3 sm:p-5">{children}</div>
     </div>
   );
 }
@@ -88,6 +90,24 @@ function LoadingCard({ title = "Loading dashboard..." }) {
         <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
       </div>
     </Card>
+  );
+}
+
+function MemberPill({ name, level, index }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white px-2.5 py-2 text-sm shadow-sm">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[11px] font-extrabold text-blue-700">
+        {String(name).slice(0, 1).toUpperCase()}
+      </div>
+
+      <div className="min-w-0 flex-1 truncate font-medium text-slate-800">
+        {name}
+      </div>
+
+      <div className="hidden shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-300 sm:block">
+        #{index + 1}
+      </div>
+    </div>
   );
 }
 
@@ -370,58 +390,53 @@ function AdminDashboard() {
           ) : (
             <div className="relative max-w-full overflow-hidden">
               {canScrollLeft && (
-                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-12 bg-gradient-to-r from-white to-transparent" />
+                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
               )}
               {canScrollRight && (
-                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-12 bg-gradient-to-l from-white to-transparent" />
+                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
               )}
 
               <div
                 ref={scrollRef}
-                className="w-full overflow-x-auto overflow-y-hidden pb-3"
+                className="w-full overflow-x-auto overflow-y-hidden pb-2"
               >
-                <div className="flex w-max gap-4 pr-2">
+                <div className="flex w-max gap-3 pr-2">
                   {grouped.levelItems.map((item) => (
                     <div
                       key={item.level}
-                      className="w-[280px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                      className="w-[260px] shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/70 sm:w-[300px]"
                     >
-                      <div className="border-b border-slate-200 bg-white px-4 py-4">
+                      <div className="border-b border-slate-200 bg-white px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="text-sm font-extrabold text-slate-950">
                               {item.title}
                             </div>
-                            <div className="mt-1 text-xs text-slate-500">
+                            <div className="mt-0.5 text-xs text-slate-500">
                               {item.count} member{item.count === 1 ? "" : "s"}
                             </div>
                           </div>
 
-                          <div className="rounded-xl bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+                          <div className="rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
                             L{item.level}
                           </div>
                         </div>
                       </div>
 
-                      <div className="max-h-[520px] overflow-y-auto p-3">
+                      <div className="max-h-[360px] overflow-y-auto p-2.5">
                         {item.names.length === 0 ? (
-                          <div className="rounded-xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
+                          <div className="rounded-lg border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-400">
                             No members
                           </div>
                         ) : (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             {item.names.map((name, index) => (
-                              <div
+                              <MemberPill
                                 key={`${item.level}-${name}-${index}`}
-                                className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2.5 text-sm shadow-sm"
-                              >
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-xs font-extrabold text-blue-700">
-                                  {String(name).slice(0, 1).toUpperCase()}
-                                </div>
-                                <div className="min-w-0 truncate font-medium text-slate-800">
-                                  {name}
-                                </div>
-                              </div>
+                                name={name}
+                                level={item.level}
+                                index={index}
+                              />
                             ))}
                           </div>
                         )}
