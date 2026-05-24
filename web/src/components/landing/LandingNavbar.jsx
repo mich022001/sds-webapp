@@ -10,7 +10,6 @@ export default function LandingNavbar({ onLogin }) {
     { label: "Products", href: "#products" },
     { label: "Packages", href: "#packages" },
     { label: "Opportunity", href: "#opportunity" },
-    { label: "Testimonials", href: "#testimonials" },
     { label: "Contact", href: "#contact" },
   ];
 
