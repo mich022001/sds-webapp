@@ -8,7 +8,6 @@ import {
   FileBarChart,
   Gift,
   Home,
-  Package,
   ReceiptText,
   ScrollText,
   ShoppingCart,
@@ -79,12 +78,7 @@ export default function Sidebar({
         mobile ? "rounded-[28px]" : "rounded-[24px]"
       )}
     >
-      <div
-        className={cls(
-          "border-b border-slate-100 bg-white",
-          mobile ? "p-5" : "p-4"
-        )}
-      >
+      <div className={cls("border-b border-slate-100 bg-white", mobile ? "p-5" : "p-4")}>
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
@@ -97,11 +91,7 @@ export default function Sidebar({
                 mobile ? "h-14 w-14 p-1.5" : "h-12 w-12 p-1.5"
               )}
             >
-              <img
-                src={SDS_LOGO}
-                alt="SDS"
-                className="h-full w-full object-contain"
-              />
+              <img src={SDS_LOGO} alt="SDS" className="h-full w-full object-contain" />
             </div>
 
             <div className="min-w-0">
@@ -151,12 +141,7 @@ export default function Sidebar({
         </div>
       </div>
 
-      <nav
-        className={cls(
-          "flex-1 overflow-y-auto",
-          mobile ? "space-y-1.5 p-4" : "space-y-1 p-3"
-        )}
-      >
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {currentNav.map((item) => {
           const isActive = active === item.key;
           const Icon = getNavIcon(item.key);
@@ -167,8 +152,7 @@ export default function Sidebar({
               type="button"
               onClick={() => onNavigate(item.key)}
               className={cls(
-                "group flex w-full items-center gap-3 rounded-2xl text-left transition",
-                mobile ? "px-4 py-3.5 text-[15px]" : "px-3 py-2.5 text-sm",
+                "group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition",
                 isActive
                   ? "bg-blue-700 text-white shadow-lg shadow-blue-700/20"
                   : "text-slate-600 hover:bg-blue-50 hover:text-blue-800"
@@ -177,13 +161,13 @@ export default function Sidebar({
               <span
                 className={cls(
                   "flex shrink-0 items-center justify-center rounded-xl transition",
-                  mobile ? "h-10 w-10" : "h-8 w-8",
+                  mobile ? "h-9 w-9" : "h-8 w-8",
                   isActive
                     ? "bg-yellow-400 text-slate-950"
                     : "bg-slate-100 text-blue-700 group-hover:bg-white"
                 )}
               >
-                <Icon size={mobile ? 19 : 17} strokeWidth={2.2} />
+                <Icon size={mobile ? 18 : 17} strokeWidth={2.2} />
               </span>
 
               <span className="min-w-0 flex-1 truncate font-semibold">
