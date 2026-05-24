@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, IdCard, PackageCheck, RotateCcw, Save, ShieldCheck, UserPlus } from "lucide-react";
 
 const PH_REGIONS = [
   "National Capital Region (NCR)",
@@ -24,27 +25,15 @@ function cls(...a) {
   return a.filter(Boolean).join(" ");
 }
 
-function Card({ title, children, right, className = "" }) {
-  return (
-    <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
-    >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 function Input({ label, ...props }) {
   return (
-    <label className="grid min-w-0 gap-1">
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
+    <label className="grid min-w-0 gap-2">
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
       <input
         {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 focus:border-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-500"
+        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-50 disabled:bg-slate-100 disabled:text-slate-500"
       />
     </label>
   );
@@ -52,11 +41,13 @@ function Input({ label, ...props }) {
 
 function Select({ label, children, ...props }) {
   return (
-    <label className="grid min-w-0 gap-1">
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
+    <label className="grid min-w-0 gap-2">
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
       <select
         {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-500 truncate"
+        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-50 disabled:bg-slate-100 disabled:text-slate-500"
       >
         {children}
       </select>
@@ -64,20 +55,36 @@ function Select({ label, children, ...props }) {
   );
 }
 
-function Button({ children, variant = "primary", ...props }) {
+function Button({ children, variant = "primary", icon: Icon, ...props }) {
   return (
     <button
       {...props}
       className={cls(
-        "h-10 rounded-xl px-4 text-sm font-semibold transition",
-        variant === "primary" && "bg-zinc-900 text-white hover:bg-zinc-800",
+        "inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition",
+        variant === "primary" &&
+          "bg-blue-700 text-white shadow-sm hover:bg-blue-800",
         variant === "ghost" &&
-          "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50",
+          "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
         props.disabled && "cursor-not-allowed opacity-60"
       )}
     >
+      {Icon && <Icon size={16} />}
       {children}
     </button>
+  );
+}
+
+function SectionTitle({ icon: Icon, title, description }) {
+  return (
+    <div className="mb-5 flex items-start gap-3">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+        <Icon size={18} />
+      </div>
+      <div>
+        <h3 className="font-bold text-slate-950">{title}</h3>
+        <p className="mt-1 text-sm text-slate-500">{description}</p>
+      </div>
+    </div>
   );
 }
 
@@ -87,10 +94,8 @@ export default function Registration({ user }) {
   const [linkedMemberName, setLinkedMemberName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const isRestrictedRecruiter =
-    user?.role === "rm" || user?.role === "normal";
-  const isPrivileged =
-    user?.role === "super_admin" || user?.role === "admin";
+  const isRestrictedRecruiter = user?.role === "rm" || user?.role === "normal";
+  const isPrivileged = user?.role === "super_admin" || user?.role === "admin";
 
   const [form, setForm] = useState({
     name: "",
@@ -119,19 +124,14 @@ export default function Registration({ user }) {
           String(a.name || "").localeCompare(String(b.name || ""))
         );
 
-        if (!cancelled) {
-          setMembers(sorted);
-        }
+        if (!cancelled) setMembers(sorted);
       } catch {
         // no-op
       }
     }
 
-    if (!isRestrictedRecruiter) {
-      loadMembers();
-    } else {
-      setMembers([]);
-    }
+    if (!isRestrictedRecruiter) loadMembers();
+    else setMembers([]);
 
     return () => {
       cancelled = true;
@@ -152,9 +152,7 @@ export default function Registration({ user }) {
           String(a.item_name || "").localeCompare(String(b.item_name || ""))
         );
 
-        if (!cancelled) {
-          setPackages(sorted);
-        }
+        if (!cancelled) setPackages(sorted);
       } catch {
         // no-op
       }
@@ -200,9 +198,7 @@ export default function Registration({ user }) {
           }));
         }
       } catch {
-        if (!cancelled) {
-          setLinkedMemberName("");
-        }
+        if (!cancelled) setLinkedMemberName("");
       }
     }
 
@@ -233,8 +229,7 @@ export default function Registration({ user }) {
       email: "",
       membershipType: "Member",
       address: "",
-      sponsor:
-        isRestrictedRecruiter && linkedMemberName ? linkedMemberName : "SDS",
+      sponsor: isRestrictedRecruiter && linkedMemberName ? linkedMemberName : "SDS",
       regionalManager: "",
       areaRegion: PH_REGIONS[0],
       packageName: "",
@@ -334,164 +329,208 @@ export default function Registration({ user }) {
   }
 
   return (
-    <div className="grid gap-4">
-      <Card
-        title="Register New Member"
-        right={
-          isRestrictedRecruiter ? (
-            <div className="text-xs text-zinc-500">
-              Sponsor is locked to your account
+    <div className="mx-auto max-w-6xl space-y-5">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 via-white to-yellow-50 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
+                Member Registration
+              </div>
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                Register New Member
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Create a member profile, assign sponsor details, and validate the registration package.
+              </p>
             </div>
-          ) : null
-        }
-      >
-        <form className="grid gap-3" onSubmit={handleSubmit}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <Input
-              label="Contact"
-              value={form.contact}
-              onChange={(e) => setForm({ ...form, contact: e.target.value })}
-            />
+
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white shadow-sm">
+              <UserPlus size={22} />
+            </div>
           </div>
+        </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            <Select
-              label="Membership Type"
-              value={form.membershipType}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  membershipType: e.target.value,
-                  regionalManager:
-                    e.target.value === "Regional Manager"
-                      ? ""
-                      : form.regionalManager,
-                })
-              }
-            >
-              <option>Member</option>
-              <option>Distributor</option>
-              <option>Stockiest</option>
-              <option>Area Manager</option>
-              <option>Regional Manager</option>
-            </Select>
+        {isRestrictedRecruiter && (
+          <div className="border-b border-blue-100 bg-blue-50 px-5 py-3 text-sm font-medium text-blue-800 sm:px-6">
+            Sponsor is locked to your linked member account.
           </div>
+        )}
 
-          <Input
-            label="Address"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
+        <form onSubmit={handleSubmit} className="space-y-8 p-5 sm:p-6">
+          <section>
+            <SectionTitle
+              icon={IdCard}
+              title="Member Information"
+              description="Basic details used for the member profile and login account."
+            />
 
-          <div className="grid gap-3 md:grid-cols-2">
-            {isRestrictedRecruiter ? (
-              <Input label="Sponsor" value={form.sponsor} readOnly disabled />
-            ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <Input
+                label="Name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+              <Input
+                label="Contact"
+                value={form.contact}
+                onChange={(e) => setForm({ ...form, contact: e.target.value })}
+              />
+              <Input
+                label="Email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
               <Select
-                label="Sponsor"
-                value={form.sponsor}
+                label="Membership Type"
+                value={form.membershipType}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    sponsor: e.target.value,
+                    membershipType: e.target.value,
                     regionalManager:
-                      e.target.value === "SDS" ? form.regionalManager : "",
+                      e.target.value === "Regional Manager"
+                        ? ""
+                        : form.regionalManager,
                   })
                 }
               >
-                <option value="SDS">SDS</option>
-                {members.map((m) => (
-                  <option key={m.name} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-
-            <Select
-              label="Area/Region"
-              value={form.areaRegion}
-              onChange={(e) => setForm({ ...form, areaRegion: e.target.value })}
-            >
-              {PH_REGIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          {requiresManualRm && (
-            <div className="grid gap-3 md:grid-cols-2">
-              <Select
-                label="Regional Manager"
-                value={form.regionalManager}
-                onChange={(e) =>
-                  setForm({ ...form, regionalManager: e.target.value })
-                }
-              >
-                <option value="">Select Regional Manager</option>
-                {rmOptions.map((m) => (
-                  <option key={m.member_id || m.name} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
+                <option>Member</option>
+                <option>Distributor</option>
+                <option>Stockiest</option>
+                <option>Area Manager</option>
+                <option>Regional Manager</option>
               </Select>
             </div>
-          )}
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <Select
-              label="Package"
-              value={form.packageName}
-              onChange={(e) => setForm({ ...form, packageName: e.target.value })}
-            >
-              <option value="">Select package</option>
-              {packages.map((p) => (
-                <option key={p.id} value={p.item_name}>
-                  {p.item_name}
-                </option>
-              ))}
-            </Select>
+            <div className="mt-4">
+              <Input
+                label="Address"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </div>
+          </section>
 
-            <Input
-              label="Registration Code"
-              value={form.registrationCode}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  registrationCode: e.target.value.toUpperCase(),
-                })
-              }
-              placeholder="Enter unique registration code"
+          <section>
+            <SectionTitle
+              icon={ShieldCheck}
+              title="Sponsor & Region"
+              description="Assign sponsor hierarchy and operating region."
             />
-          </div>
 
-          <div className="mt-2 flex gap-2">
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving..." : "Save Member"}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={resetForm}
-              disabled={saving}
-            >
-              Clear
-            </Button>
+            <div className="grid gap-4 md:grid-cols-2">
+              {isRestrictedRecruiter ? (
+                <Input label="Sponsor" value={form.sponsor} readOnly disabled />
+              ) : (
+                <Select
+                  label="Sponsor"
+                  value={form.sponsor}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      sponsor: e.target.value,
+                      regionalManager:
+                        e.target.value === "SDS" ? form.regionalManager : "",
+                    })
+                  }
+                >
+                  <option value="SDS">SDS</option>
+                  {members.map((m) => (
+                    <option key={m.name} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+
+              <Select
+                label="Area/Region"
+                value={form.areaRegion}
+                onChange={(e) =>
+                  setForm({ ...form, areaRegion: e.target.value })
+                }
+              >
+                {PH_REGIONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </Select>
+
+              {requiresManualRm && (
+                <Select
+                  label="Regional Manager"
+                  value={form.regionalManager}
+                  onChange={(e) =>
+                    setForm({ ...form, regionalManager: e.target.value })
+                  }
+                >
+                  <option value="">Select Regional Manager</option>
+                  {rmOptions.map((m) => (
+                    <option key={m.member_id || m.name} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <SectionTitle
+              icon={PackageCheck}
+              title="Package & Registration Code"
+              description="Select the membership package and enter the issued registration code."
+            />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <Select
+                label="Package"
+                value={form.packageName}
+                onChange={(e) =>
+                  setForm({ ...form, packageName: e.target.value })
+                }
+              >
+                <option value="">Select package</option>
+                {packages.map((p) => (
+                  <option key={p.id} value={p.item_name}>
+                    {p.item_name}
+                  </option>
+                ))}
+              </Select>
+
+              <Input
+                label="Registration Code"
+                value={form.registrationCode}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    registrationCode: e.target.value.toUpperCase(),
+                  })
+                }
+                placeholder="Enter unique registration code"
+              />
+            </div>
+          </section>
+
+          <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <CheckCircle2 size={15} className="text-emerald-600" />
+              Registration creates both member profile and member account.
+            </div>
+
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" icon={RotateCcw} onClick={resetForm} disabled={saving}>
+                Clear
+              </Button>
+              <Button type="submit" icon={Save} disabled={saving}>
+                {saving ? "Saving..." : "Save Member"}
+              </Button>
+            </div>
           </div>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }
