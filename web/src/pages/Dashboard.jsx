@@ -31,20 +31,20 @@ function cls(...classes) {
 
 function SectionHeader({ eyebrow, title, description, right }) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
         {eyebrow && (
-          <div className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-yellow-600">
+          <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
             {eyebrow}
           </div>
         )}
 
-        <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 sm:text-3xl">
+        <h2 className="text-2xl font-extrabold tracking-tight text-slate-950 md:text-3xl">
           {title}
         </h2>
 
         {description && (
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
             {description}
           </p>
         )}
@@ -64,24 +64,24 @@ function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
   }[tone];
 
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+        <div className="min-w-0">
+          <div className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-400">
             {label}
           </div>
 
-          <div className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">
+          <div className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">
             {value}
           </div>
         </div>
 
-        <div className={cls("rounded-2xl p-3 ring-1", toneClass)}>
-          <Icon size={22} />
+        <div className={cls("rounded-2xl p-2.5 ring-1", toneClass)}>
+          <Icon size={19} />
         </div>
       </div>
 
-      {helper && <div className="mt-3 text-xs text-slate-500">{helper}</div>}
+      {helper && <div className="mt-2 truncate text-xs text-slate-500">{helper}</div>}
     </div>
   );
 }
@@ -121,9 +121,7 @@ function LoadingCard({ title = "Loading dashboard..." }) {
 export default function Dashboard({ user }) {
   const isAdminView = user?.role === "super_admin" || user?.role === "admin";
 
-  if (!isAdminView) {
-    return <SelfDashboard user={user} />;
-  }
+  if (!isAdminView) return <SelfDashboard user={user} />;
 
   return <AdminDashboard />;
 }
@@ -244,6 +242,7 @@ function AdminDashboard() {
     function updateScrollState() {
       const el = scrollRef.current;
       if (!el) return;
+
       setCanScrollLeft(el.scrollLeft > 4);
       setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
     }
@@ -279,15 +278,15 @@ function AdminDashboard() {
   const totalLevelsShown = grouped.levels.filter((level) => level !== 0).length;
 
   return (
-    <div className="max-w-full space-y-6 overflow-x-hidden">
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+    <div className="max-w-full space-y-4 overflow-x-hidden">
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <SectionHeader
           eyebrow="Admin Dashboard"
           title="SDS Business Overview"
-          description="Monitor member growth, direct-sales hierarchy, level distribution, and operating structure in one executive view."
+          description="Monitor member growth, direct-sales hierarchy, level distribution, and operating structure."
           right={
-            <div className="hidden rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-right sm:block">
-              <div className="text-xs font-bold uppercase tracking-wide text-blue-700">
+            <div className="hidden min-w-32 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-right sm:block">
+              <div className="text-[11px] font-bold uppercase tracking-wide text-blue-700">
                 Network Depth
               </div>
               <div className="mt-1 text-2xl font-extrabold text-blue-900">
@@ -298,7 +297,7 @@ function AdminDashboard() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <MetricCard
           label="Total Members"
           value={totalMembers}
@@ -528,8 +527,8 @@ function SelfDashboard({ user }) {
   const totals = report?.totals || {};
 
   return (
-    <div className="max-w-full space-y-6 overflow-x-hidden">
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+    <div className="max-w-full space-y-4 overflow-x-hidden">
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
         <SectionHeader
           eyebrow="Personal Dashboard"
           title={`Welcome, ${member?.name || user?.full_name || "Member"}`}
@@ -547,7 +546,7 @@ function SelfDashboard({ user }) {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Member ID"
               value={member?.member_id || "-"}

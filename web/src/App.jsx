@@ -177,9 +177,9 @@ export default function App() {
         />
       )}
 
-      <div className="mx-auto flex max-w-[1600px] gap-6 px-4 py-4 md:px-6 md:py-6">
-        <aside className="hidden w-72 shrink-0 md:block">
-          <div className="sticky top-6 h-[calc(100vh-3rem)]">
+      <div className="mx-auto flex max-w-[1480px] gap-4 px-3 py-3 md:gap-5 md:px-5 md:py-5 xl:gap-6">
+        <aside className="hidden w-64 shrink-0 md:block">
+          <div className="sticky top-5 h-[calc(100vh-2.5rem)]">
             <Sidebar
               user={user}
               currentNav={currentNav}
