@@ -71,23 +71,6 @@ function cls(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
-function Button({ children, variant = "primary", className = "", ...props }) {
-  return (
-    <button
-      {...props}
-      className={cls(
-        "h-10 rounded-xl px-4 text-sm font-semibold transition",
-        variant === "primary" && "bg-blue-700 text-white hover:bg-blue-800",
-        variant === "ghost" &&
-          "border border-zinc-200 bg-white text-zinc-900 shadow-sm hover:bg-zinc-50",
-        className
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 function getAllowedNav(role) {
   return navByRole[role] ?? [];
 }
@@ -179,10 +162,7 @@ export default function App() {
   }
 
   if (!user) {
-    if (showLogin) {
-      return <Login onLogin={setUser} />;
-    }
-
+    if (showLogin) return <Login onLogin={setUser} />;
     return <LandingPage onLogin={() => setShowLogin(true)} />;
   }
 
@@ -226,53 +206,27 @@ export default function App() {
         </aside>
 
         <main className="min-w-0 flex-1 overflow-x-hidden pb-8">
-          <header className="mb-6 rounded-3xl border border-zinc-200 bg-white/90 p-4 shadow-sm backdrop-blur md:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-800 shadow-sm hover:bg-blue-100 md:hidden"
-                  aria-label="Open menu"
-                >
-                  <Menu size={20} />
-                </button>
+          <div className="mb-4 flex items-center justify-between rounded-3xl border border-slate-200 bg-white/90 p-3 shadow-sm backdrop-blur md:hidden">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-blue-800"
+              aria-label="Open menu"
+            >
+              <Menu size={20} />
+            </button>
 
-                <div className="min-w-0">
-                  <div className="truncate text-2xl font-extrabold tracking-tight text-zinc-950">
-                    {pageTitle}
-                  </div>
-                  <div className="mt-0.5 truncate text-sm text-zinc-500">
-                    Logged in as{" "}
-                    <span className="font-semibold text-blue-800">
-                      {user?.full_name || user?.username || "user"}
-                    </span>
-                  </div>
-                </div>
+            <div className="min-w-0 px-3 text-center">
+              <div className="truncate text-base font-extrabold text-slate-950">
+                {pageTitle}
               </div>
-
-              <Button
-                variant="ghost"
-                className="shrink-0 px-3 md:px-4"
-                onClick={async () => {
-                  try {
-                    await fetch("/api/auth", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ action: "logout" }),
-                    });
-                  } finally {
-                    setUser(null);
-                    if (typeof window !== "undefined") {
-                      window.location.href = "/";
-                    }
-                  }
-                }}
-              >
-                Logout
-              </Button>
+              <div className="truncate text-xs text-slate-500">
+                {user?.full_name || user?.username || "user"}
+              </div>
             </div>
-          </header>
+
+            <div className="h-11 w-11" />
+          </div>
 
           {active === "dashboard" && <Dashboard user={user} />}
           {active === "registration" && <Registration user={user} />}

@@ -70,6 +70,7 @@ function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
           <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
             {label}
           </div>
+
           <div className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">
             {value}
           </div>
@@ -279,17 +280,17 @@ function AdminDashboard() {
 
   return (
     <div className="max-w-full space-y-6 overflow-x-hidden">
-      <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 p-6 text-white shadow-xl shadow-blue-950/10 sm:p-7">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
         <SectionHeader
           eyebrow="Admin Dashboard"
           title="SDS Business Overview"
           description="Monitor member growth, direct-sales hierarchy, level distribution, and operating structure in one executive view."
           right={
-            <div className="hidden rounded-2xl bg-white/10 px-4 py-3 text-right backdrop-blur sm:block">
-              <div className="text-xs font-semibold uppercase tracking-wide text-blue-100">
+            <div className="hidden rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-right sm:block">
+              <div className="text-xs font-bold uppercase tracking-wide text-blue-700">
                 Network Depth
               </div>
-              <div className="mt-1 text-2xl font-extrabold text-yellow-400">
+              <div className="mt-1 text-2xl font-extrabold text-blue-900">
                 {totalLevelsShown}
               </div>
             </div>
@@ -476,6 +477,7 @@ function SelfDashboard({ user }) {
           `/api/members?member_id=${encodeURIComponent(user.member_id)}`
         );
         const memberJson = await memberRes.json().catch(() => ({}));
+
         if (!memberRes.ok) {
           throw new Error(memberJson.error || "Failed to load member");
         }
@@ -527,7 +529,7 @@ function SelfDashboard({ user }) {
 
   return (
     <div className="max-w-full space-y-6 overflow-x-hidden">
-      <div className="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 p-6 text-white shadow-xl shadow-blue-950/10 sm:p-7">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
         <SectionHeader
           eyebrow="Personal Dashboard"
           title={`Welcome, ${member?.name || user?.full_name || "Member"}`}

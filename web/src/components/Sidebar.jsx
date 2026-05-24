@@ -8,6 +8,7 @@ import {
   FileBarChart,
   Gift,
   Home,
+  LogOut,
   ReceiptText,
   ScrollText,
   ShoppingCart,
@@ -71,121 +72,235 @@ export default function Sidebar({
   onClose,
   mobile = false,
 }) {
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "logout",
+        }),
+      });
+    } finally {
+      window.location.href = "/";
+    }
+  }
+
   return (
     <aside
       className={cls(
-        "flex h-full flex-col overflow-hidden border border-slate-200/80 bg-white shadow-xl shadow-blue-950/5",
-        mobile ? "rounded-[28px]" : "rounded-[24px]"
+        "flex h-full flex-col overflow-hidden border border-slate-200 bg-white shadow-sm",
+        mobile
+          ? "rounded-[28px]"
+          : "rounded-[30px]"
       )}
     >
-      <div className={cls("border-b border-slate-100 bg-white", mobile ? "p-5" : "p-4")}>
-        <div className="flex items-center justify-between gap-3">
+      {/* HEADER */}
+
+      <div className="border-b border-slate-100 bg-white p-4">
+        <div className="flex items-start justify-between gap-3">
+
           <button
-            type="button"
             onClick={() => onNavigate?.("dashboard")}
-            className="flex min-w-0 items-center gap-3 text-left"
+            className="flex items-center gap-3 text-left"
           >
-            <div
-              className={cls(
-                "flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200",
-                mobile ? "h-14 w-14 p-1.5" : "h-12 w-12 p-1.5"
-              )}
-            >
-              <img src={SDS_LOGO} alt="SDS" className="h-full w-full object-contain" />
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+              <img
+                src={SDS_LOGO}
+                alt="SDS"
+                className="h-full w-full object-contain"
+              />
+
             </div>
 
-            <div className="min-w-0">
-              <div
-                className={cls(
-                  "truncate font-extrabold tracking-tight text-slate-950",
-                  mobile ? "text-lg" : "text-base"
-                )}
-              >
+            <div>
+
+              <div className="text-lg font-extrabold text-slate-950">
                 {getShellTitle(user?.role)}
               </div>
-              <div className="mt-0.5 truncate text-xs font-semibold text-yellow-500">
+
+              <div className="text-xs font-semibold text-yellow-600">
                 Sure-Fit Wellness
               </div>
+
             </div>
           </button>
 
           {mobile && (
+
             <button
-              type="button"
               onClick={onClose}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100 md:hidden"
-              aria-label="Close menu"
+              className="
+                flex h-11 w-11
+                items-center justify-center
+                rounded-2xl
+                border border-slate-200
+                bg-slate-50
+              "
             >
               <X size={20} />
             </button>
+
           )}
+
         </div>
 
-        <div
-          className={cls(
-            "mt-4 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white",
-            mobile ? "p-4" : "p-3"
-          )}
-        >
-          <div className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+        {/* USER CARD */}
+
+        <div className="mt-4 rounded-3xl border border-slate-100 bg-slate-50 p-4">
+
+          <div className="text-[11px] uppercase tracking-wide text-slate-400">
             Signed in as
           </div>
 
-          <div className="mt-1 truncate text-sm font-bold text-slate-900">
-            {user?.full_name || user?.username || "User"}
+          <div className="mt-1 truncate font-bold text-slate-950">
+            {user?.full_name ||
+              user?.username ||
+              "User"}
           </div>
 
-          <div className="mt-3 inline-flex rounded-full bg-blue-700 px-3 py-1 text-[11px] font-bold text-white shadow-sm">
+          <div className="
+              mt-3 inline-flex
+              rounded-full
+              bg-blue-700
+              px-3 py-1
+              text-xs
+              font-bold
+              text-white
+            ">
+
             {getRoleBadge(user?.role)}
+
           </div>
+
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {currentNav.map((item) => {
-          const isActive = active === item.key;
-          const Icon = getNavIcon(item.key);
 
-          return (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => onNavigate(item.key)}
-              className={cls(
-                "group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition",
-                isActive
-                  ? "bg-blue-700 text-white shadow-lg shadow-blue-700/20"
-                  : "text-slate-600 hover:bg-blue-50 hover:text-blue-800"
-              )}
-            >
-              <span
+      {/* NAVIGATION */}
+
+      <nav className="flex-1 overflow-y-auto p-3">
+
+        <div className="space-y-1">
+
+          {currentNav.map((item) => {
+
+            const Icon =
+              getNavIcon(item.key);
+
+            const activeItem =
+              active === item.key;
+
+            return (
+
+              <button
+                key={item.key}
+                onClick={() =>
+                  onNavigate(item.key)
+                }
                 className={cls(
-                  "flex shrink-0 items-center justify-center rounded-xl transition",
-                  mobile ? "h-9 w-9" : "h-8 w-8",
-                  isActive
-                    ? "bg-yellow-400 text-slate-950"
-                    : "bg-slate-100 text-blue-700 group-hover:bg-white"
+
+                  "flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition",
+
+                  activeItem
+                    ? "bg-blue-700 text-white shadow-sm"
+                    : "hover:bg-slate-50 text-slate-700"
+
                 )}
               >
-                <Icon size={mobile ? 18 : 17} strokeWidth={2.2} />
-              </span>
 
-              <span className="min-w-0 flex-1 truncate font-semibold">
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
+                <div
+                  className={cls(
+
+                    "flex h-10 w-10 items-center justify-center rounded-xl",
+
+                    activeItem
+                      ? "bg-yellow-400 text-slate-950"
+                      : "bg-slate-100 text-blue-700"
+
+                  )}
+                >
+
+                  <Icon size={18} />
+
+                </div>
+
+
+                <span className="font-semibold">
+
+                  {item.label}
+
+                </span>
+
+              </button>
+
+            );
+
+          })}
+
+        </div>
+
       </nav>
 
-      <div className="border-t border-slate-100 p-3">
-        <div className="flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
-          <BookOpen size={15} className="text-blue-700" />
-          <span className="truncate">
-            {mobile ? "SDS Direct Sales Portal" : "Direct Sales Portal"}
+
+      {/* FOOTER */}
+
+      <div className="border-t border-slate-100 p-3 space-y-3">
+
+        <button
+          onClick={handleLogout}
+          className="
+            flex w-full
+            items-center justify-center
+            gap-2
+            rounded-2xl
+            border border-slate-200
+            bg-white
+            py-3
+            font-semibold
+            text-slate-700
+            transition
+            hover:bg-slate-50
+          "
+        >
+
+          <LogOut size={17} />
+
+          Logout
+
+        </button>
+
+
+        <div
+          className="
+            flex items-center gap-2
+            rounded-2xl
+            bg-slate-50
+            px-3 py-3
+            text-xs
+            font-medium
+            text-slate-500
+          "
+        >
+
+          <BookOpen
+            size={15}
+            className="text-blue-700"
+          />
+
+          <span>
+
+            SDS Direct Sales Portal
+
           </span>
+
         </div>
+
       </div>
+
     </aside>
   );
 }
