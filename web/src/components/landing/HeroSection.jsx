@@ -18,7 +18,7 @@ export default function HeroSection() {
       <div className="pointer-events-none absolute right-0 top-16 h-[36rem] w-[36rem] rounded-full bg-blue-300/10 blur-3xl" />
       <div className="pointer-events-none absolute bottom-24 left-10 h-64 w-64 rounded-full bg-yellow-400/10 blur-3xl" />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-16 pt-28 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 pb-20 pt-32 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div className="text-white">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-yellow-400/30 bg-white/10 px-4 py-2 text-xs font-semibold text-yellow-300 shadow-lg backdrop-blur">
@@ -68,21 +68,21 @@ export default function HeroSection() {
             </div>
           </div>
 
-          <div className="flex justify-center lg:justify-end">
+          <div className="flex justify-center lg:justify-end lg:pt-8">
             <div className="relative">
-              <div className="flex h-80 w-80 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-2xl backdrop-blur sm:h-[25rem] sm:w-[25rem] lg:h-[34rem] lg:w-[34rem]">
-                <div className="flex h-64 w-64 items-center justify-center rounded-full border border-white/20 bg-white/10 p-3 shadow-inner backdrop-blur sm:h-[21rem] sm:w-[21rem] lg:h-[29rem] lg:w-[29rem]">
+              <div className="flex h-72 w-72 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-2xl backdrop-blur sm:h-[23rem] sm:w-[23rem] lg:h-[28rem] lg:w-[28rem]">
+                <div className="flex h-60 w-60 items-center justify-center rounded-full border border-white/20 bg-white/10 p-3 shadow-inner backdrop-blur sm:h-[19rem] sm:w-[19rem] lg:h-[24rem] lg:w-[24rem]">
                   <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-white shadow-2xl ring-8 ring-yellow-400/90">
                     <img
                       src={SDS_LOGO}
                       alt="SDS Sure-Fit Wellness"
-                      className="h-full w-full scale-[1.42] object-cover drop-shadow-xl"
+                      className="h-full w-full scale-[1.28] object-cover drop-shadow-xl"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-2xl bg-white px-4 py-3 shadow-xl sm:-left-4 sm:left-auto sm:translate-x-0">
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-2xl bg-white px-4 py-3 shadow-xl sm:-left-4 sm:bottom-6 sm:left-auto sm:translate-x-0">
                 <div className="text-xs font-medium text-gray-500">
                   Member Earnings
                 </div>
@@ -91,7 +91,7 @@ export default function HeroSection() {
                 </div>
               </div>
 
-              <div className="absolute -right-2 -top-4 rounded-2xl bg-yellow-400 px-4 py-3 shadow-xl sm:-right-4">
+              <div className="absolute -right-2 top-2 rounded-2xl bg-yellow-400 px-4 py-3 shadow-xl sm:-right-4 sm:top-6">
                 <div className="text-xs font-medium text-gray-700">
                   Products
                 </div>
