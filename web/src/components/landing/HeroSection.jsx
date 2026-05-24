@@ -23,11 +23,11 @@ export default function HeroSection() {
           <div className="text-white">
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-yellow-400/30 bg-yellow-400/20 px-4 py-2 text-xs font-semibold text-yellow-300">
               <span className="h-2 w-2 animate-pulse rounded-full bg-yellow-400" />
-              Premium Wellness Products
+              High grade organic quality
             </div>
 
             <h1 className="mb-6 text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl">
-              Build Wellness. <span className="text-yellow-400">Grow Your</span> Income.
+              Premium Wellness Products.
             </h1>
 
             <p className="mb-8 max-w-xl text-lg leading-relaxed text-blue-100">
