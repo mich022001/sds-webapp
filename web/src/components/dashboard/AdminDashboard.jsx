@@ -7,13 +7,16 @@ import {
   BarChart3,
   Crown,
   Network,
+  PackageCheck,
   Search,
   ShieldCheck,
+  ShoppingCart,
   TrendingUp,
   Users,
+  Wallet,
 } from "lucide-react";
 
-import { cls, levelLabel, norm } from "./dashboardUtils";
+import { cls, fmtAmount, levelLabel, norm } from "./dashboardUtils";
 
 function MetricCard({ label, value, icon: Icon, tone = "blue", helper }) {
   const toneClass = {
@@ -172,8 +175,15 @@ function SelectedMemberPanel({ member }) {
   );
 }
 
+function saleStatusLabel(status) {
+  const clean = norm(status);
+  if (!clean) return "unknown";
+  return clean.replace(/_/g, " ");
+}
+
 export default function AdminDashboard() {
   const [rows, setRows] = useState([]);
+  const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [search, setSearch] = useState("");
@@ -192,20 +202,34 @@ export default function AdminDashboard() {
         setLoading(true);
         setErr("");
 
-        const res = await fetch("/api/members", {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        });
+        const [membersRes, salesRes] = await Promise.all([
+          fetch("/api/members", {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          }),
+          fetch("/api/sales", {
+            method: "GET",
+            headers: { Accept: "application/json" },
+          }),
+        ]);
 
-        if (!res.ok) {
-          const txt = await res.text().catch(() => "");
-          throw new Error(`API ${res.status}: ${txt || res.statusText}`);
+        if (!membersRes.ok) {
+          const txt = await membersRes.text().catch(() => "");
+          throw new Error(`Members API ${membersRes.status}: ${txt || membersRes.statusText}`);
         }
 
-        const json = await res.json();
-        const data = Array.isArray(json?.data) ? json.data : [];
+        if (!salesRes.ok) {
+          const txt = await salesRes.text().catch(() => "");
+          throw new Error(`Sales API ${salesRes.status}: ${txt || salesRes.statusText}`);
+        }
 
-        if (!cancelled) setRows(data);
+        const membersJson = await membersRes.json();
+        const salesJson = await salesRes.json();
+
+        if (!cancelled) {
+          setRows(Array.isArray(membersJson?.data) ? membersJson.data : []);
+          setSales(Array.isArray(salesJson?.data) ? salesJson.data : []);
+        }
       } catch (error) {
         if (!cancelled) setErr(error?.message || "Failed to load dashboard");
       } finally {
@@ -320,6 +344,72 @@ export default function AdminDashboard() {
       .filter((item) => item.members.length > 0 || !term);
   }, [grouped.levelItems, search, activeLevel]);
 
+  const salesAnalytics = useMemo(() => {
+    const productMap = new Map();
+    const statusMap = new Map();
+
+    let totalSales = 0;
+    let releasedSales = 0;
+    let pendingCount = 0;
+    let productsSold = 0;
+
+    for (const sale of sales) {
+      const qty = Number(sale.quantity || 0);
+      const amount = Number(sale.total_amount || 0);
+      const status = norm(sale.status) || "unknown";
+      const productName = String(sale.product_name || "Unknown Product").trim();
+
+      if (Number.isFinite(amount)) totalSales += amount;
+      if (Number.isFinite(qty)) productsSold += qty;
+
+      if (status === "released") releasedSales += amount;
+      if (["pending", "approved", "paid"].includes(status)) pendingCount += 1;
+
+      statusMap.set(status, (statusMap.get(status) || 0) + 1);
+
+      const current = productMap.get(productName) || {
+        name: productName,
+        qty: 0,
+        amount: 0,
+      };
+
+      productMap.set(productName, {
+        ...current,
+        qty: current.qty + (Number.isFinite(qty) ? qty : 0),
+        amount: current.amount + (Number.isFinite(amount) ? amount : 0),
+      });
+    }
+
+    const avgOrder = sales.length > 0 ? totalSales / sales.length : 0;
+
+    const topProducts = Array.from(productMap.values())
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 5);
+
+    const statusBreakdown = Array.from(statusMap.entries())
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const recentSales = sales.slice(0, 5).map((sale) => ({
+      title: sale.product_name || "Sale",
+      detail: `${sale.member_name || "Unknown buyer"} • Qty ${
+        sale.quantity || 0
+      } • ${saleStatusLabel(sale.status)}`,
+      amount: Number(sale.total_amount || 0),
+    }));
+
+    return {
+      totalSales,
+      releasedSales,
+      pendingCount,
+      productsSold,
+      avgOrder,
+      topProducts,
+      statusBreakdown,
+      recentSales,
+    };
+  }, [sales]);
+
   const analytics = useMemo(() => {
     const sponsorCounts = new Map();
     const membershipCounts = new Map();
@@ -349,6 +439,17 @@ export default function AdminDashboard() {
 
     const alerts = [
       {
+        type: "Sales",
+        title:
+          salesAnalytics.pendingCount > 0
+            ? "Sales queue needs review"
+            : "Sales queue is clear",
+        detail: `${salesAnalytics.pendingCount} sale${
+          salesAnalytics.pendingCount === 1 ? "" : "s"
+        } currently pending approval/payment/release.`,
+        tone: salesAnalytics.pendingCount > 0 ? "gold" : "green",
+      },
+      {
         type: "Network",
         title:
           level1 <= 3
@@ -356,17 +457,6 @@ export default function AdminDashboard() {
             : "Direct branch is expanding",
         detail: `${level1} member${level1 === 1 ? "" : "s"} in 1st level.`,
         tone: level1 <= 3 ? "gold" : "green",
-      },
-      {
-        type: "Depth",
-        title:
-          grouped.levels.length > 8
-            ? "Network depth is high"
-            : "Network depth is still manageable",
-        detail: `${
-          grouped.levels.filter((level) => level !== 0).length
-        } active levels detected.`,
-        tone: grouped.levels.length > 8 ? "blue" : "green",
       },
       {
         type: "Distribution",
@@ -379,15 +469,15 @@ export default function AdminDashboard() {
       },
     ];
 
-    const recentActivity = rows.slice(-6).reverse().map((member) => ({
+    const recentMembers = rows.slice(-3).reverse().map((member) => ({
       title: member.name || "New member",
       detail: `${member.membership_type || "Member"} under ${
         member.sponsor_name || "SDS"
       }`,
     }));
 
-    return { topSponsors, membershipMix, alerts, recentActivity };
-  }, [rows, grouped]);
+    return { topSponsors, membershipMix, alerts, recentMembers };
+  }, [rows, grouped, salesAnalytics.pendingCount]);
 
   useEffect(() => {
     function updateScrollState() {
@@ -440,7 +530,7 @@ export default function AdminDashboard() {
               SDS Business Overview
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-              Monitor member growth, hierarchy depth, sponsor performance, and
+              Monitor member growth, sales volume, sponsor performance, and
               network distribution.
             </p>
           </div>
@@ -448,19 +538,19 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-wide text-blue-700">
-                Members
+                Sales Volume
               </div>
               <div className="mt-1 text-xl font-extrabold text-blue-950">
-                {totalMembers}
+                ₱{fmtAmount(salesAnalytics.totalSales)}
               </div>
             </div>
 
             <div className="rounded-xl border border-yellow-100 bg-yellow-50 px-4 py-3">
               <div className="text-[10px] font-bold uppercase tracking-wide text-yellow-700">
-                Depth
+                Pending Sales
               </div>
               <div className="mt-1 text-xl font-extrabold text-yellow-800">
-                {totalLevelsShown}
+                {salesAnalytics.pendingCount}
               </div>
             </div>
           </div>
@@ -469,111 +559,135 @@ export default function AdminDashboard() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
         <MetricCard
+          label="Sales Volume"
+          value={`₱${fmtAmount(salesAnalytics.totalSales)}`}
+          icon={Wallet}
+          tone="green"
+          helper="All sales ledger value"
+        />
+        <MetricCard
+          label="Released Sales"
+          value={`₱${fmtAmount(salesAnalytics.releasedSales)}`}
+          icon={ShieldCheck}
+          tone="blue"
+          helper="Completed and released sales"
+        />
+        <MetricCard
+          label="Products Sold"
+          value={salesAnalytics.productsSold}
+          icon={PackageCheck}
+          tone="gold"
+          helper="Total quantity sold"
+        />
+        <MetricCard
+          label="Pending Sales"
+          value={salesAnalytics.pendingCount}
+          icon={ShoppingCart}
+          tone={salesAnalytics.pendingCount > 0 ? "red" : "slate"}
+          helper="Pending, approved, or paid"
+        />
+        <MetricCard
           label="Total Members"
           value={totalMembers}
           icon={Users}
           tone="blue"
           helper="All registered members"
         />
-        <MetricCard
-          label="1st Level"
-          value={totalLevel1}
-          icon={Crown}
-          tone="gold"
-          helper="Direct SDS branch"
-        />
-        <MetricCard
-          label="2nd Level"
-          value={totalLevel2}
-          icon={Network}
-          tone="blue"
-          helper="Second layer network"
-        />
-        <MetricCard
-          label="3rd Level"
-          value={totalLevel3}
-          icon={TrendingUp}
-          tone="green"
-          helper="Third layer network"
-        />
-        <MetricCard
-          label="Levels Present"
-          value={totalLevelsShown}
-          icon={BarChart3}
-          tone="slate"
-          helper="Active genealogy depth"
-        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
-        <Card title="Network Intelligence">
+        <Card title="Sales Operations">
           <div className="grid gap-3 sm:grid-cols-3">
-            {analytics.membershipMix.slice(0, 3).map((item) => (
-              <div
-                key={item.name}
-                className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
-              >
-                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                  {item.name}
-                </div>
-                <div className="mt-1 text-2xl font-black text-slate-950">
-                  {item.count}
-                </div>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Average Order
               </div>
-            ))}
+              <div className="mt-1 text-2xl font-black text-slate-950">
+                ₱{fmtAmount(salesAnalytics.avgOrder)}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Sales Records
+              </div>
+              <div className="mt-1 text-2xl font-black text-slate-950">
+                {sales.length}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Network Depth
+              </div>
+              <div className="mt-1 text-2xl font-black text-slate-950">
+                {totalLevelsShown}
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             <div className="rounded-xl border border-slate-100 bg-white p-3">
               <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-950">
-                <Crown size={16} className="text-yellow-600" />
-                Top Sponsors
+                <PackageCheck size={16} className="text-blue-700" />
+                Top Products
               </div>
 
               <div className="space-y-2">
-                {analytics.topSponsors.map((sponsor, index) => (
-                  <div
-                    key={sponsor.name}
-                    className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-slate-900">
-                        {index + 1}. {sponsor.name}
-                      </div>
-                      <div className="text-xs text-slate-400">
-                        Direct network count
-                      </div>
-                    </div>
-                    <div className="text-sm font-black text-blue-700">
-                      {sponsor.count}
-                    </div>
+                {salesAnalytics.topProducts.length === 0 ? (
+                  <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                    No sales data yet.
                   </div>
-                ))}
+                ) : (
+                  salesAnalytics.topProducts.map((product, index) => (
+                    <div
+                      key={product.name}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">
+                          {index + 1}. {product.name}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          Qty {product.qty}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-sm font-black text-blue-700">
+                        ₱{fmtAmount(product.amount)}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
             <div className="rounded-xl border border-slate-100 bg-white p-3">
               <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-950">
                 <Activity size={16} className="text-blue-700" />
-                Recent Activity
+                Recent Sales
               </div>
 
               <div className="space-y-2">
-                {analytics.recentActivity.length === 0 ? (
+                {salesAnalytics.recentSales.length === 0 ? (
                   <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                    No recent activity yet.
+                    No sales activity yet.
                   </div>
                 ) : (
-                  analytics.recentActivity.map((activity, index) => (
+                  salesAnalytics.recentSales.map((sale, index) => (
                     <div
-                      key={`${activity.title}-${index}`}
-                      className="rounded-lg bg-slate-50 px-3 py-2"
+                      key={`${sale.title}-${index}`}
+                      className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2"
                     >
-                      <div className="truncate text-sm font-semibold text-slate-900">
-                        {activity.title}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-slate-900">
+                          {sale.title}
+                        </div>
+                        <div className="truncate text-xs text-slate-400">
+                          {sale.detail}
+                        </div>
                       </div>
-                      <div className="truncate text-xs text-slate-400">
-                        {activity.detail}
+                      <div className="shrink-0 text-sm font-black text-blue-700">
+                        ₱{fmtAmount(sale.amount)}
                       </div>
                     </div>
                   ))
@@ -619,6 +733,78 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+        <Card title="Network Intelligence">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {analytics.membershipMix.slice(0, 3).map((item) => (
+              <div
+                key={item.name}
+                className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3"
+              >
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                  {item.name}
+                </div>
+                <div className="mt-1 text-2xl font-black text-slate-950">
+                  {item.count}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-100 bg-white p-3">
+            <div className="mb-3 flex items-center gap-2 text-sm font-bold text-slate-950">
+              <Crown size={16} className="text-yellow-600" />
+              Top Sponsors
+            </div>
+
+            <div className="space-y-2">
+              {analytics.topSponsors.map((sponsor, index) => (
+                <div
+                  key={sponsor.name}
+                  className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-slate-900">
+                      {index + 1}. {sponsor.name}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      Direct network count
+                    </div>
+                  </div>
+                  <div className="text-sm font-black text-blue-700">
+                    {sponsor.count}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Recent Member Activity">
+          <div className="space-y-2">
+            {analytics.recentMembers.length === 0 ? (
+              <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                No recent member activity yet.
+              </div>
+            ) : (
+              analytics.recentMembers.map((activity, index) => (
+                <div
+                  key={`${activity.title}-${index}`}
+                  className="rounded-lg bg-slate-50 px-3 py-2"
+                >
+                  <div className="truncate text-sm font-semibold text-slate-900">
+                    {activity.title}
+                  </div>
+                  <div className="truncate text-xs text-slate-400">
+                    {activity.detail}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </div>
