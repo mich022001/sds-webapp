@@ -1,4 +1,4 @@
-import { Facebook, Mail, MapPin, Phone } from "lucide-react";
+import { Globe, Mail, MapPin, Phone } from "lucide-react";
 
 const CONTACT_ITEMS = [
   {
@@ -9,7 +9,7 @@ const CONTACT_ITEMS = [
     link: "tel:09505961338",
   },
   {
-    icon: <Facebook size={22} />,
+    icon: <Globe size={22} />,
     label: "Official Facebook Page",
     value: "SDS Sure-Fit Wellness",
     helper: "Message us through Facebook.",
