@@ -128,7 +128,7 @@ export default function Sidebar({
           )}
         </div>
 
-        <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3">
+        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
@@ -139,7 +139,7 @@ export default function Sidebar({
               </div>
             </div>
 
-            <div className="shrink-0 rounded-full bg-blue-700 px-2.5 py-1 text-[10px] font-bold text-white">
+            <div className="shrink-0 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-800">
               {getRoleBadge(user?.role)}
             </div>
           </div>
@@ -160,15 +160,15 @@ export default function Sidebar({
                 className={cls(
                   "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition",
                   isActive
-                    ? "bg-blue-700 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-blue-800"
+                    ? "border border-blue-100 bg-blue-50 text-blue-900"
+                    : "border border-transparent text-slate-600 hover:border-slate-100 hover:bg-slate-50 hover:text-blue-800"
                 )}
               >
                 <span
                   className={cls(
                     "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition",
                     isActive
-                      ? "bg-yellow-400 text-slate-950"
+                      ? "bg-blue-700 text-white shadow-sm"
                       : "bg-slate-100 text-blue-700 group-hover:bg-white"
                   )}
                 >
@@ -178,6 +178,10 @@ export default function Sidebar({
                 <span className="min-w-0 flex-1 truncate font-semibold">
                   {item.label}
                 </span>
+
+                {isActive && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-yellow-500" />
+                )}
               </button>
             );
           })}
