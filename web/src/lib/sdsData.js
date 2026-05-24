@@ -66,8 +66,9 @@ export const PRODUCTS = [
     code: "PRD-002",
     price: 400,
     srp: 600,
+    // Prommix Plus
     image_url:
-      "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/27a22de17_Ia1h4L6w.jpg",
+"https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/9b1a353a0_u_rF6CUl.jpg",
     landing_title: "Antioxidant with Probiotics",
     short_description:
       "An antioxidant and probiotic supplement designed to support gut balance, daily wellness, and immune support.",
@@ -124,8 +125,9 @@ export const PRODUCTS = [
     code: "PRD-003",
     price: 950,
     srp: 1500,
+    // Compact C
     image_url:
-      "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/9b1a353a0_u_rF6CUl.jpg",
+      "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/27a22de17_Ia1h4L6w.jpg",
     landing_title: "Non-Acidic Vitamin C",
     short_description:
       "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and antioxidant support for daily immune wellness.",
