@@ -7,46 +7,43 @@ export const PRODUCTS = [
     code: "PRD-001",
     price: 350,
     srp: 600,
-    image_url:
-      "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/dfd476e18_JsQNcp7u.jpg",
-    landing_title: "13-in-1 Superfood Coffee",
+    image_url: "/balatinao-rice-coffee.png",
+    landing_title: "Healthy Coffee",
     short_description:
-      "A caffeine-free rice coffee blend designed to support daily wellness, balanced energy, and antioxidant intake.",
+      "A healthy rice coffee blend designed to support balanced energy and daily wellness.",
     description:
-      "A caffeine-free rice coffee blend designed to support daily wellness, balanced energy, and antioxidant intake.",
+      "A healthy rice coffee blend designed to support balanced energy and daily wellness.",
     full_description:
-      "Balatinao Rice Coffee is formulated as a caffeine-free wellness coffee containing nutrient-rich ingredients and antioxidant compounds. It offers a smoother alternative to traditional coffee while supporting daily vitality and overall wellness.",
+      "Balatinao Rice Coffee is formulated as a wellness coffee alternative made with Balatinao rice and nutrient-rich ingredients. It offers a smoother daily drink option for people who want coffee-style comfort while supporting everyday wellness.",
     highlights: [
-      "Caffeine Free",
+      "Healthy Coffee",
       "13-in-1 Formula",
-      "Antioxidant Support",
       "Rice Coffee",
       "Daily Wellness",
     ],
     benefits: [
-      "Caffeine-free coffee alternative",
-      "Contains antioxidant compounds",
+      "Healthy coffee alternative",
       "Supports balanced daily energy",
       "Supports digestive wellness",
       "Provides nutrient-rich ingredients",
+      "Designed for daily wellness routines",
     ],
     ingredients_focus: [
       "Balatinao Rice",
-      "Antioxidant Compounds",
       "Plant Nutrients",
       "Minerals",
       "Amino Acids",
     ],
     detailed_sections: [
       {
-        title: "Antioxidant Support",
+        title: "Healthy Coffee Alternative",
         text:
-          "Contains antioxidant compounds that help protect cells from oxidative stress associated with everyday environmental factors.",
+          "A rice coffee blend designed for people who want a smoother wellness drink as part of their daily routine.",
       },
       {
-        title: "Balanced Energy Without Caffeine",
+        title: "Balanced Daily Energy",
         text:
-          "Provides a caffeine-free option for individuals seeking a smoother wellness drink without the typical stimulation associated with traditional coffee.",
+          "Provides a coffee-style wellness option for individuals seeking balanced daily support without relying heavily on traditional coffee.",
       },
       {
         title: "Digestive Support",
@@ -64,18 +61,16 @@ export const PRODUCTS = [
     id: "PRD-002",
     name: "Prommix Plus",
     code: "PRD-002",
-    price: 400,
+    price: 600,
     srp: 600,
-    // Prommix Plus
-    image_url:
-"https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/9b1a353a0_u_rF6CUl.jpg",
+    image_url: "/prommix-plus.png",
     landing_title: "Antioxidant with Probiotics",
     short_description:
       "An antioxidant and probiotic supplement designed to support gut balance, daily wellness, and immune support.",
     description:
       "An antioxidant and probiotic supplement designed to support gut balance, daily wellness, and immune support.",
     full_description:
-      "Prommix Plus combines probiotics and antioxidants to help support digestive wellness, oxidative balance, and overall body function. Probiotics help maintain a healthy gut microbiome, while antioxidants help protect cells from oxidative stress associated with everyday environmental factors.",
+      "Prommix Plus combines probiotics and antioxidants to help support digestive wellness, oxidative balance, and overall body function. Probiotics help maintain a healthy gut microbiome, while antioxidants help support everyday wellness.",
     highlights: [
       "Probiotics",
       "Antioxidant Support",
@@ -105,7 +100,7 @@ export const PRODUCTS = [
       {
         title: "Antioxidant Protection",
         text:
-          "Antioxidants help neutralize oxidative stress caused by unstable molecules, supporting cellular protection and everyday wellness.",
+          "Antioxidants help support cellular protection and everyday wellness as part of a balanced lifestyle.",
       },
       {
         title: "Immune System Support",
@@ -125,28 +120,26 @@ export const PRODUCTS = [
     code: "PRD-003",
     price: 950,
     srp: 1500,
-    // Compact C
-    image_url:
-      "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/27a22de17_Ia1h4L6w.jpg",
+    image_url: "/compact-c.png",
     landing_title: "Non-Acidic Vitamin C",
     short_description:
-      "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and antioxidant support for daily immune wellness.",
+      "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and Ferulic Acid for daily immune wellness.",
     description:
-      "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and antioxidant support for daily immune wellness.",
+      "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and Ferulic Acid for daily immune wellness.",
     full_description:
-      "Compact C combines Sodium Ascorbate (Vitamin C), Zinc, Ferulic Acid, and Vitamin D3 into a formulation designed to support immune function, antioxidant balance, collagen production, and everyday wellness.",
+      "Compact C combines Sodium Ascorbate (Vitamin C), Zinc, Ferulic Acid, and Vitamin D3 into a formulation designed to support immune function, collagen production, bone support, and everyday wellness.",
     highlights: [
       "Non-Acidic Vitamin C",
       "Vitamin D3",
       "Zinc Support",
-      "Antioxidant Protection",
+      "Ferulic Acid",
       "Immune Wellness",
     ],
     benefits: [
       "Supports immune wellness",
-      "Provides antioxidant support",
       "Supports collagen production",
       "Supports bone and mineral function",
+      "Contains Ferulic Acid",
       "Designed for daily nutritional support",
     ],
     ingredients_focus: [
@@ -159,7 +152,7 @@ export const PRODUCTS = [
       {
         title: "Vitamin C Support",
         text:
-          "Sodium Ascorbate provides a non-acidic form of Vitamin C that helps support antioxidant activity, collagen production, and daily immune wellness.",
+          "Sodium Ascorbate provides a non-acidic form of Vitamin C that helps support collagen production and daily immune wellness.",
       },
       {
         title: "Zinc for Cellular Function",
@@ -167,9 +160,9 @@ export const PRODUCTS = [
           "Zinc contributes to normal immune function, protein synthesis, and supports various enzymatic processes throughout the body.",
       },
       {
-        title: "Vitamin D3 and Bone Support",
+        title: "Ferulic Acid and Vitamin D3",
         text:
-          "Vitamin D3 supports calcium absorption and contributes to maintaining healthy bones and normal immune function.",
+          "Ferulic Acid and Vitamin D3 help complete the formula for daily nutritional support, bone support, and overall wellness.",
       },
     ],
     disclaimer:
@@ -184,28 +177,27 @@ export const PRODUCTS = [
     code: "PRD-004",
     price: 1100,
     srp: 1800,
-    image_url:
-      "https://media.base44.com/images/public/6a0a949c6b8b2bff0a2af227/40cfe2ccf_Apt8kqZq.jpg",
-    landing_title: "Men's Vitality Supplement",
+    image_url: "/vigomaxx.png",
+    landing_title: "Prostate Protection",
     short_description:
-      "A men’s wellness supplement formulated to support vitality, stamina, focus, and daily performance.",
+      "A wellness supplement formulated to support prostate protection, hormone regulation, stamina, and vitality.",
     description:
-      "A men’s wellness supplement formulated to support vitality, stamina, focus, and daily performance.",
+      "A wellness supplement formulated to support prostate protection, hormone regulation, stamina, and vitality.",
     full_description:
-      "Vigomaxx is formulated with botanical ingredients such as saw palmetto, maca root, horny goat weed, Korean red ginseng, guava, ginkgo biloba, and cinnamon extract. This blend is designed to support male vitality, stamina, cognitive focus, metabolic wellness, and overall daily performance.",
+      "Vigomaxx is formulated with botanical ingredients such as saw palmetto, maca root, horny goat weed, Korean red ginseng, guava, ginkgo biloba, and cinnamon extract. This blend is designed to support prostate protection, hormone regulation, vitality, stamina, circulation, and overall performance.",
     highlights: [
-      "Vitality",
-      "Men's Wellness",
-      "Daily Support",
+      "Prostate Protection",
+      "Hormone Regulator",
       "Stamina",
+      "Vitality",
       "Performance",
     ],
     benefits: [
-      "Supports male vitality and stamina",
+      "Supports prostate protection",
+      "Supports hormone regulation",
+      "Supports vitality and stamina",
       "Helps promote healthy blood flow",
-      "Supports prostate and male wellness",
-      "Helps improve daily energy and focus",
-      "Supports metabolic and antioxidant wellness",
+      "Supports energy and focus",
     ],
     ingredients_focus: [
       "Saw Palmetto",
@@ -218,17 +210,17 @@ export const PRODUCTS = [
     ],
     detailed_sections: [
       {
-        title: "Male Vitality and Performance",
-        text:
-          "Korean red ginseng, ginkgo biloba, maca root, and horny goat weed are traditionally used to support male performance, stamina, circulation, and sexual wellness.",
-      },
-      {
-        title: "Prostate and Male Wellness",
+        title: "Prostate Protection",
         text:
           "Saw palmetto is commonly associated with prostate support and male wellness, especially in relation to DHT-related concerns.",
       },
       {
-        title: "Energy, Focus, and Cognitive Support",
+        title: "Hormone Regulation and Vitality",
+        text:
+          "Maca root, horny goat weed, and Korean red ginseng are traditionally used to support vitality, stamina, and male wellness.",
+      },
+      {
+        title: "Energy, Focus, and Circulation",
         text:
           "Ginkgo biloba and Korean red ginseng may help support blood circulation, mental clarity, concentration, and daily energy.",
       },
@@ -244,45 +236,82 @@ export const PRODUCTS = [
 export const PACKAGES = [
   {
     id: "PKG-001",
-    name: "Package 1",
+    name: "Package A",
+    image: "/package-a.png",
     price: 3100,
     srp: 3600,
-    description: "Entry-level package for new SDS members.",
-    included_products: ["Balatinao Rice Coffee", "Prommix Plus"],
-    benefits: ["Member pricing", "Referral eligibility", "Member portal access"],
+    description:
+      "Membership package with 6 bottles of Prommix Plus and access to SDS membership benefits.",
+    included_products: ["6 Bottles Prommix Plus"],
+    benefits: [
+      "Member pricing",
+      "Membership discounts",
+      "Rebate eligibility",
+      "Member portal access",
+    ],
     recommended: false,
     active: true,
   },
   {
     id: "PKG-002",
-    name: "Package 2",
+    name: "Package B",
+    image: "/package-b.png",
     price: 3100,
     srp: 3600,
-    description: "Wellness package focused on immune and antioxidant support.",
-    included_products: ["Compact C", "Prommix Plus"],
-    benefits: ["Member pricing", "Bonus eligibility", "Member portal access"],
-    recommended: false,
-    active: true,
-  },
-  {
-    id: "PKG-003",
-    name: "Package 3",
-    price: 3100,
-    srp: 3600,
-    description: "Popular package for wellness and business starters.",
-    included_products: ["Vigomaxx", "Balatinao Rice Coffee"],
-    benefits: ["Referral eligibility", "Bonus tracking", "Priority onboarding"],
+    description:
+      "Wellness package containing Prommix Plus and Balatinao Rice Coffee.",
+    included_products: [
+      "4 Bottles Prommix Plus",
+      "2 Boxes Balatinao Rice Coffee",
+    ],
+    benefits: [
+      "Member pricing",
+      "Rebate eligibility",
+      "Wellness support",
+      "Member portal access",
+    ],
     recommended: true,
     active: true,
   },
   {
-    id: "PKG-004",
-    name: "Package 4",
+    id: "PKG-003",
+    name: "Package C",
+    image: "/package-c.png",
     price: 3100,
     srp: 3600,
-    description: "Complete package for members who want the full SDS product set.",
-    included_products: ["Balatinao Rice Coffee", "Prommix Plus", "Compact C", "Vigomaxx"],
-    benefits: ["All products included", "Full package value", "Business starter option"],
+    description:
+      "Combination package with Prommix Plus and Vigomaxx for wellness and performance support.",
+    included_products: [
+      "3 Bottles Prommix Plus",
+      "1 Bottle Vigomaxx",
+    ],
+    benefits: [
+      "Membership discounts",
+      "Rebate eligibility",
+      "Business starter",
+      "Priority onboarding",
+    ],
+    recommended: false,
+    active: true,
+  },
+  {
+    id: "PKG-004",
+    name: "Package D",
+    image: "/package-d.png",
+    price: 3100,
+    srp: 3600,
+    description:
+      "Package with Compact C and Prommix Plus for immune wellness and daily support.",
+    included_products: [
+      "2 Bottles Compact C",
+      "1 Bottle Prommix Plus",
+    ],
+    benefits: [
+      "Membership discounts",
+      "Rebates",
+      "Member access",
+      "Starter package",
+    ],
     recommended: false,
     active: true,
   },

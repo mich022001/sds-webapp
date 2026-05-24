@@ -71,23 +71,12 @@ export default function FeaturedProducts() {
                   />
                 </div>
 
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-blue-50 p-4">
-                    <div className="text-xs font-semibold uppercase text-blue-600">
-                      Member Price
-                    </div>
-                    <div className="mt-1 text-2xl font-bold text-blue-900">
-                      ₱{selectedProduct.price.toLocaleString()}
-                    </div>
+                <div className="mt-6 rounded-2xl bg-blue-50 p-5 text-center">
+                  <div className="text-xs font-bold uppercase tracking-wide text-blue-600">
+                    SRP
                   </div>
-
-                  <div className="rounded-2xl bg-yellow-50 p-4">
-                    <div className="text-xs font-semibold uppercase text-yellow-700">
-                      SRP
-                    </div>
-                    <div className="mt-1 text-2xl font-bold text-gray-900">
-                      ₱{selectedProduct.srp.toLocaleString()}
-                    </div>
+                  <div className="mt-1 text-4xl font-black text-blue-900">
+                    ₱{selectedProduct.srp.toLocaleString()}
                   </div>
                 </div>
               </div>

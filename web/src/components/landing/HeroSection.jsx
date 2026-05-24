@@ -27,7 +27,8 @@ export default function HeroSection() {
 
             <p className="mb-8 max-w-xl text-lg leading-relaxed text-blue-100">
               Join Sure-Fit Wellness and discover premium wellness products,
-              rewarding memberships, and income opportunities across the Philippines.
+              rewarding memberships, and income opportunities across the
+              Philippines.
             </p>
 
             <div className="mb-12 flex flex-col gap-4 sm:flex-row">
@@ -68,32 +69,15 @@ export default function HeroSection() {
           </div>
 
           <div className="flex justify-center lg:justify-end">
-            <div className="relative h-[19rem] w-[19rem] sm:h-[27rem] sm:w-[27rem] lg:h-[34rem] lg:w-[34rem]">
-              {/* Outer decorative circle only */}
-              <div className="absolute inset-0 rounded-full border border-white/15 bg-white/5 shadow-2xl backdrop-blur" />
-              <div className="absolute inset-6 rounded-full border border-white/10 bg-white/5" />
+            <div className="relative h-[22rem] w-[22rem] sm:h-[31rem] sm:w-[31rem] lg:h-[39rem] lg:w-[39rem]">
+              <div className="absolute inset-0 rounded-full border border-white/20 bg-white/[0.03] shadow-2xl shadow-blue-950/30" />
 
-              {/* Logo circle: logo image fills this circle */}
-              <div className="absolute inset-10 overflow-hidden rounded-full sm:inset-12 lg:inset-14">
+              <div className="absolute inset-8 overflow-hidden rounded-full sm:inset-10 lg:inset-12">
                 <img
                   src={SDS_LOGO}
                   alt="SDS Sure-Fit Wellness"
-                  className="h-full w-full scale-[1.2] object-cover"
+                  className="h-full w-full scale-[1.08] object-cover"
                 />
-              </div>
-
-              <div className="absolute right-0 top-10 rounded-2xl bg-yellow-400 px-4 py-3 shadow-xl">
-                <div className="text-xs font-medium text-gray-700">Products</div>
-                <div className="text-lg font-bold text-gray-900">4 Premium</div>
-              </div>
-
-              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-2xl bg-white px-4 py-3 shadow-xl lg:left-12 lg:translate-x-0">
-                <div className="text-xs font-medium text-gray-500">
-                  Member Earnings
-                </div>
-                <div className="text-lg font-bold text-blue-800">
-                  ₱600 / Referral
-                </div>
               </div>
             </div>
           </div>
