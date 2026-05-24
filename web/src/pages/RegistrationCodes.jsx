@@ -1,30 +1,65 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  CheckCircle2,
+  Copy,
+  FileCheck2,
+  Filter,
+  KeyRound,
+  Layers3,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Ticket,
+  TicketCheck,
+  TicketX,
+} from "lucide-react";
 
 function cls(...a) {
   return a.filter(Boolean).join(" ");
 }
 
-function Card({ title, children, right, className = "" }) {
+function Card({ title, children, right, className = "", icon: Icon }) {
   return (
     <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
+      className={cls(
+        "max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm",
+        className
+      )}
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
+      <div className="border-b border-slate-100 px-5 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-center gap-3">
+            {Icon && (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <Icon size={18} />
+              </div>
+            )}
+
+            <div>
+              <div className="font-bold text-slate-950">{title}</div>
+            </div>
+          </div>
+
+          {right}
+        </div>
       </div>
-      {children}
+
+      <div className="p-5">{children}</div>
     </div>
   );
 }
 
 function Input({ label, className = "", ...props }) {
   return (
-    <label className={cls("grid min-w-0 gap-1", className)}>
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
+    <label className={cls("grid min-w-0 gap-2", className)}>
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
       <input
         {...props}
-        className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-50"
       />
     </label>
   );
@@ -32,11 +67,13 @@ function Input({ label, className = "", ...props }) {
 
 function Select({ label, children, className = "", ...props }) {
   return (
-    <label className={cls("grid min-w-0 gap-1", className)}>
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
+    <label className={cls("grid min-w-0 gap-2", className)}>
+      <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
       <select
         {...props}
-        className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+        className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-50"
       >
         {children}
       </select>
@@ -44,16 +81,91 @@ function Select({ label, children, className = "", ...props }) {
   );
 }
 
-function Stat({ label, value, hint }) {
+function Button({ children, variant = "primary", icon: Icon, ...props }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
-        {value}
+    <button
+      {...props}
+      className={cls(
+        "inline-flex h-12 items-center justify-center gap-2 rounded-xl px-5 text-sm font-bold transition",
+        variant === "primary" &&
+          "bg-blue-700 text-white shadow-sm hover:bg-blue-800",
+        variant === "dark" &&
+          "bg-slate-950 text-white shadow-sm hover:bg-slate-800",
+        variant === "ghost" &&
+          "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+        props.disabled && "cursor-not-allowed opacity-60"
+      )}
+    >
+      {Icon && <Icon size={16} />}
+      {children}
+    </button>
+  );
+}
+
+function Stat({ label, value, hint, icon: Icon, tone = "blue" }) {
+  const toneClass = {
+    blue: "bg-blue-50 text-blue-700 ring-blue-100",
+    gold: "bg-yellow-50 text-yellow-700 ring-yellow-100",
+    green: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    slate: "bg-slate-50 text-slate-700 ring-slate-100",
+  }[tone];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+            {label}
+          </div>
+          <div className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+            {value}
+          </div>
+          {hint && <div className="mt-1 text-xs text-slate-500">{hint}</div>}
+        </div>
+
+        <div className={cls("rounded-xl p-2.5 ring-1", toneClass)}>
+          <Icon size={18} />
+        </div>
       </div>
-      {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
     </div>
   );
+}
+
+function StatusPill({ row }) {
+  if (row.is_used) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">
+        <span className="h-1.5 w-1.5 rounded-full bg-blue-600" />
+        Used
+      </span>
+    );
+  }
+
+  if (row.is_active) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+        Active
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-600">
+      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+      Inactive
+    </span>
+  );
+}
+
+function formatDate(value) {
+  if (!value) return "-";
+
+  try {
+    return new Date(value).toLocaleString();
+  } catch {
+    return value;
+  }
 }
 
 export default function RegistrationCodes() {
@@ -190,6 +302,10 @@ export default function RegistrationCodes() {
     }
   }
 
+  function copyCode(code) {
+    navigator.clipboard?.writeText(code);
+  }
+
   const filteredRows = rows.filter((r) => {
     if (!search.trim()) return true;
     const s = search.trim().toLowerCase();
@@ -206,37 +322,83 @@ export default function RegistrationCodes() {
   });
 
   return (
-    <div className="grid max-w-full gap-4 overflow-x-hidden">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Total Codes" value={String(stats.total)} />
-        <Stat label="Unused Codes" value={String(stats.unused)} />
-        <Stat label="Used Codes" value={String(stats.used)} />
-        <Stat label="Active Codes" value={String(stats.active)} />
+    <div className="mx-auto max-w-7xl space-y-5 overflow-x-hidden">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 via-white to-yellow-50 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
+                Code Administration
+              </div>
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                Registration Codes
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Generate, monitor, and control member registration codes.
+              </p>
+            </div>
+
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white shadow-sm">
+              <KeyRound size={22} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat
+          label="Total Codes"
+          value={String(stats.total)}
+          hint="All generated codes"
+          icon={Ticket}
+          tone="blue"
+        />
+        <Stat
+          label="Unused Codes"
+          value={String(stats.unused)}
+          hint="Ready for registration"
+          icon={TicketCheck}
+          tone="green"
+        />
+        <Stat
+          label="Used Codes"
+          value={String(stats.used)}
+          hint="Already assigned"
+          icon={FileCheck2}
+          tone="gold"
+        />
+        <Stat
+          label="Active Codes"
+          value={String(stats.active)}
+          hint="Currently valid"
+          icon={ShieldCheck}
+          tone="slate"
+        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <Card title="Create Single Code" className="min-w-0">
+        <Card title="Create Single Code" icon={Plus} className="min-w-0">
           <form className="grid gap-4" onSubmit={createSingleCode}>
             <Input
-              label="Manual Code (optional)"
+              label="Manual Code Optional"
               placeholder="Leave blank to auto-generate"
               value={singleCode}
               onChange={(e) => setSingleCode(e.target.value.toUpperCase())}
             />
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                disabled={savingSingle}
-                className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
-              >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-slate-500">
+                Use manual code only when admin has a specific code to issue.
+              </div>
+
+              <Button type="submit" icon={Ticket} disabled={savingSingle}>
                 {savingSingle ? "Saving..." : "Create Code"}
-              </button>
+              </Button>
             </div>
           </form>
         </Card>
 
-        <Card title="Bulk Generate Codes" className="min-w-0">
+        <Card title="Bulk Generate Codes" icon={Layers3} className="min-w-0">
           <form className="grid gap-4" onSubmit={createBulkCodes}>
             <Input
               label="Quantity"
@@ -253,21 +415,26 @@ export default function RegistrationCodes() {
                   key={n}
                   type="button"
                   onClick={() => setBulkQty(n)}
-                  className="rounded-lg border border-zinc-200 px-3 py-1 text-xs font-semibold text-zinc-900 hover:bg-zinc-50"
+                  className={cls(
+                    "rounded-xl border px-3 py-2 text-xs font-bold transition",
+                    Number(bulkQty) === n
+                      ? "border-blue-200 bg-blue-50 text-blue-800"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  )}
                 >
                   {n}
                 </button>
               ))}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="submit"
-                disabled={savingBulk}
-                className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
-              >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-slate-500">
+                Bulk generation supports 1 to 500 codes per request.
+              </div>
+
+              <Button type="submit" icon={Layers3} disabled={savingBulk}>
                 {savingBulk ? "Generating..." : "Generate Codes"}
-              </button>
+              </Button>
             </div>
           </form>
         </Card>
@@ -275,110 +442,201 @@ export default function RegistrationCodes() {
 
       <Card
         title="Registration Code Monitoring"
+        icon={Filter}
         right={
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input
-              label="Search"
-              placeholder="Code / member / sponsor"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+          <div className="grid w-full gap-3 sm:w-auto sm:grid-cols-[minmax(220px,1fr)_170px]">
+            <div className="relative">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-[38px] text-slate-400"
+              />
+              <Input
+                label="Search"
+                placeholder="Code / member / sponsor"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="[&_input]:pl-9"
+              />
+            </div>
+
             <Select
               label="Status"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
-              <option value="">all</option>
-              <option value="unused">unused</option>
-              <option value="used">used</option>
-              <option value="active">active</option>
-              <option value="inactive">inactive</option>
+              <option value="">All</option>
+              <option value="unused">Unused</option>
+              <option value="used">Used</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </Select>
           </div>
         }
         className="min-w-0"
       >
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={loadRows}
-            className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            Refresh
-          </button>
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-500">
+            Showing{" "}
+            <span className="font-bold text-slate-900">
+              {filteredRows.length}
+            </span>{" "}
+            of <span className="font-bold text-slate-900">{rows.length}</span>{" "}
+            codes.
+          </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSearch("");
-              setStatus("");
-            }}
-            className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
-          >
-            Clear Filters
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="dark" icon={RefreshCw} onClick={loadRows}>
+              Refresh
+            </Button>
+
+            <Button
+              type="button"
+              variant="ghost"
+              icon={RotateCcw}
+              onClick={() => {
+                setSearch("");
+                setStatus("");
+              }}
+            >
+              Clear Filters
+            </Button>
+          </div>
         </div>
 
         {err && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {err}
           </div>
         )}
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1400px] border-collapse text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-100">
+          <table className="w-full min-w-[1250px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                <th className="px-4 py-2 font-semibold text-zinc-700">Code</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Active</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Used</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Used By Member ID</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Used By Member Name</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Sponsor</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Recruited By</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Used At</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Created At</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Action</th>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Code
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Member ID
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Member Name
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Sponsor
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Recruited By
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Used At
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Created At
+                </th>
+                <th className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500">
+                  Action
+                </th>
               </tr>
             </thead>
+
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-4 py-3 text-zinc-500" colSpan={10}>
+                  <td className="px-4 py-8 text-center text-slate-500" colSpan={9}>
                     Loading codes...
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-3 text-zinc-500" colSpan={10}>
+                  <td className="px-4 py-8 text-center text-slate-500" colSpan={9}>
                     No registration codes found.
                   </td>
                 </tr>
               ) : (
                 filteredRows.map((r) => (
-                  <tr key={r.id} className="border-b border-zinc-100">
-                    <td className="px-4 py-3 font-mono text-zinc-800">{r.code}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.is_active ? "Yes" : "No"}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.is_used ? "Yes" : "No"}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.used_by_member_id || "-"}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.used_by_member_name || "-"}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.sponsor_name || "-"}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.recruited_by_name || "-"}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.used_at || "-"}</td>
-                    <td className="px-4 py-3 text-zinc-700">{r.created_at || "-"}</td>
-                    <td className="px-4 py-3">
+                  <tr
+                    key={r.id}
+                    className="border-b border-slate-100 transition hover:bg-slate-50/70"
+                  >
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-lg bg-slate-50 px-2 py-1 font-mono text-xs font-bold text-slate-800">
+                          {r.code}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => copyCode(r.code)}
+                          className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:bg-white hover:text-blue-700"
+                          title="Copy code"
+                        >
+                          <Copy size={13} />
+                        </button>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-4">
+                      <StatusPill row={r} />
+                    </td>
+
+                    <td className="px-4 py-4 text-slate-700">
+                      {r.used_by_member_id || "-"}
+                    </td>
+
+                    <td className="px-4 py-4 font-medium text-slate-800">
+                      {r.used_by_member_name || "-"}
+                    </td>
+
+                    <td className="px-4 py-4 text-slate-700">
+                      {r.sponsor_name || "-"}
+                    </td>
+
+                    <td className="px-4 py-4 text-slate-700">
+                      {r.recruited_by_name || "-"}
+                    </td>
+
+                    <td className="px-4 py-4 text-xs text-slate-500">
+                      {formatDate(r.used_at)}
+                    </td>
+
+                    <td className="px-4 py-4 text-xs text-slate-500">
+                      {formatDate(r.created_at)}
+                    </td>
+
+                    <td className="px-4 py-4">
                       <button
                         type="button"
                         disabled={r.is_used}
                         onClick={() => toggleActive(r)}
                         className={cls(
-                          "rounded-lg border px-3 py-1 text-xs font-semibold",
+                          "inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition",
                           r.is_used
-                            ? "cursor-not-allowed border-zinc-200 text-zinc-400"
-                            : "border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                            ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                            : r.is_active
+                              ? "border-red-100 bg-red-50 text-red-700 hover:bg-red-100"
+                              : "border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                         )}
                       >
-                        {r.is_used ? "Used" : r.is_active ? "Deactivate" : "Activate"}
+                        {r.is_used ? (
+                          <>
+                            <CheckCircle2 size={13} />
+                            Used
+                          </>
+                        ) : r.is_active ? (
+                          <>
+                            <TicketX size={13} />
+                            Deactivate
+                          </>
+                        ) : (
+                          <>
+                            <TicketCheck size={13} />
+                            Activate
+                          </>
+                        )}
                       </button>
                     </td>
                   </tr>
