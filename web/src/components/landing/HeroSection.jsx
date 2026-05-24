@@ -12,7 +12,7 @@ export default function HeroSection() {
       className="relative flex min-h-screen items-center overflow-hidden"
       style={{
         background:
-          "linear-gradient(135deg, #0d2a6e 0%, #1a4eb8 40%, #0d2a6e 70%, #1a2f5e 100%)",
+          "linear-gradient(135deg, #0d2a6e 0%, #1a4eb8 42%, #0d2a6e 72%, #1a2f5e 100%)",
       }}
     >
       <div className="pointer-events-none absolute right-10 top-20 h-96 w-96 rounded-full bg-yellow-400/10 blur-3xl" />
@@ -42,6 +42,7 @@ export default function HeroSection() {
               >
                 Become a Member
               </button>
+
               <button
                 onClick={() => scrollTo("#products")}
                 className="rounded-full border-2 border-white/40 px-8 py-4 text-base font-semibold text-white transition-all hover:border-white hover:bg-white/10"
@@ -66,22 +67,24 @@ export default function HeroSection() {
 
           <div className="flex justify-center lg:justify-end">
             <div className="relative">
-              <div className="flex h-72 w-72 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-2xl backdrop-blur lg:h-96 lg:w-96">
-                <div className="flex h-56 w-56 items-center justify-center rounded-full border border-white/20 bg-white/15 backdrop-blur lg:h-80 lg:w-80">
-                  <img
-                    src={SDS_LOGO}
-                    alt="SDS Sure-Fit Wellness"
-                    className="h-44 w-44 object-contain drop-shadow-2xl lg:h-64 lg:w-64"
-                  />
+              <div className="flex h-80 w-80 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-2xl backdrop-blur sm:h-[24rem] sm:w-[24rem] lg:h-[30rem] lg:w-[30rem]">
+                <div className="flex h-64 w-64 items-center justify-center rounded-full border border-white/25 bg-white/20 p-5 shadow-inner backdrop-blur sm:h-80 sm:w-80 lg:h-[24rem] lg:w-[24rem]">
+                  <div className="flex h-full w-full items-center justify-center rounded-full bg-white shadow-2xl ring-8 ring-yellow-400/80">
+                    <img
+                      src={SDS_LOGO}
+                      alt="SDS Sure-Fit Wellness"
+                      className="h-[78%] w-[78%] object-contain drop-shadow-xl"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="absolute -bottom-4 -left-4 rounded-2xl bg-white px-4 py-3 shadow-xl">
+              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-2xl bg-white px-4 py-3 shadow-xl sm:-left-4 sm:left-auto sm:translate-x-0">
                 <div className="text-xs font-medium text-gray-500">Member Earnings</div>
                 <div className="text-lg font-bold text-blue-800">₱600 / Referral</div>
               </div>
 
-              <div className="absolute -right-4 -top-4 rounded-2xl bg-yellow-400 px-4 py-3 shadow-xl">
+              <div className="absolute -right-2 -top-4 rounded-2xl bg-yellow-400 px-4 py-3 shadow-xl sm:-right-4">
                 <div className="text-xs font-medium text-gray-700">Products</div>
                 <div className="text-lg font-bold text-gray-900">4 Premium</div>
               </div>
