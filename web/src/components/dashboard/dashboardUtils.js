@@ -8,7 +8,15 @@ export function levelLabel(level) {
 
 export function fmtAmount(value) {
   const number = Number(value || 0);
-  return Number.isFinite(number) ? number.toFixed(2) : "0.00";
+
+  if (!Number.isFinite(number)) {
+    return "0.00";
+  }
+
+  return number.toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function norm(value) {
