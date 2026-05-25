@@ -1,89 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
-
-function cls(...a) {
-  return a.filter(Boolean).join(" ");
-}
-
-function Card({ title, children, right, className = "" }) {
-  return (
-    <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
-    >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Input({ label, ...props }) {
-  return (
-    <label className="grid min-w-0 gap-1">
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      <input
-        {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-500"
-      />
-    </label>
-  );
-}
-
-function Select({ label, children, ...props }) {
-  return (
-    <label className="grid min-w-0 gap-1">
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      <select
-        {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-500"
-      >
-        {children}
-      </select>
-    </label>
-  );
-}
-
-function Textarea({ label, ...props }) {
-  return (
-    <label className="grid min-w-0 gap-1">
-      {label ? (
-        <span className="text-xs font-medium text-zinc-600">{label}</span>
-      ) : null}
-      <textarea
-        {...props}
-        className="min-h-[78px] w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-500"
-      />
-    </label>
-  );
-}
-
-function StatusBadge({ status }) {
-  const s = String(status || "").toLowerCase();
-
-  const className =
-    s === "pending"
-      ? "bg-amber-100 text-amber-800"
-      : s === "completed"
-        ? "bg-emerald-100 text-emerald-800"
-        : s === "rejected"
-          ? "bg-red-100 text-red-800"
-          : "bg-zinc-100 text-zinc-700";
-
-  return (
-    <span
-      className={cls("rounded-full px-2.5 py-1 text-xs font-semibold", className)}
-    >
-      {status || "-"}
-    </span>
-  );
-}
+import {
+  Button,
+  Card,
+  Input,
+  Lock,
+  RotateCcw,
+  Save,
+  Search,
+  Select,
+  StatusBadge,
+  Textarea,
+  UserCog,
+  Users,
+  cls,
+} from "../components/members/MembersUI";
 
 function fmtDate(v) {
   if (!v) return "-";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return String(v);
   return d.toLocaleString();
+}
+
+function MembershipBadge({ type }) {
+  return (
+    <span className="inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
+      {type || "-"}
+    </span>
+  );
 }
 
 export default function Members({ user }) {
@@ -129,9 +73,7 @@ export default function Members({ user }) {
       const res = await fetch("/api/members");
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to load members");
-      }
+      if (!res.ok) throw new Error(json.error || "Failed to load members");
 
       setMembers(Array.isArray(json?.data) ? json.data : []);
     } catch (e) {
@@ -195,9 +137,7 @@ export default function Members({ user }) {
       );
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to load selected member");
-      }
+      if (!res.ok) throw new Error(json.error || "Failed to load selected member");
 
       const row = Array.isArray(json?.data) ? json.data[0] : null;
 
@@ -225,9 +165,7 @@ export default function Members({ user }) {
   }, []);
 
   useEffect(() => {
-    if (isAdmin) {
-      loadResetRequests();
-    }
+    if (isAdmin) loadResetRequests();
   }, [requestFilters.status, requestFilters.search, isAdmin]);
 
   const filteredMembers = useMemo(() => {
@@ -244,6 +182,25 @@ export default function Members({ user }) {
       );
     });
   }, [members, memberSearch]);
+
+  const memberStats = useMemo(() => {
+    const total = members.length;
+    const regionalManagers = members.filter(
+      (m) =>
+        String(m.membership_type || "").trim().toLowerCase() ===
+        "regional manager"
+    ).length;
+    const areaManagers = members.filter(
+      (m) =>
+        String(m.membership_type || "").trim().toLowerCase() === "area manager"
+    ).length;
+    const distributors = members.filter(
+      (m) =>
+        String(m.membership_type || "").trim().toLowerCase() === "distributor"
+    ).length;
+
+    return { total, regionalManagers, areaManagers, distributors };
+  }, [members]);
 
   async function handleRequestAction(requestId, action) {
     try {
@@ -319,9 +276,7 @@ export default function Members({ user }) {
 
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to update member");
-      }
+      if (!res.ok) throw new Error(json.error || "Failed to update member");
 
       setMemberEditMsg(json.message || "Member updated successfully.");
 
@@ -348,44 +303,105 @@ export default function Members({ user }) {
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="mx-auto max-w-7xl space-y-5 overflow-x-hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 via-white to-yellow-50 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
+                Member Administration
+              </div>
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                Members Directory
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Monitor SDS members, hierarchy ownership, packages, and account
+                support requests.
+              </p>
+            </div>
+
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white shadow-sm">
+              <Users size={22} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Total Members", memberStats.total],
+          ["Regional Managers", memberStats.regionalManagers],
+          ["Area Managers", memberStats.areaManagers],
+          ["Distributors", memberStats.distributors],
+        ].map(([label, value]) => (
+          <div
+            key={label}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+          >
+            <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+              {label}
+            </div>
+            <div className="mt-2 text-3xl font-black text-slate-950">
+              {value}
+            </div>
+          </div>
+        ))}
+      </div>
+
       <Card
         title="Members"
+        icon={Users}
         right={
-          <div className="w-full md:w-72">
+          <div className="relative w-full sm:w-80">
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-[38px] text-slate-400"
+            />
             <Input
               label="Search Members"
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
               placeholder="Search by name, ID, type"
+              className="[&_input]:pl-9"
             />
           </div>
         }
       >
         {err && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {err}
           </div>
         )}
 
         {loadingMembers ? (
-          <div className="text-sm text-zinc-500">Loading...</div>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+            Loading members...
+          </div>
         ) : filteredMembers.length === 0 ? (
-          <div className="text-sm text-zinc-500">No members found.</div>
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+            No members found.
+          </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-slate-100">
             <table className="w-full min-w-[1000px] border-collapse text-sm">
               <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Member ID</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Name</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Sponsor</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Regional Manager
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Package</th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">Created</th>
+                <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                  {[
+                    "Member ID",
+                    "Name",
+                    "Type",
+                    "Sponsor",
+                    "Regional Manager",
+                    "Package",
+                    "Created",
+                  ].map((head) => (
+                    <th
+                      key={head}
+                      className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500"
+                    >
+                      {head}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -396,28 +412,30 @@ export default function Members({ user }) {
                     <tr
                       key={row.member_id || row.name}
                       className={cls(
-                        "cursor-pointer border-b border-zinc-100 transition hover:bg-zinc-50",
-                        isSelected && "bg-zinc-50"
+                        "cursor-pointer border-b border-slate-100 transition hover:bg-slate-50",
+                        isSelected && "bg-blue-50/60"
                       )}
                       onClick={() => loadSelectedMember(row.member_id)}
                     >
-                      <td className="px-4 py-3 text-zinc-700">{row.member_id}</td>
-                      <td className="px-4 py-3 font-medium text-zinc-900">
+                      <td className="px-4 py-4 font-mono text-xs font-bold text-slate-700">
+                        {row.member_id}
+                      </td>
+                      <td className="px-4 py-4 font-bold text-slate-950">
                         {row.name}
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.membership_type}
+                      <td className="px-4 py-4">
+                        <MembershipBadge type={row.membership_type} />
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">
+                      <td className="px-4 py-4 text-slate-700">
                         {row.sponsor_name || "-"}
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">
+                      <td className="px-4 py-4 text-slate-700">
                         {row.regional_manager || "-"}
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">
+                      <td className="px-4 py-4 text-slate-700">
                         {row.package_name || "-"}
                       </td>
-                      <td className="px-4 py-3 text-zinc-700">
+                      <td className="px-4 py-4 text-xs text-slate-500">
                         {fmtDate(row.created_at)}
                       </td>
                     </tr>
@@ -434,35 +452,25 @@ export default function Members({ user }) {
           title={
             isSuperAdmin ? "Selected Member — Edit Details" : "Selected Member Details"
           }
+          icon={UserCog}
         >
           {loadingSelectedMember ? (
-            <div className="text-sm text-zinc-500">Loading member details...</div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+              Loading member details...
+            </div>
           ) : !selectedMember ? (
-            <div className="text-sm text-zinc-500">Member details not found.</div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+              Member details not found.
+            </div>
           ) : (
-            <form className="grid gap-4" onSubmit={handleSaveMember}>
-              <div className="grid gap-3 md:grid-cols-3">
-                <Input
-                  label="Member ID"
-                  value={selectedMember.member_id || ""}
-                  disabled
-                  readOnly
-                />
-                <Input
-                  label="Sponsor"
-                  value={selectedMember.sponsor_name || ""}
-                  disabled
-                  readOnly
-                />
-                <Input
-                  label="Regional Manager"
-                  value={selectedMember.regional_manager || ""}
-                  disabled
-                  readOnly
-                />
+            <form className="grid gap-5" onSubmit={handleSaveMember}>
+              <div className="grid gap-4 md:grid-cols-3">
+                <Input label="Member ID" value={selectedMember.member_id || ""} disabled readOnly />
+                <Input label="Sponsor" value={selectedMember.sponsor_name || ""} disabled readOnly />
+                <Input label="Regional Manager" value={selectedMember.regional_manager || ""} disabled readOnly />
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <Input
                   label="Name"
                   value={memberForm.name}
@@ -491,12 +499,15 @@ export default function Members({ user }) {
                 </Select>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <Input
                   label="Contact"
                   value={memberForm.contact}
                   onChange={(e) =>
-                    setMemberForm((prev) => ({ ...prev, contact: e.target.value }))
+                    setMemberForm((prev) => ({
+                      ...prev,
+                      contact: e.target.value,
+                    }))
                   }
                   disabled={!isSuperAdmin || savingMember}
                 />
@@ -510,7 +521,7 @@ export default function Members({ user }) {
                 />
               </div>
 
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-2">
                 <Input
                   label="Area / Region"
                   value={memberForm.area_region}
@@ -522,12 +533,7 @@ export default function Members({ user }) {
                   }
                   disabled={!isSuperAdmin || savingMember}
                 />
-                <Input
-                  label="Package"
-                  value={selectedMember.package_name || ""}
-                  disabled
-                  readOnly
-                />
+                <Input label="Package" value={selectedMember.package_name || ""} disabled readOnly />
               </div>
 
               <Textarea
@@ -539,57 +545,44 @@ export default function Members({ user }) {
                 disabled={!isSuperAdmin || savingMember}
               />
 
-              <div className="grid gap-3 md:grid-cols-2">
-                <Input
-                  label="Created"
-                  value={fmtDate(selectedMember.created_at)}
-                  disabled
-                  readOnly
-                />
-                <Input
-                  label="Level"
-                  value={String(selectedMember.level ?? "")}
-                  disabled
-                  readOnly
-                />
+              <div className="grid gap-4 md:grid-cols-2">
+                <Input label="Created" value={fmtDate(selectedMember.created_at)} disabled readOnly />
+                <Input label="Level" value={String(selectedMember.level ?? "")} disabled readOnly />
               </div>
 
               {!isSuperAdmin && (
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                   Only super admin can edit member details.
                 </div>
               )}
 
               {memberEditErr && (
-                <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
                   {memberEditErr}
                 </div>
               )}
 
               {memberEditMsg && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
                   {memberEditMsg}
                 </div>
               )}
 
               {isSuperAdmin && (
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="submit"
-                    disabled={savingMember}
-                    className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
-                  >
+                <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-5">
+                  <Button type="submit" icon={Save} disabled={savingMember}>
                     {savingMember ? "Saving..." : "Save Changes"}
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    icon={RotateCcw}
                     disabled={savingMember}
                     onClick={resetMemberFormFromSelected}
-                    className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50 disabled:opacity-60"
                   >
                     Reset Form
-                  </button>
+                  </Button>
                 </div>
               )}
             </form>
@@ -600,8 +593,9 @@ export default function Members({ user }) {
       {isAdmin && (
         <Card
           title="Password Reset Requests"
+          icon={Lock}
           right={
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="grid w-full gap-3 sm:w-auto md:grid-cols-2">
               <Select
                 label="Status"
                 value={requestFilters.status}
@@ -633,75 +627,74 @@ export default function Members({ user }) {
           }
         >
           {requestErr && (
-            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
               {requestErr}
             </div>
           )}
 
           {loadingRequests ? (
-            <div className="text-sm text-zinc-500">Loading...</div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+              Loading password reset requests...
+            </div>
           ) : resetRequests.length === 0 ? (
-            <div className="text-sm text-zinc-500">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
               No password reset requests found.
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
               <table className="w-full min-w-[1280px] border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Member</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Username
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Member ID
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Requested By
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Notes</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">Status</th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Admin Notes
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Actions
-                    </th>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                    {[
+                      "Date",
+                      "Member",
+                      "Username",
+                      "Member ID",
+                      "Requested By",
+                      "Notes",
+                      "Status",
+                      "Admin Notes",
+                      "Actions",
+                    ].map((head) => (
+                      <th
+                        key={head}
+                        className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500"
+                      >
+                        {head}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
+
                 <tbody>
                   {resetRequests.map((row) => {
                     const isPending =
                       String(row.status || "").toLowerCase() === "pending";
 
                     return (
-                      <tr
-                        key={row.id}
-                        className="border-b border-zinc-100 align-top"
-                      >
-                        <td className="px-4 py-3 text-zinc-700">
+                      <tr key={row.id} className="border-b border-slate-100 align-top">
+                        <td className="px-4 py-4 text-xs text-slate-500">
                           {fmtDate(row.created_at)}
                         </td>
-                        <td className="px-4 py-3 font-medium text-zinc-900">
+                        <td className="px-4 py-4 font-bold text-slate-950">
                           {row.member_name}
                         </td>
-                        <td className="px-4 py-3 text-zinc-700">
+                        <td className="px-4 py-4 text-slate-700">
                           {row.username}
                         </td>
-                        <td className="px-4 py-3 text-zinc-700">
+                        <td className="px-4 py-4 font-mono text-xs font-bold text-slate-700">
                           {row.member_id}
                         </td>
-                        <td className="px-4 py-3 text-zinc-700">
+                        <td className="px-4 py-4 text-slate-700">
                           {row.requested_by}
                         </td>
-                        <td className="px-4 py-3 text-zinc-700">
+                        <td className="px-4 py-4 text-slate-700">
                           {row.notes || "-"}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">
                           <StatusBadge status={row.status} />
                         </td>
-                        <td className="px-4 py-3 text-zinc-700">
+                        <td className="px-4 py-4 text-slate-700">
                           {isPending ? (
                             <Textarea
                               value={adminNotesById[row.id] ?? row.admin_notes ?? ""}
@@ -717,11 +710,12 @@ export default function Members({ user }) {
                             row.admin_notes || "-"
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-4">
                           {isPending ? (
                             <div className="flex flex-wrap gap-2">
-                              <button
+                              <Button
                                 type="button"
+                                variant="ghost"
                                 disabled={saving}
                                 onClick={() =>
                                   handleRequestAction(
@@ -729,13 +723,13 @@ export default function Members({ user }) {
                                     "complete_password_reset"
                                   )
                                 }
-                                className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
                               >
                                 Reset to Member ID
-                              </button>
+                              </Button>
 
-                              <button
+                              <Button
                                 type="button"
+                                variant="danger"
                                 disabled={saving}
                                 onClick={() =>
                                   handleRequestAction(
@@ -743,13 +737,12 @@ export default function Members({ user }) {
                                     "reject_password_reset"
                                   )
                                 }
-                                className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                               >
                                 Reject
-                              </button>
+                              </Button>
                             </div>
                           ) : (
-                            <div className="text-xs text-zinc-500">
+                            <div className="text-xs text-slate-500">
                               {row.status === "completed"
                                 ? `Completed by ${row.completed_by || "-"}`
                                 : row.status === "rejected"
