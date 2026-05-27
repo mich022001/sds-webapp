@@ -14,7 +14,7 @@ export const PRODUCTS = [
     description:
       "A healthy rice coffee blend designed to support balanced energy and daily wellness.",
     full_description:
-      "Balatinao Rice Coffee is formulated as a wellness coffee alternative made with Balatinao rice and nutrient-rich ingredients. It offers a smoother daily drink option for people who want coffee-style comfort while supporting everyday wellness.",
+      "Balatinao Rice Coffee is a wellness coffee alternative made with Balatinao rice and selected nutrient-rich ingredients. It is designed for people who want a smoother daily drink option while supporting everyday wellness routines.",
     highlights: [
       "Healthy Coffee",
       "13-in-1 Formula",
@@ -70,7 +70,7 @@ export const PRODUCTS = [
     description:
       "An antioxidant and probiotic supplement designed to support gut balance, daily wellness, and immune support.",
     full_description:
-      "Prommix Plus combines probiotics and antioxidants to help support digestive wellness, oxidative balance, and overall body function. Probiotics help maintain a healthy gut microbiome, while antioxidants help support everyday wellness.",
+      "Prommix Plus combines probiotics and antioxidant support for people who want daily digestive wellness, immune support, and a convenient wellness drink as part of their everyday routine.",
     highlights: [
       "Probiotics",
       "Antioxidant Support",
@@ -127,7 +127,7 @@ export const PRODUCTS = [
     description:
       "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and Ferulic Acid for daily immune wellness.",
     full_description:
-      "Compact C combines Sodium Ascorbate (Vitamin C), Zinc, Ferulic Acid, and Vitamin D3 into a formulation designed to support immune function, collagen production, bone support, and everyday wellness.",
+      "Compact C combines Sodium Ascorbate, Zinc, Ferulic Acid, and Vitamin D3 into a daily wellness supplement designed to support immune wellness, collagen production, bone support, and nutritional balance.",
     highlights: [
       "Non-Acidic Vitamin C",
       "Vitamin D3",
@@ -237,17 +237,18 @@ export const PACKAGES = [
   {
     id: "PKG-001",
     name: "Package A",
-    image: "/package-a.png",
+    image: "/PackageAv2.png",
     price: 3100,
     srp: 3600,
     description:
-      "Membership package with 6 bottles of Prommix Plus and access to SDS membership benefits.",
-    included_products: ["6 Bottles Prommix Plus"],
+      "Start your SDS journey with 6 bottles of Prommix Juice, a wellness-first package built for health, savings, and income opportunity.",
+    included_products: ["6 Bottles Prommix Juice"],
     benefits: [
-      "Member pricing",
-      "Membership discounts",
-      "Rebate eligibility",
-      "Member portal access",
+      "₱3,600 worth of products",
+      "Premium wellness products for daily support",
+      "Membership discounts and rebates",
+      "₱600 direct commission opportunity",
+      "Indirect commission and developer bonus opportunity",
     ],
     recommended: false,
     active: true,
@@ -255,20 +256,21 @@ export const PACKAGES = [
   {
     id: "PKG-002",
     name: "Package B",
-    image: "/package-b.png",
+    image: "/PackageBv2.png",
     price: 3100,
     srp: 3600,
     description:
-      "Wellness package containing Prommix Plus and Balatinao Rice Coffee.",
+      "A balanced wellness package with Prommix Juice and Balatinao Rice Coffee for daily support, product value, and SDS membership opportunities.",
     included_products: [
-      "4 Bottles Prommix Plus",
+      "4 Bottles Prommix Juice",
       "2 Boxes Balatinao Rice Coffee",
     ],
     benefits: [
-      "Member pricing",
-      "Rebate eligibility",
-      "Wellness support",
-      "Member portal access",
+      "₱3,600 worth of products",
+      "Daily wellness and healthy coffee support",
+      "Membership discounts and rebates",
+      "₱600 direct commission opportunity",
+      "Indirect commission and developer bonus opportunity",
     ],
     recommended: true,
     active: true,
@@ -276,20 +278,21 @@ export const PACKAGES = [
   {
     id: "PKG-003",
     name: "Package C",
-    image: "/package-c.png",
+    image: "/PackageCv2.png",
     price: 3100,
     srp: 3600,
     description:
-      "Combination package with Prommix Plus and Vigomaxx for wellness and performance support.",
+      "A wellness and vitality package with Prommix Juice and Vigomaxx, designed for members who want product value plus SDS income opportunity.",
     included_products: [
-      "3 Bottles Prommix Plus",
+      "3 Bottles Prommix Juice",
       "1 Bottle Vigomaxx",
     ],
     benefits: [
-      "Membership discounts",
-      "Rebate eligibility",
-      "Business starter",
-      "Priority onboarding",
+      "₱3,600 worth of products",
+      "Wellness, vitality, and daily support",
+      "Membership discounts and rebates",
+      "₱600 direct commission opportunity",
+      "Indirect commission and developer bonus opportunity",
     ],
     recommended: false,
     active: true,
@@ -297,20 +300,21 @@ export const PACKAGES = [
   {
     id: "PKG-004",
     name: "Package D",
-    image: "/package-d.png",
+    image: "/PackageDv2.png",
     price: 3100,
     srp: 3600,
     description:
-      "Package with Compact C and Prommix Plus for immune wellness and daily support.",
+      "A focused wellness package with Compact-C and Prommix Juice, ideal for members who want immune support, product value, and SDS benefits.",
     included_products: [
-      "2 Bottles Compact C",
-      "1 Bottle Prommix Plus",
+      "2 Bottles Compact-C",
+      "1 Bottle Prommix Juice",
     ],
     benefits: [
-      "Membership discounts",
-      "Rebates",
-      "Member access",
-      "Starter package",
+      "₱3,600 worth of products",
+      "Immune wellness and daily support",
+      "Membership discounts and rebates",
+      "₱600 direct commission opportunity",
+      "Indirect commission and developer bonus opportunity",
     ],
     recommended: false,
     active: true,
