@@ -1,38 +1,147 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  BarChart3,
+  CalendarDays,
+  Coins,
+  Download,
+  Filter,
+  Package,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  TrendingUp,
+  Trophy,
+  Users,
+} from "lucide-react";
 
 function cls(...a) {
   return a.filter(Boolean).join(" ");
 }
 
-function Card({ title, children, right, className = "" }) {
-  return (
-    <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
-    >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Stat({ label, value, hint }) {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
-        {value}
-      </div>
-      {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
-    </div>
-  );
-}
-
 function formatMoney(v) {
   const n = Number(v || 0);
-  return Number.isFinite(n) ? n.toFixed(2) : "0.00";
+
+  return Number.isFinite(n)
+    ? new Intl.NumberFormat("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(n)
+    : "0.00";
+}
+
+function formatDate(date) {
+  if (!date) return "-";
+
+  const parsed = new Date(date);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return String(date);
+  }
+
+  return parsed.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getInitials(name) {
+  return String(name || "-")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+}
+
+function SectionCard({ title, subtitle, icon, children, className = "", right }) {
+  return (
+    <section
+      className={cls(
+        "overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm",
+        className
+      )}
+    >
+      <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-emerald-800 text-white shadow-lg shadow-emerald-900/10">
+              {icon}
+            </div>
+
+            <div>
+              <h2 className="text-lg font-black tracking-tight text-slate-950">
+                {title}
+              </h2>
+
+              {subtitle ? (
+                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-500">
+                  {subtitle}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          {right}
+        </div>
+      </div>
+
+      <div className="p-5 sm:p-6">{children}</div>
+    </section>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  hint,
+  icon,
+  accent = "from-emerald-600 to-emerald-800",
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className={cls("absolute inset-x-0 top-0 h-1 bg-gradient-to-r", accent)} />
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+            {label}
+          </div>
+
+          <div className="mt-3 break-words text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+            {value}
+          </div>
+
+          {hint ? <div className="mt-2 text-sm text-slate-500">{hint}</div> : null}
+        </div>
+
+        <div className={cls("flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br p-3 text-white shadow-lg", accent)}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="px-6 py-16 text-center">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
+        <Coins size={32} className="text-slate-400" />
+      </div>
+
+      <h3 className="mt-5 text-xl font-black text-slate-950">
+        No RM rebate data found
+      </h3>
+
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+        No rebate records matched the current filters. Try clearing the filters
+        or checking if new rebate transactions were already generated.
+      </p>
+    </div>
+  );
 }
 
 export default function RMRebates() {
@@ -43,6 +152,7 @@ export default function RMRebates() {
     from: "",
     to: "",
   });
+
   const [rows, setRows] = useState([]);
   const [rmOptions, setRmOptions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -55,6 +165,7 @@ export default function RMRebates() {
       setErr("");
 
       const qs = new URLSearchParams();
+
       if (currentFilters.receiver) qs.set("receiver", currentFilters.receiver);
       if (currentFilters.buyer) qs.set("buyer", currentFilters.buyer);
       if (currentFilters.product) qs.set("product", currentFilters.product);
@@ -88,11 +199,11 @@ export default function RMRebates() {
         throw new Error(json.error || "Failed to load RM list");
       }
 
-      const rows = Array.isArray(json?.data) ? json.data : [];
+      const memberRows = Array.isArray(json?.data) ? json.data : [];
 
       const unique = Array.from(
         new Set(
-          rows
+          memberRows
             .map((row) => String(row.regional_manager || "").trim())
             .filter(Boolean)
         )
@@ -110,40 +221,194 @@ export default function RMRebates() {
   useEffect(() => {
     loadData();
     loadRmOptions();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const totalRebate = useMemo(() => {
-    return rows.reduce((sum, row) => sum + Number(row.rebate || 0), 0);
+  const analytics = useMemo(() => {
+    const totalRebate = rows.reduce((sum, row) => sum + Number(row.rebate || 0), 0);
+    const totalQty = rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
+
+    const receiverMap = new Map();
+    const productMap = new Map();
+
+    rows.forEach((row) => {
+      const receiver = String(row.receiver_name || "Unassigned").trim();
+      const product = String(row.product || "Unknown Product").trim();
+      const rebate = Number(row.rebate || 0);
+      const qty = Number(row.qty || 0);
+
+      receiverMap.set(receiver, {
+        name: receiver,
+        rebate: (receiverMap.get(receiver)?.rebate || 0) + rebate,
+        qty: (receiverMap.get(receiver)?.qty || 0) + qty,
+        count: (receiverMap.get(receiver)?.count || 0) + 1,
+      });
+
+      productMap.set(product, {
+        name: product,
+        rebate: (productMap.get(product)?.rebate || 0) + rebate,
+        qty: (productMap.get(product)?.qty || 0) + qty,
+        count: (productMap.get(product)?.count || 0) + 1,
+      });
+    });
+
+    const topReceivers = Array.from(receiverMap.values()).sort(
+      (a, b) => b.rebate - a.rebate
+    );
+
+    const topProducts = Array.from(productMap.values()).sort((a, b) => b.qty - a.qty);
+
+    return {
+      totalRebate,
+      totalQty,
+      uniqueReceivers: receiverMap.size,
+      avgRebate: rows.length ? totalRebate / rows.length : 0,
+      topReceivers,
+      topProducts,
+      topReceiver: topReceivers[0],
+      topProduct: topProducts[0],
+    };
   }, [rows]);
 
-  const totalQty = useMemo(() => {
-    return rows.reduce((sum, row) => sum + Number(row.qty || 0), 0);
-  }, [rows]);
+  function clearFilters() {
+    const cleared = {
+      receiver: "",
+      buyer: "",
+      product: "",
+      from: "",
+      to: "",
+    };
 
-  const uniqueReceivers = useMemo(() => {
-    return new Set(
-      rows.map((row) => String(row.receiver_name || "").trim()).filter(Boolean)
-    ).size;
-  }, [rows]);
+    setFilters(cleared);
+    loadData(cleared);
+  }
+
+  function exportCsv() {
+    const headers = [
+      "Date",
+      "Receiver",
+      "Buyer",
+      "Product",
+      "Qty",
+      "Unit Type",
+      "Rebate",
+    ];
+
+    const csvRows = rows.map((row) =>
+      [
+        formatDate(row.created_at),
+        row.receiver_name || "",
+        row.buyer_name || "",
+        row.product || "",
+        row.qty ?? 0,
+        row.unit_type || "",
+        formatMoney(row.rebate),
+      ]
+        .map((value) => `"${String(value).replaceAll('"', '""')}"`)
+        .join(",")
+    );
+
+    const csv = [headers.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `rm-rebates-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
 
   return (
-    <div className="grid max-w-full gap-4 overflow-x-hidden">
-      <Card title="RM Rebates Ledger" className="min-w-0">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">Receiver Name</span>
+    <div className="flex flex-col gap-6">
+      <div className="relative overflow-hidden rounded-[32px] border border-emerald-900/10 bg-gradient-to-br from-[#052e1b] via-[#14532d] to-[#166534] px-5 py-7 text-white shadow-xl shadow-emerald-950/10 sm:px-7">
+        <div className="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="absolute bottom-0 right-12 h-44 w-44 rounded-full bg-emerald-300/10 blur-3xl" />
+
+        <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
+          <div className="max-w-3xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-1.5 text-xs font-black uppercase tracking-[0.2em] text-emerald-50 backdrop-blur-sm">
+              <ShieldCheck size={14} />
+              SDS Executive Finance
+            </div>
+
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl xl:text-5xl">
+              RM Rebates Ledger
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-emerald-50/90 sm:text-base">
+              Monitor regional manager rebate activity, product movement, buyer
+              transactions, and rebate distributions in one premium finance view.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[520px]">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-50/80">
+                Rebates
+              </div>
+              <div className="mt-2 text-2xl font-black sm:text-3xl">
+                ₱{formatMoney(analytics.totalRebate)}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-50/80">
+                Quantity
+              </div>
+              <div className="mt-2 text-2xl font-black sm:text-3xl">
+                {analytics.totalQty}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-md">
+              <div className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-50/80">
+                Receivers
+              </div>
+              <div className="mt-2 text-2xl font-black sm:text-3xl">
+                {analytics.uniqueReceivers}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <SectionCard
+        title="Advanced Filters"
+        subtitle="Narrow rebate records by regional manager, buyer, product, and transaction date range."
+        icon={<Filter size={22} />}
+        right={
+          <button
+            type="button"
+            onClick={exportCsv}
+            disabled={rows.length === 0}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download size={16} />
+            Export CSV
+          </button>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <label className="grid gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+              Receiver Name
+            </span>
+
             <select
               value={filters.receiver}
               disabled={loadingRms}
               onChange={(e) =>
                 setFilters((prev) => ({ ...prev, receiver: e.target.value }))
               }
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
+              className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
             >
               <option value="">
                 {loadingRms ? "Loading regional managers..." : "All regional managers"}
               </option>
+
               {rmOptions.map((name) => (
                 <option key={name} value={name}>
                   {name}
@@ -152,141 +417,415 @@ export default function RMRebates() {
             </select>
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">Buyer Name</span>
-            <input
-              type="text"
-              placeholder="Search buyer"
-              value={filters.buyer}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, buyer: e.target.value }))
-              }
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-            />
+          <label className="grid gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+              Buyer Name
+            </span>
+
+            <div className="relative">
+              <Search
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="text"
+                placeholder="Search buyer"
+                value={filters.buyer}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, buyer: e.target.value }))
+                }
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              />
+            </div>
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">Product</span>
-            <input
-              type="text"
-              placeholder="Search product"
-              value={filters.product}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, product: e.target.value }))
-              }
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-            />
+          <label className="grid gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+              Product
+            </span>
+
+            <div className="relative">
+              <Package
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="text"
+                placeholder="Search product"
+                value={filters.product}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, product: e.target.value }))
+                }
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              />
+            </div>
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">From Date</span>
-            <input
-              type="date"
-              value={filters.from}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, from: e.target.value }))
-              }
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-            />
+          <label className="grid gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+              From Date
+            </span>
+
+            <div className="relative">
+              <CalendarDays
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="date"
+                value={filters.from}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, from: e.target.value }))
+                }
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              />
+            </div>
           </label>
 
-          <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-600">To Date</span>
-            <input
-              type="date"
-              value={filters.to}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, to: e.target.value }))
-              }
-              className="h-10 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-            />
+          <label className="grid gap-2">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+              To Date
+            </span>
+
+            <div className="relative">
+              <CalendarDays
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="date"
+                value={filters.to}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, to: e.target.value }))
+                }
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-sm font-medium text-slate-700 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100"
+              />
+            </div>
           </label>
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap gap-3">
           <button
+            type="button"
             className={cls(
-              "h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800",
-              loading && "opacity-60"
+              "inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-700 to-emerald-800 px-6 text-sm font-bold text-white shadow-lg shadow-emerald-900/10 transition hover:from-emerald-600 hover:to-emerald-700",
+              loading && "cursor-not-allowed opacity-70"
             )}
             onClick={() => loadData(filters)}
             disabled={loading}
           >
+            <Filter size={16} />
             {loading ? "Loading..." : "Apply Filters"}
           </button>
 
           <button
-            className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50"
-            onClick={() => {
-              const cleared = {
-                receiver: "",
-                buyer: "",
-                product: "",
-                from: "",
-                to: "",
-              };
-              setFilters(cleared);
-              loadData(cleared);
-            }}
+            type="button"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={clearFilters}
             disabled={loading}
           >
-            Clear
+            <RotateCcw size={16} />
+            Clear Filters
           </button>
         </div>
 
-        {err && (
-          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+        {err ? (
+          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
             {err}
           </div>
-        )}
-      </Card>
+        ) : null}
+      </SectionCard>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Stat label="Total Rebate Amount" value={formatMoney(totalRebate)} />
-        <Stat label="Total Quantity" value={String(totalQty)} />
-        <Stat label="Receivers Count" value={String(uniqueReceivers)} />
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total Rebate Amount"
+          value={`₱${formatMoney(analytics.totalRebate)}`}
+          hint="Combined rebates from loaded records"
+          icon={<Coins size={26} />}
+          accent="from-yellow-500 to-orange-500"
+        />
+
+        <StatCard
+          label="Total Product Quantity"
+          value={String(analytics.totalQty)}
+          hint="Total product movement quantity"
+          icon={<Package size={26} />}
+          accent="from-emerald-600 to-green-800"
+        />
+
+        <StatCard
+          label="Regional Managers"
+          value={String(analytics.uniqueReceivers)}
+          hint="Unique rebate receivers"
+          icon={<Users size={26} />}
+          accent="from-blue-600 to-indigo-700"
+        />
+
+        <StatCard
+          label="Average Rebate"
+          value={`₱${formatMoney(analytics.avgRebate)}`}
+          hint="Average rebate per transaction"
+          icon={<TrendingUp size={26} />}
+          accent="from-slate-700 to-slate-950"
+        />
       </div>
 
-      <Card title={`RM Rebates (${rows.length})`} className="min-w-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                <th className="px-4 py-2 font-semibold text-zinc-700">Date</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Receiver</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Buyer</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Product</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Qty</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Unit Type</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Rebate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-700">{row.created_at || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-800">{row.receiver_name || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.buyer_name || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.product || "-"}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.qty ?? 0}</td>
-                  <td className="px-4 py-3 text-zinc-700">{row.unit_type || "-"}</td>
-                  <td className="px-4 py-3 font-semibold text-zinc-900">
-                    {formatMoney(row.rebate)}
-                  </td>
-                </tr>
-              ))}
+      <div className="grid gap-5 xl:grid-cols-2">
+        <SectionCard
+          title="Top RM Performance"
+          subtitle="Highest rebate receivers in the current result set."
+          icon={<Trophy size={22} />}
+        >
+          <div className="space-y-3">
+            {analytics.topReceivers.slice(0, 5).map((item, index) => (
+              <div
+                key={item.name}
+                className="flex items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-sm font-black text-white">
+                    {index + 1}
+                  </div>
 
-              {rows.length === 0 && (
-                <tr className="border-b border-zinc-100">
-                  <td className="px-4 py-3 text-zinc-500" colSpan={7}>
-                    No RM rebate data yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                  <div className="min-w-0">
+                    <div className="truncate font-black text-slate-950">
+                      {item.name}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {item.count} transactions · {item.qty} units
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right font-black text-emerald-700">
+                  ₱{formatMoney(item.rebate)}
+                </div>
+              </div>
+            ))}
+
+            {analytics.topReceivers.length === 0 ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+                No RM performance data yet.
+              </div>
+            ) : null}
+          </div>
+        </SectionCard>
+
+        <SectionCard
+          title="Product Movement"
+          subtitle="Products ranked by quantity in current rebate records."
+          icon={<BarChart3 size={22} />}
+        >
+          <div className="space-y-3">
+            {analytics.topProducts.slice(0, 5).map((item) => {
+              const pct =
+                analytics.totalQty > 0
+                  ? Math.min(100, (item.qty / analytics.totalQty) * 100)
+                  : 0;
+
+              return (
+                <div
+                  key={item.name}
+                  className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="truncate font-black text-slate-950">
+                        {item.name}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        {item.count} transactions · ₱{formatMoney(item.rebate)}
+                      </div>
+                    </div>
+
+                    <div className="text-right font-black text-slate-950">
+                      {item.qty}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-yellow-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+
+            {analytics.topProducts.length === 0 ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+                No product movement data yet.
+              </div>
+            ) : null}
+          </div>
+        </SectionCard>
+      </div>
+
+      <SectionCard
+        title={`RM Rebate Transactions (${rows.length})`}
+        subtitle="Detailed transaction-level rebate records and payout tracking."
+        icon={<Coins size={22} />}
+      >
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((item) => (
+              <div
+                key={item}
+                className="h-16 animate-pulse rounded-2xl bg-slate-100"
+              />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <>
+            <div className="hidden overflow-hidden rounded-[24px] border border-slate-200 lg:block">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] border-collapse">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-gradient-to-r from-[#052e1b] to-[#14532d] text-left">
+                      {[
+                        "Date",
+                        "Receiver",
+                        "Buyer",
+                        "Product",
+                        "Qty",
+                        "Unit Type",
+                        "Rebate",
+                      ].map((head) => (
+                        <th
+                          key={head}
+                          className={cls(
+                            "px-5 py-4 text-xs font-black uppercase tracking-[0.18em] text-emerald-50",
+                            head === "Rebate" && "text-right"
+                          )}
+                        >
+                          {head}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {rows.map((row, index) => (
+                      <tr
+                        key={row.id}
+                        className={cls(
+                          "transition hover:bg-emerald-50/40",
+                          index % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                        )}
+                      >
+                        <td className="px-5 py-4 text-sm font-medium text-slate-600">
+                          {formatDate(row.created_at)}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-xs font-black text-emerald-800">
+                              {getInitials(row.receiver_name)}
+                            </div>
+
+                            <div className="font-black text-slate-950">
+                              {row.receiver_name || "-"}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                          {row.buyer_name || "-"}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
+                            {row.product || "-"}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4 text-center text-sm font-black text-slate-950">
+                          {row.qty ?? 0}
+                        </td>
+
+                        <td className="px-5 py-4 text-sm font-semibold text-slate-700">
+                          {row.unit_type || "-"}
+                        </td>
+
+                        <td className="px-5 py-4 text-right text-base font-black text-emerald-700">
+                          ₱{formatMoney(row.rebate)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="grid gap-3 lg:hidden">
+              {rows.map((row) => (
+                <div
+                  key={row.id}
+                  className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-xs font-black text-emerald-800">
+                        {getInitials(row.receiver_name)}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="truncate font-black text-slate-950">
+                          {row.receiver_name || "-"}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {formatDate(row.created_at)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right text-lg font-black text-emerald-700">
+                      ₱{formatMoney(row.rebate)}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-2 text-sm">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-slate-500">Buyer</span>
+                      <span className="font-bold text-slate-900">
+                        {row.buyer_name || "-"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span className="text-slate-500">Product</span>
+                      <span className="font-bold text-slate-900">
+                        {row.product || "-"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span className="text-slate-500">Quantity</span>
+                      <span className="font-bold text-slate-900">
+                        {row.qty ?? 0}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-4">
+                      <span className="text-slate-500">Unit Type</span>
+                      <span className="font-bold text-slate-900">
+                        {row.unit_type || "-"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </SectionCard>
     </div>
   );
 }
