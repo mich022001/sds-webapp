@@ -1,11 +1,12 @@
+
 export default function ProductCard({ product, onView }) {
   return (
     <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-      <div className="relative h-56 overflow-hidden bg-gray-50">
+      <div className="relative flex h-64 items-center justify-center overflow-hidden bg-gradient-to-br from-blue-50 to-yellow-50 p-3">
         <img
           src={product.image_url}
           alt={product.name}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
         />
 
         <div className="absolute right-3 top-3 rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-gray-900 shadow">

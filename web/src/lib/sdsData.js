@@ -7,7 +7,7 @@ export const PRODUCTS = [
     code: "PRD-001",
     price: 350,
     srp: 600,
-    image_url: "/balatinao-rice-coffee.png",
+    image_url: "/products/balatinao-rice-coffee-v2.png",
     landing_title: "Healthy Coffee",
     short_description:
       "A healthy rice coffee blend designed to support balanced energy and daily wellness.",
@@ -63,7 +63,7 @@ export const PRODUCTS = [
     code: "PRD-002",
     price: 600,
     srp: 600,
-    image_url: "/prommix-plus.png",
+    image_url: "/products/prommix-plus-v2.png",
     landing_title: "Antioxidant with Probiotics",
     short_description:
       "An antioxidant and probiotic supplement designed to support gut balance, daily wellness, and immune support.",
@@ -120,7 +120,7 @@ export const PRODUCTS = [
     code: "PRD-003",
     price: 950,
     srp: 1500,
-    image_url: "/compact-c.png",
+    image_url: "/products/compact-c-v2.png",
     landing_title: "Non-Acidic Vitamin C",
     short_description:
       "A non-acidic Vitamin C formula with Zinc, Vitamin D3, and Ferulic Acid for daily immune wellness.",
@@ -177,7 +177,7 @@ export const PRODUCTS = [
     code: "PRD-004",
     price: 1100,
     srp: 1800,
-    image_url: "/vigomaxx.png",
+    image_url: "/products/vigomaxx-v2.png",
     landing_title: "Prostate Protection",
     short_description:
       "A wellness supplement formulated to support prostate protection, hormone regulation, stamina, and vitality.",
@@ -300,7 +300,7 @@ export const PACKAGES = [
   {
     id: "PKG-004",
     name: "Package D",
-    image: "/PackageDv2.png",
+    image: "/PackageDv3.png",
     price: 3100,
     srp: 3600,
     description:
