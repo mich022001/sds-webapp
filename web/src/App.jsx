@@ -8,6 +8,7 @@ import MemberReport from "./pages/MemberReport";
 import RegionalReport from "./pages/RegionalReport";
 import Login from "./pages/Login";
 import SalesEntry from "./pages/SalesEntry";
+import SalesAnalytics from "./pages/SalesAnalytics";
 import ProductCatalog from "./pages/ProductCatalog";
 import RegistrationCodes from "./pages/RegistrationCodes";
 import Reports from "./pages/Reports";
@@ -29,6 +30,7 @@ const navByRole = {
     { key: "ledger", label: "Bonus Ledger" },
     { key: "rm_rebates", label: "RM Rebates" },
     { key: "sales", label: "Sales" },
+    { key: "sales_analytics", label: "Sales Analytics" },
     { key: "catalog", label: "Product Catalog" },
     { key: "reports", label: "Reports" },
     { key: "report_member", label: "Member Report" },
@@ -42,6 +44,7 @@ const navByRole = {
     { key: "ledger", label: "Bonus Ledger" },
     { key: "rm_rebates", label: "RM Rebates" },
     { key: "sales", label: "Sales" },
+    { key: "sales_analytics", label: "Sales Analytics" },
     { key: "reports", label: "Reports" },
     { key: "report_member", label: "Member Report" },
     { key: "report_regional", label: "Regional Report" },
@@ -54,6 +57,7 @@ const navByRole = {
     { key: "my_bonuses", label: "My Bonuses" },
     { key: "my_rebates", label: "My Rebates" },
     { key: "sales", label: "Sales" },
+    { key: "sales_analytics", label: "Sales Analytics" },
     { key: "redemptions", label: "Redemptions" },
     { key: "profile", label: "Profile" },
   ],
@@ -62,6 +66,7 @@ const navByRole = {
     { key: "registration", label: "Registration" },
     { key: "my_bonuses", label: "My Bonuses" },
     { key: "sales", label: "Sales" },
+    { key: "sales_analytics", label: "Sales Analytics" },
     { key: "redemptions", label: "Redemptions" },
     { key: "profile", label: "Profile" },
   ],
@@ -251,6 +256,8 @@ export default function App() {
             )}
 
           {active === "sales" && <SalesEntry user={user} />}
+
+          {active === "sales_analytics" && <SalesAnalytics user={user} />}
 
           {active === "catalog" && user.role === "super_admin" && (
             <ProductCatalog />
