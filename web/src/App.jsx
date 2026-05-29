@@ -265,7 +265,7 @@ export default function App() {
 
           {active === "reports" &&
             (user.role === "super_admin" || user.role === "admin") && (
-              <Reports />
+              <Reports user={user} onNavigate={handleNavigate} />
             )}
 
           {active === "report_member" &&
