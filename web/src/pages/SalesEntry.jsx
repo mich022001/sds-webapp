@@ -1,145 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  CheckCircle2,
+  Coins,
+  Package,
+  ReceiptText,
+  RotateCcw,
+  Search,
+  ShoppingCart,
+  Users,
+} from "lucide-react";
 
-function cls(...a) {
-  return a.filter(Boolean).join(" ");
-}
-
-function Card({ title, children, right, className = "" }) {
-  return (
-    <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${className}`}
-    >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Input({ label, className = "", ...props }) {
-  return (
-    <label className={cls("grid min-w-0 gap-1", className)}>
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      <input
-        {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none ring-0 focus:border-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-500"
-      />
-    </label>
-  );
-}
-
-function Select({ label, children, className = "", ...props }) {
-  return (
-    <label className={cls("grid min-w-0 gap-1", className)}>
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      <select
-        {...props}
-        className="h-10 w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-500"
-      >
-        {children}
-      </select>
-    </label>
-  );
-}
-
-function Textarea({ label, className = "", ...props }) {
-  return (
-    <label className={cls("grid min-w-0 gap-1", className)}>
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      <textarea
-        {...props}
-        className="min-h-[88px] w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-zinc-900"
-      />
-    </label>
-  );
-}
-
-function Stat({ label, value, hint }) {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-medium text-zinc-500">{label}</div>
-      <div className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900">
-        {value}
-      </div>
-      {hint && <div className="mt-1 text-xs text-zinc-500">{hint}</div>}
-    </div>
-  );
-}
-
-function StatusBadge({ status }) {
-  const s = String(status || "").toLowerCase();
-
-  const className =
-    s === "pending"
-      ? "bg-amber-100 text-amber-800"
-      : s === "approved"
-        ? "bg-blue-100 text-blue-800"
-        : s === "paid"
-          ? "bg-purple-100 text-purple-800"
-          : s === "released"
-            ? "bg-emerald-100 text-emerald-800"
-            : s === "rejected"
-              ? "bg-red-100 text-red-800"
-              : s === "cancelled"
-                ? "bg-zinc-200 text-zinc-700"
-                : "bg-zinc-100 text-zinc-700";
-
-  return (
-    <span
-      className={cls(
-        "rounded-full px-2.5 py-1 text-xs font-semibold",
-        className
-      )}
-    >
-      {status || "-"}
-    </span>
-  );
-}
+import SalesCatalog from "../components/sales/SalesCatalog";
+import {
+  Input,
+  Select,
+  StatCard,
+  StatusBadge,
+  Textarea,
+  cls,
+  fmtAmount,
+  fmtDate,
+  getPricingBasis,
+  getUnitPrice,
+} from "../components/sales/SalesUI";
 
 function normalizeMembershipType(v) {
   return String(v || "").trim().toLowerCase();
-}
-
-function getPricingBasis(membershipType) {
-  const mt = normalizeMembershipType(membershipType);
-
-  if (mt === "stockiest") return "Stockiest";
-  if (
-    mt === "distributor" ||
-    mt === "area manager" ||
-    mt === "regional manager"
-  ) {
-    return "Distributor";
-  }
-  if (mt === "member") return "Member";
-  return "SRP";
-}
-
-function getUnitPrice(item, membershipType) {
-  if (!item) return 0;
-
-  const mt = normalizeMembershipType(membershipType);
-
-  if (mt === "stockiest") return Number(item.stockiest_price ?? 0);
-  if (
-    mt === "distributor" ||
-    mt === "area manager" ||
-    mt === "regional manager"
-  ) {
-    return Number(item.distributor_price ?? 0);
-  }
-  if (mt === "member") return Number(item.member_price ?? 0);
-
-  return Number(item.srp_price ?? 0);
-}
-
-function fmtDate(v) {
-  if (!v) return "-";
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return String(v);
-  return d.toLocaleString();
 }
 
 export default function SalesEntry({ user }) {
@@ -148,12 +34,21 @@ export default function SalesEntry({ user }) {
   const [linkedMember, setLinkedMember] = useState(null);
   const [historyRows, setHistoryRows] = useState([]);
   const [queueRows, setQueueRows] = useState([]);
+
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [loadingQueue, setLoadingQueue] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+
+  const [itemTypeFilter, setItemTypeFilter] = useState("");
+  const [itemSearch, setItemSearch] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState("");
+  const [quantity, setQuantity] = useState(1);
+
+  const [cancelRowId, setCancelRowId] = useState(null);
+  const [cancelReasonById, setCancelReasonById] = useState({});
 
   const isRestricted = user?.role === "rm" || user?.role === "normal";
   const isAdmin = user?.role === "admin" || user?.role === "super_admin";
@@ -162,14 +57,7 @@ export default function SalesEntry({ user }) {
     memberName: "",
     memberId: "",
     membershipType: "SRP",
-    itemType: "",
-    itemId: "",
-    unitType: "Per Piece",
-    quantity: 1,
   });
-
-  const [cancelRowId, setCancelRowId] = useState(null);
-  const [cancelReasonById, setCancelReasonById] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -189,6 +77,7 @@ export default function SalesEntry({ user }) {
 
       try {
         setLoadingMembers(true);
+
         const res = await fetch(
           `/api/members?member_id=${encodeURIComponent(user.member_id)}`
         );
@@ -202,12 +91,11 @@ export default function SalesEntry({ user }) {
 
         if (!cancelled) {
           setLinkedMember(row || null);
-          setForm((prev) => ({
-            ...prev,
+          setForm({
             memberName: row?.name || "",
             memberId: row?.member_id || "",
             membershipType: row?.membership_type || "Member",
-          }));
+          });
         }
       } catch (e) {
         if (!cancelled) {
@@ -221,6 +109,7 @@ export default function SalesEntry({ user }) {
     async function loadMembersForAdmin() {
       try {
         setLoadingMembers(true);
+
         const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
 
@@ -228,10 +117,8 @@ export default function SalesEntry({ user }) {
           throw new Error(json.error || "Failed to load members");
         }
 
-        const data = Array.isArray(json?.data) ? json.data : [];
-
         if (!cancelled) {
-          setMembers(data);
+          setMembers(Array.isArray(json?.data) ? json.data : []);
         }
       } catch (e) {
         if (!cancelled) {
@@ -262,14 +149,13 @@ export default function SalesEntry({ user }) {
 
         const res = await fetch("/api/products");
         const json = await res.json().catch(() => ({}));
-        const data = Array.isArray(json?.data) ? json.data : [];
 
         if (!res.ok) {
           throw new Error(json.error || "Failed to load items");
         }
 
         if (!cancelled) {
-          setItems(data);
+          setItems(Array.isArray(json?.data) ? json.data : []);
         }
       } catch (e) {
         if (!cancelled) setErr(e?.message || "Failed to load items");
@@ -288,6 +174,7 @@ export default function SalesEntry({ user }) {
   async function loadHistory() {
     try {
       setLoadingHistory(true);
+
       const res = await fetch("/api/sales");
       const json = await res.json().catch(() => ({}));
 
@@ -311,6 +198,7 @@ export default function SalesEntry({ user }) {
 
     try {
       setLoadingQueue(true);
+
       const res = await fetch("/api/sales?status=queue");
       const json = await res.json().catch(() => ({}));
 
@@ -333,7 +221,7 @@ export default function SalesEntry({ user }) {
 
   const selectedMember = useMemo(() => {
     if (isRestricted) return linkedMember;
-    return members.find((m) => m.name === form.memberName) || null;
+    return members.find((member) => member.name === form.memberName) || null;
   }, [members, form.memberName, isRestricted, linkedMember]);
 
   useEffect(() => {
@@ -355,37 +243,73 @@ export default function SalesEntry({ user }) {
     }));
   }, [selectedMember, isRestricted]);
 
-  const filteredItems = useMemo(() => {
-    if (!form.itemType) return items;
-    return items.filter(
-      (item) =>
-        String(item.item_type || "").trim().toLowerCase() === form.itemType
-    );
-  }, [items, form.itemType]);
+  const visibleItems = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+
+    return items.filter((item) => {
+      const type = String(item.item_type || "").trim().toLowerCase();
+      const name = String(item.item_name || "").toLowerCase();
+      const code = String(item.item_code || "").toLowerCase();
+
+      return (
+        (!itemTypeFilter || type === itemTypeFilter) &&
+        (!q || name.includes(q) || code.includes(q))
+      );
+    });
+  }, [items, itemTypeFilter, itemSearch]);
 
   const selectedItem = useMemo(() => {
-    const selectedId = Number(form.itemId);
-    if (!Number.isFinite(selectedId) || selectedId <= 0) return null;
-    return items.find((p) => Number(p.id) === selectedId) || null;
-  }, [items, form.itemId]);
+    const id = Number(selectedItemId);
+    if (!Number.isFinite(id) || id <= 0) return null;
+    return items.find((item) => Number(item.id) === id) || null;
+  }, [items, selectedItemId]);
 
-  useEffect(() => {
-    if (!selectedItem) return;
-
-    setForm((prev) => ({
-      ...prev,
-      unitType:
-        selectedItem.unit_type ||
-        (String(selectedItem.item_type).toLowerCase() === "package"
-          ? "Package"
-          : "Per Piece"),
-    }));
-  }, [selectedItem]);
-
-  const quantityNum = Math.max(1, Number(form.quantity || 1));
+  const quantityNum = Math.max(1, Number(quantity || 1));
   const unitPrice = getUnitPrice(selectedItem, form.membershipType);
   const totalAmount = unitPrice * quantityNum;
   const pricingBasis = getPricingBasis(form.membershipType);
+
+  const salesStats = useMemo(() => {
+    const totalAmount = historyRows.reduce(
+      (sum, row) => sum + Number(row.total_amount || 0),
+      0
+    );
+
+    const pending = historyRows.filter(
+      (row) => String(row.status || "").toLowerCase() === "pending"
+    ).length;
+
+    const released = historyRows.filter(
+      (row) => String(row.status || "").toLowerCase() === "released"
+    ).length;
+
+    const totalQty = historyRows.reduce(
+      (sum, row) => sum + Number(row.quantity || 0),
+      0
+    );
+
+    return {
+      totalAmount,
+      pending,
+      released,
+      totalQty,
+    };
+  }, [historyRows]);
+
+  function handleSelectItem(item) {
+    if (!isRestricted && !form.memberName) {
+      alert("Please select a member before adding an item.");
+      return;
+    }
+
+    setSelectedItemId(String(item.id));
+    setQuantity(1);
+  }
+
+  function clearSelection() {
+    setSelectedItemId("");
+    setQuantity(1);
+  }
 
   async function handleCheckout(e) {
     e.preventDefault();
@@ -395,7 +319,7 @@ export default function SalesEntry({ user }) {
       return;
     }
 
-    if (!form.itemId) {
+    if (!selectedItem) {
       alert("Please select an item.");
       return;
     }
@@ -419,7 +343,7 @@ export default function SalesEntry({ user }) {
           member_id: form.memberId || "",
           membership_type: form.membershipType || "",
           regional_manager: selectedMember?.regional_manager || "",
-          item_id: Number(form.itemId),
+          item_id: Number(selectedItem.id),
           item_type: selectedItem?.item_type || "",
           product_name: selectedItem?.item_name || "",
           unit_price: unitPrice,
@@ -435,7 +359,7 @@ export default function SalesEntry({ user }) {
       }
 
       alert(json.message || "Sale saved successfully.");
-      clearForm();
+      clearSelection();
       await loadHistory();
       await loadQueue();
     } catch (e) {
@@ -455,10 +379,7 @@ export default function SalesEntry({ user }) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          id,
-          action,
-        }),
+        body: JSON.stringify({ id, action }),
       });
 
       const json = await res.json().catch(() => ({}));
@@ -519,21 +440,6 @@ export default function SalesEntry({ user }) {
     }
   }
 
-  function clearForm() {
-    setForm((prev) => ({
-      ...prev,
-      memberName: isRestricted ? linkedMember?.name || "" : "",
-      memberId: isRestricted ? linkedMember?.member_id || "" : "",
-      membershipType: isRestricted
-        ? linkedMember?.membership_type || "Member"
-        : "SRP",
-      itemType: "",
-      itemId: "",
-      unitType: "Per Piece",
-      quantity: 1,
-    }));
-  }
-
   function renderAdminActions(row) {
     const status = String(row.status || "").toLowerCase();
 
@@ -544,15 +450,16 @@ export default function SalesEntry({ user }) {
             type="button"
             disabled={saving}
             onClick={() => handleQueueAction(row.id, "approve")}
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
           >
             Approve
           </button>
+
           <button
             type="button"
             disabled={saving}
             onClick={() => handleQueueAction(row.id, "reject")}
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             Reject
           </button>
@@ -567,15 +474,16 @@ export default function SalesEntry({ user }) {
             type="button"
             disabled={saving}
             onClick={() => handleQueueAction(row.id, "paid")}
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
           >
             Mark Paid
           </button>
+
           <button
             type="button"
             disabled={saving}
             onClick={() => handleQueueAction(row.id, "reject")}
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             Reject
           </button>
@@ -590,15 +498,16 @@ export default function SalesEntry({ user }) {
             type="button"
             disabled={saving}
             onClick={() => handleQueueAction(row.id, "release")}
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-900 hover:bg-slate-50 disabled:opacity-50"
           >
             Release
           </button>
+
           <button
             type="button"
             disabled={saving}
             onClick={() => handleQueueAction(row.id, "reject")}
-            className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
           >
             Reject
           </button>
@@ -606,461 +515,518 @@ export default function SalesEntry({ user }) {
       );
     }
 
-    return <div className="text-xs text-zinc-500">No actions</div>;
+    return <div className="text-xs text-slate-500">No actions</div>;
   }
 
   return (
-    <div className="grid max-w-full gap-4 overflow-x-hidden">
-      <Card
-        title={isRestricted ? "Submit Sale Request" : "Sales Entry"}
-        right={
-          isRestricted ? (
-            <div className="text-xs text-zinc-500">
-              Packages are auto-approved. Regular product sales require admin
-              approval.
+    <div className="mx-auto max-w-7xl space-y-5 overflow-x-hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 via-white to-yellow-50 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
+                Sales Operations
+              </div>
+
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                Sales Entry & Checkout
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Browse products and packages, select an item, checkout sales,
+                and manage approval workflows.
+              </p>
             </div>
-          ) : null
-        }
-        className="min-w-0"
-      >
-        <form className="grid gap-4" onSubmit={handleCheckout}>
-          <div className="grid gap-3 md:grid-cols-2">
-            {isRestricted ? (
+
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white shadow-sm">
+              <ShoppingCart size={22} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Sales Value"
+          value={`₱${fmtAmount(salesStats.totalAmount)}`}
+          helper="Loaded sales history value"
+          icon={ReceiptText}
+          tone="blue"
+        />
+        <StatCard
+          label="Pending"
+          value={salesStats.pending}
+          helper="Sales awaiting action"
+          icon={Package}
+          tone="gold"
+        />
+        <StatCard
+          label="Released"
+          value={salesStats.released}
+          helper="Completed released orders"
+          icon={CheckCircle2}
+          tone="green"
+        />
+        <StatCard
+          label="Products Sold"
+          value={salesStats.totalQty}
+          helper="Total quantity sold"
+          icon={ShoppingCart}
+          tone="slate"
+        />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                  <Package size={18} />
+                </div>
+
+                <div>
+                  <div className="font-bold text-slate-950">Product Catalog</div>
+                  <div className="mt-1 text-sm text-slate-500">
+                    Showing{" "}
+                    <span className="font-bold text-slate-900">
+                      {visibleItems.length}
+                    </span>{" "}
+                    items.
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:w-[520px]">
+                <Select
+                  label="Type"
+                  value={itemTypeFilter}
+                  onChange={(e) => setItemTypeFilter(e.target.value)}
+                >
+                  <option value="">All</option>
+                  <option value="product">Products</option>
+                  <option value="package">Packages</option>
+                </Select>
+
+                <div className="relative">
+                  <Search
+                    size={16}
+                    className="pointer-events-none absolute left-3 top-[38px] text-slate-400"
+                  />
+                  <Input
+                    label="Search"
+                    value={itemSearch}
+                    onChange={(e) => setItemSearch(e.target.value)}
+                    placeholder="Search item"
+                    className="[&_input]:pl-9"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6">
+            {err && (
+              <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                Error: {err}
+              </div>
+            )}
+
+            <div className="mb-5 grid gap-3 md:grid-cols-3">
+              {isRestricted ? (
+                <Input
+                  label="Member Name"
+                  value={form.memberName}
+                  readOnly
+                  disabled
+                />
+              ) : (
+                <Select
+                  label="Member Name"
+                  value={form.memberName}
+                  disabled={loadingMembers}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, memberName: e.target.value }))
+                  }
+                >
+                  <option value="">
+                    {loadingMembers ? "Loading members..." : "Select member"}
+                  </option>
+                  {members.map((member) => (
+                    <option key={member.member_id || member.name} value={member.name}>
+                      {member.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+
               <Input
-                label="Member Name"
-                value={form.memberName}
+                label="Member ID"
+                value={form.memberId}
+                readOnly
+                disabled
+                placeholder="Auto-filled"
+              />
+
+              <Input
+                label="Pricing Basis"
+                value={`${form.membershipType || "SRP"} / ${pricingBasis}`}
                 readOnly
                 disabled
               />
-            ) : (
-              <Select
-                label="Member Name"
-                value={form.memberName}
-                disabled={loadingMembers}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, memberName: e.target.value }))
-                }
-              >
-                <option value="">
-                  {loadingMembers ? "Loading members..." : "Select member"}
-                </option>
-                {members.map((m) => (
-                  <option key={m.member_id || m.name} value={m.name}>
-                    {m.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-
-            <Input
-              label="Member ID"
-              value={form.memberId}
-              readOnly
-              disabled
-              placeholder="Auto-filled"
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Membership Type"
-              value={form.membershipType}
-              readOnly
-              disabled
-              placeholder="Auto-filled"
-            />
-
-            <Input
-              label="Unit Type"
-              value={form.unitType}
-              readOnly
-              disabled
-              placeholder="Auto-filled from item"
-            />
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Select
-              label="Item Type"
-              value={form.itemType}
-              disabled={loadingItems}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  itemType: e.target.value,
-                  itemId: "",
-                  unitType: "Per Piece",
-                }))
-              }
-            >
-              <option value="">
-                {loadingItems ? "Loading items..." : "All"}
-              </option>
-              <option value="product">Product</option>
-              <option value="package">Package</option>
-            </Select>
-
-            <Select
-              label="Item Name"
-              value={form.itemId}
-              disabled={loadingItems}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, itemId: e.target.value }))
-              }
-            >
-              <option value="">
-                {loadingItems ? "Loading items..." : "Select item"}
-              </option>
-              {filteredItems.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.item_name} ({p.item_type})
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Input
-              label="Quantity"
-              type="number"
-              min="1"
-              value={form.quantity}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, quantity: e.target.value }))
-              }
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <Stat label="Unit Price" value={unitPrice.toFixed(2)} />
-            <Stat label="Total Amount" value={totalAmount.toFixed(2)} />
-            <Stat
-              label="Pricing Basis"
-              value={pricingBasis}
-              hint="Derived from membership type"
-            />
-          </div>
-
-          {err && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {err}
             </div>
-          )}
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="h-10 rounded-xl bg-zinc-900 px-4 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-60"
-            >
-              {saving
-                ? "Saving..."
-                : isRestricted
-                  ? "Submit Sale Request"
-                  : "Proceed Checkout"}
-            </button>
+            {loadingItems ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+                Loading products and packages...
+              </div>
+            ) : (
+              <SalesCatalog
+                items={visibleItems}
+                membershipType={form.membershipType}
+                selectedItemId={selectedItemId}
+                onSelect={handleSelectItem}
+              />
+            )}
+          </div>
+        </div>
 
-            <button
-              type="button"
-              onClick={clearForm}
-              disabled={saving}
-              className="h-10 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-50 disabled:opacity-60"
-            >
-              Clear
-            </button>
+        <form
+          onSubmit={handleCheckout}
+          className="h-fit overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-5"
+        >
+          <div className="border-b border-slate-100 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <ShoppingCart size={18} />
+              </div>
+
+              <div>
+                <div className="font-bold text-slate-950">Checkout Summary</div>
+                <div className="mt-1 text-sm text-slate-500">
+                  Review selected item before checkout.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-5">
+            {selectedItem ? (
+              <>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="font-black text-slate-950">
+                    {selectedItem.item_name}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    {selectedItem.item_code || "-"} · {selectedItem.item_type || "-"}
+                  </div>
+                </div>
+
+                <Input
+                  label="Quantity"
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+
+                <div className="grid gap-2 text-sm">
+                  <div className="flex justify-between rounded-xl bg-slate-50 px-3 py-2">
+                    <span className="font-bold text-slate-500">Unit Price</span>
+                    <span className="font-black text-slate-900">
+                      ₱{fmtAmount(unitPrice)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between rounded-xl bg-slate-50 px-3 py-2">
+                    <span className="font-bold text-slate-500">Total</span>
+                    <span className="font-black text-slate-900">
+                      ₱{fmtAmount(totalAmount)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between rounded-xl bg-slate-50 px-3 py-2">
+                    <span className="font-bold text-slate-500">Basis</span>
+                    <span className="font-black text-slate-900">
+                      {pricingBasis}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="h-12 rounded-2xl bg-blue-700 text-sm font-bold text-white transition hover:bg-blue-800 disabled:opacity-60"
+                >
+                  {saving
+                    ? "Saving..."
+                    : isRestricted
+                      ? "Submit Sale Request"
+                      : "Checkout"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={clearSelection}
+                  className="h-12 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  Clear Selection
+                </button>
+              </>
+            ) : (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5 text-sm text-slate-500">
+                Select a product or package from the catalog.
+              </div>
+            )}
           </div>
         </form>
-      </Card>
+      </div>
 
       {isAdmin && (
-        <Card title="Sales Approval Queue" className="min-w-0">
-          {loadingQueue ? (
-            <div className="text-sm text-zinc-500">Loading...</div>
-          ) : queueRows.length === 0 ? (
-            <div className="text-sm text-zinc-500">
-              No sales waiting for action.
+        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+                <ReceiptText size={18} />
+              </div>
+
+              <div>
+                <div className="font-bold text-slate-950">
+                  Sales Approval Queue
+                </div>
+                <div className="mt-1 text-sm text-slate-500">
+                  Review pending sales requests.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5 sm:p-6">
+            {loadingQueue ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+                Loading approval queue...
+              </div>
+            ) : queueRows.length === 0 ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+                No sales waiting for action.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                <table className="w-full min-w-[980px] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                      {["Date", "Member", "Item", "Amount", "Status", "Actions"].map(
+                        (head) => (
+                          <th
+                            key={head}
+                            className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500"
+                          >
+                            {head}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {queueRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b border-slate-100 transition hover:bg-slate-50"
+                      >
+                        <td className="px-4 py-4 text-xs text-slate-500">
+                          {fmtDate(row.created_at)}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <div className="font-bold text-slate-950">
+                            {row.member_name || "-"}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {row.member_id || "-"}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 text-slate-700">
+                          <div className="font-bold text-slate-900">
+                            {row.product_name || "-"}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Qty {row.quantity ?? 0} · {row.item_type || "-"}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 font-black text-slate-950">
+                          ₱{fmtAmount(row.total_amount)}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <StatusBadge status={row.status} />
+                        </td>
+
+                        <td className="px-4 py-4">{renderAdminActions(row)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+              <ReceiptText size={18} />
+            </div>
+
+            <div>
+              <div className="font-bold text-slate-950">Sales History</div>
+              <div className="mt-1 text-sm text-slate-500">
+                Showing{" "}
+                <span className="font-bold text-slate-900">
+                  {historyRows.length}
+                </span>{" "}
+                sales records.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 sm:p-6">
+          {loadingHistory ? (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+              Loading sales history...
+            </div>
+          ) : historyRows.length === 0 ? (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-6 text-sm text-slate-500">
+              No sales found.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1200px] border-collapse text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="w-full min-w-[980px] border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Date
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Member
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Item
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Type
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Qty
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Amount
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Requested By
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Status
-                    </th>
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      Actions
-                    </th>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                    {["Date", "Member", "Item", "Amount", "Status", "Action"].map(
+                      (head) => (
+                        <th
+                          key={head}
+                          className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500"
+                        >
+                          {head}
+                        </th>
+                      )
+                    )}
                   </tr>
                 </thead>
+
                 <tbody>
-                  {queueRows.map((row) => (
-                    <tr key={row.id} className="border-b border-zinc-100">
-                      <td className="px-4 py-3 text-zinc-700">
-                        {fmtDate(row.created_at)}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-900">
-                        <div className="font-medium">{row.member_name}</div>
-                        <div className="text-xs text-zinc-500">
-                          {row.member_id}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.product_name}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.item_type}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.quantity}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {Number(row.total_amount || 0).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.requested_by_username || row.encoded_by || "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={row.status} />
-                      </td>
-                      <td className="px-4 py-3">{renderAdminActions(row)}</td>
-                    </tr>
-                  ))}
+                  {historyRows.map((row) => {
+                    const isPending =
+                      String(row.status || "").toLowerCase() === "pending";
+                    const canCancel = isRestricted && isPending;
+
+                    return (
+                      <tr
+                        key={row.id}
+                        className="border-b border-slate-100 align-top transition hover:bg-slate-50"
+                      >
+                        <td className="px-4 py-4 text-xs text-slate-500">
+                          {fmtDate(row.created_at)}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <div className="font-bold text-slate-950">
+                            {row.member_name || "-"}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {row.member_id || "-"}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 text-slate-700">
+                          <div className="font-bold text-slate-900">
+                            {row.product_name || "-"}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            Qty {row.quantity ?? 0} · {row.item_type || "-"}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-4 font-black text-slate-950">
+                          ₱{fmtAmount(row.total_amount)}
+                        </td>
+
+                        <td className="px-4 py-4">
+                          <StatusBadge status={row.status} />
+                        </td>
+
+                        <td className="px-4 py-4">
+                          {canCancel ? (
+                            cancelRowId === row.id ? (
+                              <div className="grid w-72 gap-2">
+                                <Textarea
+                                  label="Cancel Reason"
+                                  value={cancelReasonById[row.id] || ""}
+                                  onChange={(e) =>
+                                    setCancelReasonById((prev) => ({
+                                      ...prev,
+                                      [row.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Why are you cancelling this request?"
+                                />
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => handleCancelSale(row.id)}
+                                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                  >
+                                    Confirm Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={saving}
+                                    onClick={() => {
+                                      setCancelRowId(null);
+                                      setCancelReasonById((prev) => ({
+                                        ...prev,
+                                        [row.id]: "",
+                                      }));
+                                    }}
+                                    className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                                  >
+                                    Close
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={saving}
+                                onClick={() => setCancelRowId(row.id)}
+                                className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            )
+                          ) : (
+                            <span className="text-xs text-slate-400">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )}
-        </Card>
-      )}
-
-      <Card title="Sales History" className="min-w-0">
-        {loadingHistory ? (
-          <div className="text-sm text-zinc-500">Loading...</div>
-        ) : historyRows.length === 0 ? (
-          <div className="text-sm text-zinc-500">No sales found.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Date
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Member
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Item
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Type
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Qty
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Unit Price
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Amount
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Encoded By
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Status
-                  </th>
-                  <th className="px-4 py-2 font-semibold text-zinc-700">
-                    Cancel Reason
-                  </th>
-                  {isRestricted && (
-                    <th className="px-4 py-2 font-semibold text-zinc-700">
-                      User Action
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {historyRows.map((row) => {
-                  const isPending = String(row.status || "").toLowerCase() === "pending";
-                  const canCancel = isRestricted && isPending;
-
-                  return (
-                    <tr key={row.id} className="border-b border-zinc-100 align-top">
-                      <td className="px-4 py-3 text-zinc-700">
-                        {fmtDate(row.created_at)}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-900">
-                        <div className="font-medium">{row.member_name}</div>
-                        <div className="text-xs text-zinc-500">
-                          {row.member_id}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.product_name}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">{row.item_type}</td>
-                      <td className="px-4 py-3 text-zinc-700">{row.quantity}</td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {Number(row.unit_price || 0).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {Number(row.total_amount || 0).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.encoded_by || "-"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={row.status} />
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700">
-                        {row.cancel_reason || "-"}
-                      </td>
-
-                      {isRestricted && (
-                        <td className="px-4 py-3">
-                          {canCancel ? (
-                            <div className="grid gap-2">
-                              {cancelRowId === row.id ? (
-                                <>
-                                  <Textarea
-                                    label="Reason"
-                                    value={cancelReasonById[row.id] || ""}
-                                    onChange={(e) =>
-                                      setCancelReasonById((prev) => ({
-                                        ...prev,
-                                        [row.id]: e.target.value,
-                                      }))
-                                    }
-                                    placeholder="Why are you cancelling this request?"
-                                  />
-                                  <div className="flex flex-wrap gap-2">
-                                    <button
-                                      type="button"
-                                      disabled={saving}
-                                      onClick={() => handleCancelSale(row.id)}
-                                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                    >
-                                      Confirm Cancel
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={saving}
-                                      onClick={() => {
-                                        setCancelRowId(null);
-                                        setCancelReasonById((prev) => ({
-                                          ...prev,
-                                          [row.id]: "",
-                                        }));
-                                      }}
-                                      className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
-                                    >
-                                      Close
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <button
-                                  type="button"
-                                  disabled={saving}
-                                  onClick={() => setCancelRowId(row.id)}
-                                  className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                >
-                                  Cancel Request
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-zinc-500">No action</div>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
-
-      <Card title="Item Price Reference" className="min-w-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50 text-left">
-                <th className="px-4 py-2 font-semibold text-zinc-700">Type</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">Item</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">SRP</th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">
-                  Member
-                </th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">
-                  Distributor
-                </th>
-                <th className="px-4 py-2 font-semibold text-zinc-700">
-                  Stockiest
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingItems ? (
-                <tr>
-                  <td className="px-4 py-3 text-zinc-500" colSpan={6}>
-                    Loading items...
-                  </td>
-                </tr>
-              ) : items.length === 0 ? (
-                <tr>
-                  <td className="px-4 py-3 text-zinc-500" colSpan={6}>
-                    No items found.
-                  </td>
-                </tr>
-              ) : (
-                items.map((p) => (
-                  <tr key={p.id} className="border-b border-zinc-100">
-                    <td className="px-4 py-3 text-zinc-700">{p.item_type}</td>
-                    <td className="px-4 py-3 text-zinc-800">{p.item_name}</td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {Number(p.srp_price || 0).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {Number(p.member_price || 0).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {Number(p.distributor_price || 0).toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-700">
-                      {Number(p.stockiest_price || 0).toFixed(2)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
