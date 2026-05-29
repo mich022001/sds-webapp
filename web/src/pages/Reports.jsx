@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarDays,
+  BarChart3,
   Download,
   FileText,
   Package,
+  PieChart,
   RefreshCcw,
   Search,
   ShoppingBag,
+  Users,
 } from "lucide-react";
 
 function cls(...classes) {
@@ -48,7 +50,7 @@ function Input({ label, className = "", ...props }) {
 
       <input
         {...props}
-        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-50"
+        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:ring-4 focus:ring-blue-50 disabled:bg-slate-100 disabled:text-slate-500"
       />
     </label>
   );
@@ -89,6 +91,192 @@ function EmptyState({ children }) {
   );
 }
 
+function StatCard({ label, value, helper }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
+        {label}
+      </div>
+      <div className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+        {value}
+      </div>
+      {helper ? <div className="mt-1 text-xs text-slate-500">{helper}</div> : null}
+    </div>
+  );
+}
+
+function ChartToggle({ value, onChange }) {
+  return (
+    <div className="inline-flex rounded-2xl border border-slate-200 bg-white p-1">
+      <button
+        type="button"
+        onClick={() => onChange("bar")}
+        className={cls(
+          "inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-black transition",
+          value === "bar"
+            ? "bg-blue-700 text-white"
+            : "text-slate-600 hover:bg-slate-50"
+        )}
+      >
+        <BarChart3 size={14} />
+        Bar
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onChange("pie")}
+        className={cls(
+          "inline-flex h-9 items-center gap-2 rounded-xl px-3 text-xs font-black transition",
+          value === "pie"
+            ? "bg-blue-700 text-white"
+            : "text-slate-600 hover:bg-slate-50"
+        )}
+      >
+        <PieChart size={14} />
+        Pie
+      </button>
+    </div>
+  );
+}
+
+function SimpleBarChart({ rows, valueLabel = "₱", emptyText }) {
+  if (!rows.length) return <EmptyState>{emptyText}</EmptyState>;
+
+  const max = Math.max(...rows.map((row) => Number(row.value || 0)), 1);
+
+  return (
+    <div className="space-y-3">
+      {rows.slice(0, 8).map((row, index) => {
+        const percent = Math.max(5, Math.round((Number(row.value || 0) / max) * 100));
+
+        return (
+          <div
+            key={`${row.name}-${index}`}
+            className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-black text-slate-950">
+                  {row.name}
+                </div>
+                <div className="text-xs text-slate-500">
+                  {row.count} records · {row.qty} qty
+                </div>
+              </div>
+
+              <div className="shrink-0 text-sm font-black text-slate-950">
+                {valueLabel}
+                {fmtAmount(row.value)}
+              </div>
+            </div>
+
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="h-full rounded-full bg-blue-700"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SimplePieChart({ rows, emptyText }) {
+  if (!rows.length) return <EmptyState>{emptyText}</EmptyState>;
+
+  const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
+  let running = 0;
+
+  const gradient = rows
+    .slice(0, 8)
+    .map((row, index) => {
+      const value = Number(row.value || 0);
+      const start = total > 0 ? (running / total) * 100 : 0;
+      running += value;
+      const end = total > 0 ? (running / total) * 100 : 0;
+
+      const colors = [
+        "#1d4ed8",
+        "#eab308",
+        "#059669",
+        "#7c3aed",
+        "#dc2626",
+        "#0891b2",
+        "#475569",
+        "#ea580c",
+      ];
+
+      return `${colors[index % colors.length]} ${start}% ${end}%`;
+    })
+    .join(", ");
+
+  return (
+    <div className="grid gap-5 md:grid-cols-[220px_1fr] md:items-center">
+      <div
+        className="mx-auto h-52 w-52 rounded-full border border-slate-200 shadow-inner"
+        style={{
+          background: `conic-gradient(${gradient})`,
+        }}
+      />
+
+      <div className="space-y-3">
+        {rows.slice(0, 8).map((row, index) => {
+          const percent = total > 0 ? (Number(row.value || 0) / total) * 100 : 0;
+          const colors = [
+            "bg-blue-700",
+            "bg-yellow-500",
+            "bg-emerald-600",
+            "bg-violet-600",
+            "bg-red-600",
+            "bg-cyan-600",
+            "bg-slate-600",
+            "bg-orange-600",
+          ];
+
+          return (
+            <div
+              key={`${row.name}-${index}`}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <div
+                  className={cls(
+                    "h-3 w-3 shrink-0 rounded-full",
+                    colors[index % colors.length]
+                  )}
+                />
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-black text-slate-950">
+                    {row.name}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {row.count} records · {row.qty} qty
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <div className="text-sm font-black text-slate-950">
+                  ₱{fmtAmount(row.value)}
+                </div>
+                <div className="text-xs text-slate-500">{percent.toFixed(1)}%</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ReportChart({ rows, type, emptyText }) {
+  if (type === "pie") return <SimplePieChart rows={rows} emptyText={emptyText} />;
+
+  return <SimpleBarChart rows={rows} emptyText={emptyText} />;
+}
+
 function exportRowsCsv(filename, headers, rows) {
   const csvRows = rows.map((row) =>
     headers
@@ -99,9 +287,10 @@ function exportRowsCsv(filename, headers, rows) {
       .join(",")
   );
 
-  const csv = [headers.map((header) => header.label).join(","), ...csvRows].join(
-    "\n"
-  );
+  const csv = [
+    headers.map((header) => `"${header.label.replaceAll('"', '""')}"`).join(","),
+    ...csvRows,
+  ].join("\n");
 
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
@@ -114,6 +303,32 @@ function exportRowsCsv(filename, headers, rows) {
   URL.revokeObjectURL(url);
 }
 
+function groupRows(rows, key, fallback) {
+  const map = new Map();
+
+  rows.forEach((row) => {
+    const name = String(row[key] || "").trim() || fallback;
+    const amount = Number(row.total_amount || 0);
+    const qty = Number(row.quantity || 0);
+
+    const current = map.get(name) || {
+      name,
+      value: 0,
+      qty: 0,
+      count: 0,
+    };
+
+    map.set(name, {
+      ...current,
+      value: current.value + amount,
+      qty: current.qty + qty,
+      count: current.count + 1,
+    });
+  });
+
+  return Array.from(map.values()).sort((a, b) => b.value - a.value);
+}
+
 export default function Reports() {
   const [filters, setFilters] = useState({
     from: "",
@@ -121,6 +336,12 @@ export default function Reports() {
     buyer: "",
     packageType: "",
     product: "",
+  });
+
+  const [chartTypes, setChartTypes] = useState({
+    regional: "bar",
+    packages: "bar",
+    products: "bar",
   });
 
   const [loading, setLoading] = useState(false);
@@ -144,9 +365,7 @@ export default function Reports() {
       const res = await fetch(`/api/sales?${qs.toString()}`);
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(json.error || "Failed to load reports");
-      }
+      if (!res.ok) throw new Error(json.error || "Failed to load reports");
 
       setSalesRows(Array.isArray(json?.data) ? json.data : []);
     } catch (e) {
@@ -203,6 +422,12 @@ export default function Reports() {
       0
     );
 
+    const regionalManagers = new Set(
+      salesRows
+        .map((row) => String(row.regional_manager || "").trim())
+        .filter(Boolean)
+    );
+
     return {
       packageAmount,
       productAmount,
@@ -210,8 +435,24 @@ export default function Reports() {
       productQty,
       totalAmount: packageAmount + productAmount,
       totalRecords: packageRows.length + productRows.length,
+      regionalManagers: regionalManagers.size,
     };
-  }, [packageRows, productRows]);
+  }, [packageRows, productRows, salesRows]);
+
+  const regionalChartRows = useMemo(
+    () => groupRows(salesRows, "regional_manager", "Unassigned RM"),
+    [salesRows]
+  );
+
+  const packageChartRows = useMemo(
+    () => groupRows(packageRows, "product_name", "Unknown Package"),
+    [packageRows]
+  );
+
+  const productChartRows = useMemo(
+    () => groupRows(productRows, "product_name", "Unknown Product"),
+    [productRows]
+  );
 
   function clearFilters() {
     const cleared = {
@@ -224,6 +465,10 @@ export default function Reports() {
 
     setFilters(cleared);
     loadSales(cleared);
+  }
+
+  function updateChartType(key, value) {
+    setChartTypes((prev) => ({ ...prev, [key]: value }));
   }
 
   function exportPackages() {
@@ -289,9 +534,9 @@ export default function Reports() {
               </h2>
 
               <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-500">
-                Generate clean report-style views for released package purchases
-                and regular product sales. Operational monitoring stays in Sales
-                Analytics.
+                Generate formal report views for released package purchases,
+                regular product sales, regional manager coverage, and exportable
+                business records.
               </p>
             </div>
 
@@ -384,53 +629,97 @@ export default function Reports() {
       </SectionCard>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            Released Report Value
-          </div>
-          <div className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-            ₱{fmtAmount(reportSummary.totalAmount)}
-          </div>
-          <div className="mt-1 text-xs text-slate-500">
-            Package + product report value
-          </div>
-        </div>
+        <StatCard
+          label="Released Report Value"
+          value={`₱${fmtAmount(reportSummary.totalAmount)}`}
+          helper="Package + product report value"
+        />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            Package Quantity
-          </div>
-          <div className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-            {reportSummary.packageQty}
-          </div>
-          <div className="mt-1 text-xs text-slate-500">
-            Released package purchases
-          </div>
-        </div>
+        <StatCard
+          label="Package Quantity"
+          value={reportSummary.packageQty}
+          helper="Released package purchases"
+        />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            Product Quantity
-          </div>
-          <div className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-            {reportSummary.productQty}
-          </div>
-          <div className="mt-1 text-xs text-slate-500">
-            Released product movement
-          </div>
-        </div>
+        <StatCard
+          label="Product Quantity"
+          value={reportSummary.productQty}
+          helper="Released product movement"
+        />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            Report Records
-          </div>
-          <div className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-            {reportSummary.totalRecords}
-          </div>
-          <div className="mt-1 text-xs text-slate-500">
-            Rows included in reports
-          </div>
-        </div>
+        <StatCard
+          label="Regional Managers"
+          value={reportSummary.regionalManagers}
+          helper={`${reportSummary.totalRecords} report records`}
+        />
+      </div>
+
+      <SectionCard
+        title="Regional Manager Overall"
+        subtitle="Overall released sales handled per regional manager."
+        icon={Users}
+        right={
+          <ChartToggle
+            value={chartTypes.regional}
+            onChange={(value) => updateChartType("regional", value)}
+          />
+        }
+      >
+        {loading ? (
+          <EmptyState>Loading regional manager chart...</EmptyState>
+        ) : (
+          <ReportChart
+            rows={regionalChartRows}
+            type={chartTypes.regional}
+            emptyText="No regional manager report data found."
+          />
+        )}
+      </SectionCard>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <SectionCard
+          title="Package Report Chart"
+          subtitle="Released membership package report by package type."
+          icon={Package}
+          right={
+            <ChartToggle
+              value={chartTypes.packages}
+              onChange={(value) => updateChartType("packages", value)}
+            />
+          }
+        >
+          {loading ? (
+            <EmptyState>Loading package chart...</EmptyState>
+          ) : (
+            <ReportChart
+              rows={packageChartRows}
+              type={chartTypes.packages}
+              emptyText="No package chart data found."
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Product Report Chart"
+          subtitle="Released regular product report by product."
+          icon={ShoppingBag}
+          right={
+            <ChartToggle
+              value={chartTypes.products}
+              onChange={(value) => updateChartType("products", value)}
+            />
+          }
+        >
+          {loading ? (
+            <EmptyState>Loading product chart...</EmptyState>
+          ) : (
+            <ReportChart
+              rows={productChartRows}
+              type={chartTypes.products}
+              emptyText="No product chart data found."
+            />
+          )}
+        </SectionCard>
       </div>
 
       <SectionCard
@@ -589,24 +878,6 @@ export default function Reports() {
             </table>
           </div>
         )}
-      </SectionCard>
-
-      <SectionCard
-        title="Upcoming Report Sections"
-        subtitle="Reserved reporting areas so this page does not become another Sales Analytics screen."
-        icon={CalendarDays}
-      >
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-            Compensation Summary Report
-          </div>
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-            Regional Manager Performance Report
-          </div>
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-            Buyer Growth / Registration Report
-          </div>
-        </div>
       </SectionCard>
     </div>
   );
