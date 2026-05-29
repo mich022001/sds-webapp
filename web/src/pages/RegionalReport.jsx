@@ -1,42 +1,121 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  BarChart3,
+  Download,
+  FileText,
+  Network,
+  PieChart,
+  RefreshCcw,
+  Search,
+  ShieldCheck,
+  TrendingUp,
+  UserRound,
+  Users,
+  WalletCards,
+} from "lucide-react";
 
-function Card({ title, children, right, className = "" }) {
-  return (
-    <div
-      className={`max-w-full overflow-hidden rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm ${className}`}
-    >
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="text-sm font-semibold text-zinc-900">{title}</div>
-        {right}
-      </div>
-      {children}
-    </div>
+import {
+  ChartToggle,
+  EmptyState,
+  ProfileRow,
+  ReportChart,
+  SectionCard,
+  Select,
+  StatCard,
+  fmtAmount,
+  fmtDate,
+  fmtNumber,
+} from "../components/reports/RegionalReportUI";
+
+function exportRowsCsv(filename, headers, rows) {
+  if (!rows.length) return;
+
+  const csvRows = rows.map((row) =>
+    headers
+      .map((header) => {
+        const value = row[header.key] ?? "";
+        return `"${String(value).replaceAll('"', '""')}"`;
+      })
+      .join(",")
   );
+
+  const csv = [
+    headers.map((header) => `"${header.label.replaceAll('"', '""')}"`).join(","),
+    ...csvRows,
+  ].join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `${filename}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
 }
 
-function fmtNumber(value) {
-  const n = Number(value || 0);
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: n % 1 !== 0 ? 2 : 0,
-    maximumFractionDigits: 2,
-  });
+function buildMembershipRows(byType) {
+  return Object.entries(byType || {})
+    .map(([name, value]) => ({
+      name,
+      value: Number(value || 0),
+      helper: `${fmtNumber(value)} members`,
+    }))
+    .filter((row) => row.value > 0)
+    .sort((a, b) => b.value - a.value);
 }
 
-function CompactMetric({ label, value }) {
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</div>
-      <div className="mt-1 text-base font-bold text-zinc-900">{value}</div>
-    </div>
-  );
+function buildLevelRows(levels) {
+  return levels
+    .map((level) => ({
+      name: level.level_title || `Level ${level.level}`,
+      value: Number(level.member_count || 0),
+      helper: `₱${fmtAmount(level.bonus_total)} bonus total`,
+    }))
+    .filter((row) => row.value > 0);
+}
+
+function buildBonusRows(data) {
+  const totals = data?.totals || {};
+
+  return [
+    {
+      name: "RM Rebates",
+      value: Number(totals.totalRmRebates || totals.totalRebates || 0),
+      helper: "Regional rebate earnings",
+    },
+    {
+      name: "Group Sales Bonus",
+      value: Number(totals.totalGroupSalesBonus || 0),
+      helper: "Group sales compensation",
+    },
+    {
+      name: "Redeemable Cash Bonus",
+      value: Number(totals.redeemableCashBonus || totals.totalCashBonus || 0),
+      helper: "Cash bonus from ledger",
+    },
+    {
+      name: "Product Bonus",
+      value: Number(totals.totalProductBonus || 0),
+      helper: "Product incentive balance basis",
+    },
+  ].filter((row) => row.value > 0);
 }
 
 export default function RegionalReport() {
   const [rmList, setRmList] = useState([]);
   const [rm, setRm] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingMembers, setLoadingMembers] = useState(true);
+  const [loadingReport, setLoadingReport] = useState(false);
   const [err, setErr] = useState("");
   const [data, setData] = useState(null);
+
+  const [chartTypes, setChartTypes] = useState({
+    membership: "bar",
+    levels: "bar",
+    bonuses: "bar",
+  });
 
   const scrollRef = useRef(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -47,23 +126,34 @@ export default function RegionalReport() {
 
     async function loadRMs() {
       try {
+        setLoadingMembers(true);
         setErr("");
+
         const res = await fetch("/api/members");
         const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json.error || "Failed to load regional managers");
+        }
+
         const rows = Array.isArray(json?.data) ? json.data : [];
 
         const rms = rows
-          .filter((m) => m.membership_type === "Regional Manager")
-          .map((m) => m.name)
+          .filter((member) => member.membership_type === "Regional Manager")
+          .map((member) => member.name)
           .filter(Boolean)
           .sort((a, b) => a.localeCompare(b));
 
         if (!cancelled) {
           setRmList(rms);
-          if (!rm && rms[0]) setRm(rms[0]);
+          if (rms[0]) setRm(rms[0]);
         }
       } catch (e) {
-        if (!cancelled) setErr(e?.message || "Failed to load RMs");
+        if (!cancelled) {
+          setErr(e?.message || "Failed to load regional managers");
+        }
+      } finally {
+        if (!cancelled) setLoadingMembers(false);
       }
     }
 
@@ -72,24 +162,30 @@ export default function RegionalReport() {
     return () => {
       cancelled = true;
     };
-  }, [rm]);
+  }, []);
 
   async function loadReport(rmName) {
+    if (!rmName) return;
+
     try {
       setErr("");
-      setLoading(true);
+      setLoadingReport(true);
       setData(null);
 
-      const res = await fetch(`/api/reports?type=regional&rm=${encodeURIComponent(rmName)}`);
+      const res = await fetch(
+        `/api/reports?type=regional&rm=${encodeURIComponent(rmName)}`
+      );
       const json = await res.json().catch(() => ({}));
 
-      if (!res.ok) throw new Error(json.error || res.statusText);
+      if (!res.ok) {
+        throw new Error(json.error || "Failed to load regional report");
+      }
 
       setData(json);
     } catch (e) {
-      setErr(e?.message || "Failed to load report");
+      setErr(e?.message || "Failed to load regional report");
     } finally {
-      setLoading(false);
+      setLoadingReport(false);
     }
   }
 
@@ -97,9 +193,23 @@ export default function RegionalReport() {
     if (rm) loadReport(rm);
   }, [rm]);
 
-  const levels = useMemo(() => {
-    return Array.isArray(data?.levels) ? data.levels : [];
-  }, [data]);
+  const profile = data?.profile || null;
+  const totals = data?.totals || null;
+  const levels = Array.isArray(data?.levels) ? data.levels : [];
+  const members = Array.isArray(data?.members) ? data.members : [];
+  const rmRebates = Array.isArray(data?.rm_rebates) ? data.rm_rebates : [];
+  const groupSalesBonus = Array.isArray(data?.group_sales_bonus)
+    ? data.group_sales_bonus
+    : [];
+
+  const membershipChartRows = useMemo(
+    () => buildMembershipRows(data?.byType),
+    [data]
+  );
+
+  const levelChartRows = useMemo(() => buildLevelRows(levels), [levels]);
+
+  const bonusChartRows = useMemo(() => buildBonusRows(data), [data]);
 
   useEffect(() => {
     function updateScrollState() {
@@ -126,194 +236,371 @@ export default function RegionalReport() {
   function scrollLevels(direction) {
     const el = scrollRef.current;
     if (!el) return;
+
     el.scrollBy({
       left: direction * 320,
       behavior: "smooth",
     });
   }
 
-  return (
-    <div className="grid max-w-full gap-4 overflow-x-hidden">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="grid gap-1">
-          <span className="text-xs font-medium text-zinc-600">Regional Manager</span>
-          <select
-            className="h-10 w-72 max-w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-900"
-            value={rm}
-            onChange={(e) => setRm(e.target.value)}
-          >
-            {rmList.length === 0 && <option value="">No RMs yet</option>}
-            {rmList.map((x) => (
-              <option key={x} value={x}>
-                {x}
-              </option>
-            ))}
-          </select>
-        </label>
+  function updateChartType(key, value) {
+    setChartTypes((prev) => ({ ...prev, [key]: value }));
+  }
 
-        {loading && <div className="text-sm text-zinc-500">Loading...</div>}
-        {err && <div className="text-sm text-red-600">Error: {err}</div>}
+  function exportMembers() {
+    exportRowsCsv(
+      "regional-members",
+      [
+        { key: "name", label: "Name" },
+        { key: "member_id", label: "Member ID" },
+        { key: "membership_type", label: "Membership Type" },
+        { key: "sponsor_name", label: "Sponsor" },
+        { key: "relative_level", label: "Relative Level" },
+        { key: "area_region", label: "Area / Region" },
+        { key: "created_at", label: "Date Joined" },
+      ],
+      members.map((member) => ({
+        name: member.name || "",
+        member_id: member.member_id || "",
+        membership_type: member.membership_type || "",
+        sponsor_name: member.sponsor_name || "",
+        relative_level: member.relative_level ?? "",
+        area_region: member.area_region || "",
+        created_at: fmtDate(member.created_at),
+      }))
+    );
+  }
+
+  function exportRebates() {
+    exportRowsCsv(
+      "regional-rebates",
+      [
+        { key: "date", label: "Date" },
+        { key: "receiver", label: "Receiver" },
+        { key: "buyer", label: "Buyer" },
+        { key: "product", label: "Product" },
+        { key: "qty", label: "Qty" },
+        { key: "unit_type", label: "Unit Type" },
+        { key: "rebate", label: "Rebate" },
+      ],
+      rmRebates.map((row) => ({
+        date: fmtDate(row.created_at),
+        receiver: row.receiver_name || "",
+        buyer: row.buyer_name || "",
+        product: row.product || "",
+        qty: row.qty ?? "",
+        unit_type: row.unit_type || "",
+        rebate: fmtAmount(row.rebate),
+      }))
+    );
+  }
+
+  function exportGroupSales() {
+    exportRowsCsv(
+      "regional-group-sales-bonus",
+      [
+        { key: "date", label: "Date" },
+        { key: "receiver", label: "Receiver" },
+        { key: "buyer", label: "Buyer" },
+        { key: "product", label: "Product" },
+        { key: "qty", label: "Qty" },
+        { key: "unit_type", label: "Unit Type" },
+        { key: "bonus", label: "Bonus" },
+      ],
+      groupSalesBonus.map((row) => ({
+        date: fmtDate(row.created_at),
+        receiver: row.receiver_name || "",
+        buyer: row.buyer_name || "",
+        product: row.product || "",
+        qty: row.qty ?? "",
+        unit_type: row.unit_type || "",
+        bonus: fmtAmount(row.bonus),
+      }))
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-5 overflow-x-hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 bg-gradient-to-r from-blue-50 via-white to-yellow-50 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.22em] text-yellow-600">
+                Regional Intelligence
+              </div>
+
+              <h2 className="text-2xl font-black tracking-tight text-slate-950">
+                Regional Report
+              </h2>
+
+              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-500">
+                Analyze regional manager network size, downline distribution,
+                membership mix, rebates, group sales bonus, balances, and
+                exportable regional records.
+              </p>
+            </div>
+
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-700 text-white shadow-sm">
+              <ShieldCheck size={22} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {data && (
-        <>
-          <div className="grid max-w-full gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <Card title="Regional Manager Profile" className="min-w-0">
-              <div className="grid gap-y-2 text-sm sm:grid-cols-[130px_1fr]">
-                <div className="font-medium text-zinc-500">Name</div>
-                <div className="text-zinc-800">{data.profile?.name || "-"}</div>
-
-                <div className="font-medium text-zinc-500">ID Number</div>
-                <div className="text-zinc-800">{data.profile?.member_id || "-"}</div>
-
-                <div className="font-medium text-zinc-500">Address</div>
-                <div className="text-zinc-800">{data.profile?.address || "-"}</div>
-
-                <div className="font-medium text-zinc-500">Contact Number</div>
-                <div className="text-zinc-800">{data.profile?.contact || "-"}</div>
-
-                <div className="font-medium text-zinc-500">Email Address</div>
-                <div className="break-all text-zinc-800">{data.profile?.email || "-"}</div>
-              </div>
-            </Card>
-
-            <Card title="Summary" className="min-w-0">
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                <CompactMetric label="Total Members" value={fmtNumber(data.totals?.totalMembers)} />
-                <CompactMetric label="Total Rebates" value={fmtNumber(data.totals?.totalRebates)} />
-                <CompactMetric label="Total Cash Bonus" value={fmtNumber(data.totals?.totalCashBonus)} />
-                <CompactMetric label="Total Cash Earned" value={fmtNumber(data.totals?.totalCashEarned)} />
-                <CompactMetric label="Redeemed Cash" value={fmtNumber(data.totals?.redeemedCash)} />
-                <CompactMetric label="Running Cash Balance" value={fmtNumber(data.totals?.runningBalanceCash)} />
-                <CompactMetric label="Total Product Bonus" value={fmtNumber(data.totals?.totalProductBonus)} />
-                <CompactMetric
-                  label="Remaining Product Balance"
-                  value={fmtNumber(data.totals?.remainingProductBalance)}
-                />
-              </div>
-            </Card>
-          </div>
-
-          <Card title="Counts by Membership Type">
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(data.byType || {}).map(([k, v]) => (
-                <div
-                  key={k}
-                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-sm text-zinc-700"
-                >
-                  {k}: {v}
-                </div>
-              ))}
-              {Object.keys(data.byType || {}).length === 0 && (
-                <div className="text-sm text-zinc-500">No data.</div>
-              )}
-            </div>
-          </Card>
-
-          <Card
-            title="Members under this RM by Level"
-            className="min-w-0"
-            right={
-              <div className="flex items-center gap-2">
-                <span className="hidden text-xs text-zinc-500 md:inline">
-                  Swipe or use arrows to view more levels
-                </span>
-                <button
-                  type="button"
-                  onClick={() => scrollLevels(-1)}
-                  disabled={!canScrollLeft}
-                  className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
-                >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scrollLevels(1)}
-                  disabled={!canScrollRight}
-                  className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-700 disabled:opacity-40"
-                >
-                  →
-                </button>
-              </div>
-            }
+      <SectionCard
+        title="Report Criteria"
+        subtitle="Select a regional manager to generate regional-level reporting."
+        icon={Search}
+      >
+        <div className="grid items-end gap-3 md:grid-cols-[minmax(0,420px)_auto_auto]">
+          <Select
+            label="Regional Manager"
+            value={rm}
+            disabled={loadingMembers}
+            onChange={(e) => setRm(e.target.value)}
           >
-            <div className="relative max-w-full overflow-hidden">
-              {canScrollLeft && (
-                <div className="pointer-events-none absolute left-0 top-0 z-10 h-full w-10 bg-gradient-to-r from-white to-transparent" />
-              )}
-              {canScrollRight && (
-                <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-10 bg-gradient-to-l from-white to-transparent" />
-              )}
+            {rmList.length === 0 ? <option value="">No RMs yet</option> : null}
+            {rmList.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </Select>
 
-              <div
-                ref={scrollRef}
-                className="w-full overflow-x-auto overflow-y-hidden pb-3"
-              >
-                <div className="flex w-max gap-4 pr-2">
-                  {levels.map((level) => (
-                    <div
-                      key={level.level}
-                      className="w-[280px] shrink-0 rounded-2xl border border-zinc-200 bg-zinc-50"
-                    >
-                      <div className="border-b border-zinc-200 bg-white px-4 py-3">
-                        <div className="text-sm font-bold text-zinc-900">{level.level_title}</div>
-                        <div className="mt-1 text-xs text-zinc-500">
-                          {level.label || "No bonus"}
-                          {level.level <= 7 ? ` • Total: ${fmtNumber(level.bonus_total)}` : ""}
-                        </div>
-                      </div>
+          <button
+            type="button"
+            disabled={!rm || loadingReport}
+            onClick={() => loadReport(rm)}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-blue-700 px-5 text-sm font-bold text-white transition hover:bg-blue-800 disabled:opacity-60"
+          >
+            <Search size={16} />
+            {loadingReport ? "Loading..." : "Generate"}
+          </button>
 
-                      <div className="border-b border-zinc-200 bg-zinc-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                        Names ({level.member_count})
-                      </div>
+          <button
+            type="button"
+            disabled={loadingReport}
+            onClick={() => {
+              setErr("");
+              setData(null);
+            }}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            <RefreshCcw size={16} />
+            Clear
+          </button>
+        </div>
 
-                      <div className="max-h-[520px] overflow-y-auto">
-                        {(level.members || []).length === 0 ? (
-                          <div className="px-4 py-3 text-sm text-zinc-400">No members</div>
-                        ) : (
-                          <table className="w-full border-collapse text-sm">
-                            <thead className="sticky top-0 bg-white">
-                              <tr className="border-b border-zinc-200">
-                                <th className="px-4 py-2 text-left font-semibold text-zinc-700">
-                                  Name
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {level.members.map((member, idx) => (
-                                <tr
-                                  key={`${level.level}-${member.name}-${idx}`}
-                                  className="border-b border-zinc-100"
-                                >
-                                  <td className="px-4 py-2 text-zinc-800">{member.name}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {err ? (
+          <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            Error: {err}
+          </div>
+        ) : null}
+      </SectionCard>
 
-              {/* visible scrollbar track area hint */}
-              <div className="mt-2 h-2 rounded-full bg-zinc-100">
-                <div
-                  className={`h-2 rounded-full bg-zinc-300 transition-opacity ${
-                    canScrollLeft || canScrollRight ? "opacity-100" : "opacity-0"
-                  }`}
-                  style={{ width: "28%" }}
-                />
-              </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Total Members"
+          value={fmtNumber(totals?.totalMembers)}
+          helper="Downlines under selected RM"
+          icon={Users}
+          tone="blue"
+        />
 
-              <div className="mt-2 text-center text-xs text-zinc-500 md:hidden">
-                Swipe horizontally to view more levels
-              </div>
+        <StatCard
+          label="Total Cash Earned"
+          value={`₱${fmtAmount(totals?.totalCashEarned)}`}
+          helper="Rebates + group sales + cash bonus"
+          icon={TrendingUp}
+          tone="green"
+        />
+
+        <StatCard
+          label="Cash Balance"
+          value={`₱${fmtAmount(totals?.runningBalanceCash)}`}
+          helper="Total cash earned minus redeemed cash"
+          icon={WalletCards}
+          tone="gold"
+        />
+
+        <StatCard
+          label="Product Balance"
+          value={fmtNumber(totals?.remainingProductBalance)}
+          helper="Product bonus less redeemed product"
+          icon={FileText}
+          tone="purple"
+        />
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
+        <SectionCard
+          title="Regional Manager Profile"
+          subtitle="Regional manager identity and assignment details."
+          icon={UserRound}
+        >
+          {profile ? (
+            <div className="grid gap-3">
+              <ProfileRow label="Name" value={profile.name} />
+              <ProfileRow label="ID Number" value={profile.member_id} />
+              <ProfileRow label="Membership" value={profile.membership_type} />
+              <ProfileRow label="Area / Region" value={profile.area_region} />
+              <ProfileRow label="Address" value={profile.address} />
+              <ProfileRow label="Contact Number" value={profile.contact} />
+              <ProfileRow label="Email Address" value={profile.email} />
             </div>
-          </Card>
-        </>
-      )}
+          ) : (
+            <EmptyState>Select a regional manager to view profile.</EmptyState>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Compensation Breakdown"
+          subtitle="Rebates, group sales bonus, cash bonus, and product bonus."
+          icon={BarChart3}
+          right={
+            <ChartToggle
+              value={chartTypes.bonuses}
+              onChange={(value) => updateChartType("bonuses", value)}
+            />
+          }
+        >
+          {loadingReport ? (
+            <EmptyState>Loading compensation chart...</EmptyState>
+          ) : (
+            <ReportChart
+              rows={bonusChartRows}
+              type={chartTypes.bonuses}
+              money
+              emptyText="No compensation data found."
+            />
+          )}
+        </SectionCard>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <SectionCard
+          title="Membership Type Distribution"
+          subtitle="Counts grouped by downline membership type."
+          icon={PieChart}
+          right={
+            <ChartToggle
+              value={chartTypes.membership}
+              onChange={(value) => updateChartType("membership", value)}
+            />
+          }
+        >
+          {loadingReport ? (
+            <EmptyState>Loading membership chart...</EmptyState>
+          ) : (
+            <ReportChart
+              rows={membershipChartRows}
+              type={chartTypes.membership}
+              emptyText="No membership type data found."
+            />
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title="Downline Level Distribution"
+          subtitle="Network count grouped by relative level under this RM."
+          icon={Network}
+          right={
+            <ChartToggle
+              value={chartTypes.levels}
+              onChange={(value) => updateChartType("levels", value)}
+            />
+          }
+        >
+          {loadingReport ? (
+            <EmptyState>Loading level chart...</EmptyState>
+          ) : (
+            <ReportChart
+              rows={levelChartRows}
+              type={chartTypes.levels}
+              emptyText="No downline level data found."
+            />
+          )}
+        </SectionCard>
+      </div>
+
+      <SectionCard
+        title="Regional Members"
+        subtitle={`${members.length} members under this regional manager.`}
+        icon={Users}
+        right={
+          <button
+            type="button"
+            disabled={!members.length}
+            onClick={exportMembers}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Download size={16} />
+            Export CSV
+          </button>
+        }
+      >
+        {!data ? (
+          <EmptyState>Select a regional manager to view member records.</EmptyState>
+        ) : members.length === 0 ? (
+          <EmptyState>No members found under this regional manager.</EmptyState>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-100">
+            <table className="w-full min-w-[980px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                  {[
+                    "Name",
+                    "Member ID",
+                    "Membership",
+                    "Sponsor",
+                    "Level",
+                    "Area / Region",
+                    "Joined",
+                  ].map((head) => (
+                    <th
+                      key={head}
+                      className="px-4 py-3 text-xs font-black uppercase tracking-wide text-slate-500"
+                    >
+                      {head}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {members.map((member, index) => (
+                  <tr
+                    key={`${member.member_id || member.name}-${index}`}
+                    className="border-b border-slate-100 transition hover:bg-slate-50"
+                  >
+                    <td className="px-4 py-4 font-bold text-slate-950">
+                      {member.name || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-slate-700">
+                      {member.member_id || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-slate-700">
+                      {member.membership_type || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-slate-700">
+                      {member.sponsor_name || "-"}
+                    </td>
+                    <td className="px-4 py-4 font-black text-slate-950">
+                      {member.relative_level ?? "-"}
+                    </td>
+                    <td className="px-4 py-4 text-slate-700">
+                      {member.area_region || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-xs text-slate-500">
+                      {fmtDate(member.created_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }
