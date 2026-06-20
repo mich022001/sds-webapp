@@ -1,6 +1,8 @@
 const allowedOrigins = [
   "https://sds-webapp-one.vercel.app",
   "capacitor://localhost",
+  "https://localhost",
+  "ionic://localhost",
   "http://localhost",
   "http://localhost:5173",
 ];
