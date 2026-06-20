@@ -25,6 +25,11 @@ export default function Login({ onLogin, onGoForgotPassword }) {
       setLoading(true);
       setErr("");
 
+      console.log("LOGIN START");
+      console.log("location.origin =", window.location.origin);
+      console.log("location.href =", window.location.href);
+      console.log("navigator.userAgent =", navigator.userAgent);
+
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: {
@@ -36,7 +41,15 @@ export default function Login({ onLogin, onGoForgotPassword }) {
         }),
       });
 
-      const json = await res.json().catch(() => ({}));
+      console.log("LOGIN RESPONSE STATUS =", res.status);
+      console.log("LOGIN RESPONSE OK =", res.ok);
+
+      const json = await res.json().catch((jsonErr) => {
+        console.error("LOGIN JSON PARSE ERROR:", jsonErr);
+        return {};
+      });
+
+      console.log("LOGIN RESPONSE JSON =", json);
 
       if (!res.ok) {
         throw new Error(json.error || "Login failed");
@@ -46,7 +59,15 @@ export default function Login({ onLogin, onGoForgotPassword }) {
         onLogin(json.user || null);
       }
     } catch (e) {
-      setErr(e?.message || "Login failed");
+      console.error("LOGIN ERROR:", e);
+
+      setErr(
+        [
+          e?.name || "Error",
+          e?.message || "Login failed",
+          window.location.origin,
+        ].join(" | ")
+      );
     } finally {
       setLoading(false);
     }
