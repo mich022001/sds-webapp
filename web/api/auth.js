@@ -24,8 +24,37 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
+const allowedOrigins = [
+  "https://sds-webapp-one.vercel.app",
+  "capacitor://localhost",
+  "http://localhost",
+  "http://localhost:5173",
+];
+
+function setCors(req, res) {
+  const origin = req.headers.origin;
+
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization"
+  );
+  res.setHeader("Vary", "Origin");
+}
+
 export default async function handler(req, res) {
   try {
+    setCors(req, res);
+
+    if (req.method === "OPTIONS") {
+      return res.status(204).end();
+    }
+
     const sb = supabaseAdmin();
     const isProd = process.env.NODE_ENV === "production";
 
@@ -137,16 +166,18 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: memberErr.message });
       }
 
-      const { error: insertErr } = await sb.from("password_reset_requests").insert([
-        {
-          account_id: account.id,
-          username: account.username,
-          member_id: member?.member_id || account.member_id,
-          member_name: member?.name || "",
-          requested_by: account.username,
-          status: "pending",
-        },
-      ]);
+      const { error: insertErr } = await sb
+        .from("password_reset_requests")
+        .insert([
+          {
+            account_id: account.id,
+            username: account.username,
+            member_id: member?.member_id || account.member_id,
+            member_name: member?.name || "",
+            requested_by: account.username,
+            status: "pending",
+          },
+        ]);
 
       if (insertErr) {
         const msg = String(insertErr.message || "").toLowerCase();
