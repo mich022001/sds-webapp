@@ -1,3 +1,4 @@
+import { handleOptions, setCors } from "./_cors.js";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -24,37 +25,12 @@ function normalizeText(v) {
   return String(v || "").trim();
 }
 
-const allowedOrigins = [
-  "https://sds-webapp-one.vercel.app",
-  "capacitor://localhost",
-  "http://localhost",
-  "http://localhost:5173",
-];
-
-function setCors(req, res) {
-  const origin = req.headers.origin;
-
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
-  );
-  res.setHeader("Vary", "Origin");
-}
 
 export default async function handler(req, res) {
+  setCors(req, res);
+
+  if (handleOptions(req, res)) return;
   try {
-    setCors(req, res);
-
-    if (req.method === "OPTIONS") {
-      return res.status(204).end();
-    }
-
     const sb = supabaseAdmin();
     const isProd = process.env.NODE_ENV === "production";
 

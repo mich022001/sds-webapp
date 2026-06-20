@@ -1,3 +1,4 @@
+import { handleOptions, setCors } from "./_cors.js";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -51,6 +52,9 @@ function isRestrictedUser(user) {
 }
 
 export default async function handler(req, res) {
+  setCors(req, res);
+
+  if (handleOptions(req, res)) return;
   try {
     const sessionUser = parseSessionUser(req);
 

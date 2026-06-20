@@ -1,3 +1,4 @@
+import { handleOptions, setCors } from "./_cors.js";
 import { createClient } from "@supabase/supabase-js";
 
 function supabaseAdmin() {
@@ -45,6 +46,9 @@ async function generateUniqueCodes(sb, qty) {
 }
 
 export default async function handler(req, res) {
+  setCors(req, res);
+
+  if (handleOptions(req, res)) return;
   try {
     const sb = supabaseAdmin();
 
