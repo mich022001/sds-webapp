@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SurefitDS</string>
+    <string name="title_activity_main">SurefitDS</string>
+    <string name="package_name">com.sds.app</string>
+    <string name="custom_url_scheme">com.sds.app</string>
+</resources>
