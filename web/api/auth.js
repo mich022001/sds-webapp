@@ -75,8 +75,8 @@ export default async function handler(req, res) {
         cookie.serialize("sds_session", "", {
           httpOnly: true,
           path: "/",
-          sameSite: "lax",
-          secure: isProd,
+          sameSite: "none",
+          secure: true,
           expires: new Date(0),
         })
       );
@@ -221,8 +221,8 @@ export default async function handler(req, res) {
       cookie.serialize("sds_session", token, {
         httpOnly: true,
         path: "/",
-        sameSite: "lax",
-        secure: isProd,
+        sameSite: "none",
+        secure: true,
         maxAge: 60 * 60 * 24 * 7,
       })
     );
