@@ -8,10 +8,10 @@ if (keystorePropertiesFile.exists()) {
 
 
 android {
-    namespace = "com.sds.app"
+    namespace = "com.surefitds.app"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.sds.app"
+        applicationId "com.surefitds.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

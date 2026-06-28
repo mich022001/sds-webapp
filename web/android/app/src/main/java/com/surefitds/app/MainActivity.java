@@ -1,4 +1,4 @@
-package com.sds.app;
+package com.surefitds.app;
 
 import com.getcapacitor.BridgeActivity;
 
