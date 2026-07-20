@@ -64,6 +64,7 @@ const navByRole = {
   normal: [
     { key: "dashboard", label: "Dashboard" },
     { key: "registration", label: "Registration" },
+    { key: "my_members", label: "My Members" },
     { key: "my_bonuses", label: "My Bonuses" },
     { key: "sales", label: "Sales" },
     { key: "sales_analytics", label: "Sales Analytics" },
@@ -280,9 +281,10 @@ export default function App() {
 
           {active === "redemptions" && <Redemptions user={user} />}
 
-          {active === "my_members" && user.role === "rm" && (
-            <MyMembers user={user} />
-          )}
+          {active === "my_members" &&
+            (user.role === "rm" || user.role === "normal") && (
+              <MyMembers user={user} />
+            )}
 
           {active === "my_bonuses" &&
             (user.role === "rm" || user.role === "normal") && (
