@@ -302,6 +302,12 @@ async function handleMemberReport(sb, req, res) {
     return String(a.created_at || "").localeCompare(String(b.created_at || ""));
   });
 
+  const byType = downlines.reduce((acc, row) => {
+    const key = row.membership_type || "Unknown";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
   let outright_cash = 0;
   let total_cash = 0;
   let redeemable_cash = 0;
@@ -427,6 +433,7 @@ async function handleMemberReport(sb, req, res) {
   return res.status(200).json({
     member,
     totals: {
+      totalMembers: downlines.length,
       outright_cash,
       total_cash,
       redeemable_cash,
@@ -441,6 +448,7 @@ async function handleMemberReport(sb, req, res) {
       total_extra_compensation:
         total_rm_rebates + total_am_rebates + total_group_sales_bonus,
     },
+    byType,
     bonuses: combinedBonuses,
     base_bonus_ledger: bonuses ?? [],
     redemptions: redemptions ?? [],
