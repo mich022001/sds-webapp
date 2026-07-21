@@ -20,6 +20,10 @@ import Redemptions from "./pages/Redemptions";
 import MyMembers from "./pages/MyMembers";
 import MyRebates from "./pages/MyRebates";
 import LandingPage from "./pages/LandingPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+
+const normalizedPath = window.location.pathname.replace(/\/+$/, "") || "/";
+const isPrivacyPolicyPath = normalizedPath === "/privacy-policy";
 
 const navByRole = {
   super_admin: [
@@ -110,6 +114,11 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (isPrivacyPolicyPath) {
+      setAuthLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function checkAuth() {
@@ -156,6 +165,10 @@ export default function App() {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  if (isPrivacyPolicyPath) {
+    return <PrivacyPolicy />;
+  }
 
   if (authLoading) {
     return (

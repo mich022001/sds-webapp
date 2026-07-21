@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">SurefitDS</string>
     <string name="title_activity_main">SurefitDS</string>
-    <string name="package_name">com.sds.app</string>
-    <string name="custom_url_scheme">com.sds.app</string>
+    <string name="package_name">com.surefitds.app</string>
+    <string name="custom_url_scheme">com.surefitds.app</string>
 </resources>
